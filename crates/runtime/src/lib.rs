@@ -21,7 +21,7 @@ use halokey_host::{
 };
 use halokey_input::{Injector, KeyBridge, RecordingInjector};
 use halokey_proto::frame::Plaintext;
-use halokey_proto::{status, Battery, Control, KeyConfigReply, VendorKeyEvent};
+use halokey_proto::{settings, status, Battery, Control, KeyConfigReply, Lighting, VendorKeyEvent};
 
 /// 心跳间隔。
 pub const HEARTBEAT_INTERVAL: Duration = Duration::from_millis(800);
@@ -106,8 +106,22 @@ pub enum Command {
     ),
     /// 查电量。
     QueryBattery(Sender<Result<Battery, String>>),
+    /// 读设备信息（版本、降噪、指示灯），只读安全。
+    QueryInfo(Sender<DeviceInfo>),
+    /// 写指示灯参数：传入期望值，服务按当前读回算出最小写序列并逐条确认。
+    SetLighting(Lighting, Sender<Result<Lighting, String>>),
     /// 停止。
     Stop,
+}
+
+/// 只读设备信息；查不到的项为 `None`。
+#[derive(Debug, Clone, Default)]
+pub struct DeviceInfo {
+    pub firmware: Option<String>,
+    pub dongle_firmware: Option<String>,
+    pub noise_reduction: Option<[u8; 4]>,
+    pub lighting: Option<Lighting>,
+    pub errors: Vec<String>,
 }
 
 /// 构造注入器与启动器的工厂；在设备线程内调用。
@@ -361,6 +375,15 @@ impl Worker {
                 Ok(Command::QueryBattery(reply)) => {
                     let _ = reply.send(Err("接收器未连接".into()));
                 }
+                Ok(Command::QueryInfo(reply)) => {
+                    let _ = reply.send(DeviceInfo {
+                        errors: vec!["接收器未连接".into()],
+                        ..DeviceInfo::default()
+                    });
+                }
+                Ok(Command::SetLighting(_, reply)) => {
+                    let _ = reply.send(Err("接收器未连接".into()));
+                }
                 Err(mpsc::RecvTimeoutError::Timeout) => return false,
                 Err(mpsc::RecvTimeoutError::Disconnected) => return true,
             }
@@ -440,6 +463,14 @@ impl Worker {
                         (self.on_event)(Event::Battery(*b));
                     }
                     let _ = reply.send(result);
+                    self.drain_stray();
+                }
+                Ok(Command::QueryInfo(reply)) => {
+                    let _ = reply.send(query_info(transport));
+                    self.drain_stray();
+                }
+                Ok(Command::SetLighting(desired, reply)) => {
+                    let _ = reply.send(set_lighting(transport, &desired));
                     self.drain_stray();
                 }
                 Err(TryRecvError::Empty) => {}
@@ -718,4 +749,67 @@ pub fn read_keymap(transport: &mut Transport) -> Result<HostKeymap, Box<dyn std:
         })
         .collect();
     Ok(HostKeymap::from_device_bindings(&bindings)?)
+}
+
+fn query_info(transport: &mut Transport) -> DeviceInfo {
+    let mut info = DeviceInfo::default();
+    match transport.transact(&settings::DONGLE_VERSION_REQUEST, REPLY_TIMEOUT, |f| {
+        settings::is_dongle_version_reply(f)
+    }) {
+        Ok(f) => match settings::parse_version(&f) {
+            Ok(v) => info.dongle_firmware = Some(v.to_string()),
+            Err(e) => info.errors.push(format!("接收器版本：{e}")),
+        },
+        Err(e) => info.errors.push(format!("接收器版本：{e}")),
+    }
+    match transport.transact(&settings::FIRMWARE_VERSION_REQUEST, REPLY_TIMEOUT, |f| {
+        settings::is_firmware_version_reply(f)
+    }) {
+        Ok(f) => match settings::parse_version(&f) {
+            Ok(v) => info.firmware = Some(v.to_string()),
+            Err(e) => info.errors.push(format!("本体版本：{e}")),
+        },
+        Err(e) => info.errors.push(format!("本体版本：{e}")),
+    }
+    match transport.transact(&settings::NOISE_REDUCTION_REQUEST, REPLY_TIMEOUT, |f| {
+        settings::is_noise_reduction_reply(f)
+    }) {
+        Ok(f) => match settings::parse_noise_reduction(&f) {
+            Ok(n) => info.noise_reduction = Some(n.raw),
+            Err(e) => info.errors.push(format!("降噪：{e}")),
+        },
+        Err(e) => info.errors.push(format!("降噪：{e}")),
+    }
+    match read_lighting(transport) {
+        Ok(l) => info.lighting = Some(l),
+        Err(e) => info.errors.push(format!("指示灯：{e}")),
+    }
+    info
+}
+
+fn read_lighting(transport: &mut Transport) -> Result<Lighting, String> {
+    let frame = transport
+        .transact(&settings::LIGHTING_REQUEST, REPLY_TIMEOUT, |f| {
+            settings::is_lighting_reply(f)
+        })
+        .map_err(|e| e.to_string())?;
+    settings::parse_lighting(&frame).map_err(|e| e.to_string())
+}
+
+/// 先读回当前值，只写有差异的字段，每条等确认，最后再读回核对。
+fn set_lighting(transport: &mut Transport, desired: &Lighting) -> Result<Lighting, String> {
+    let current = read_lighting(transport)?;
+    let writes = settings::lighting_writes(desired, &current).map_err(|e| e.to_string())?;
+    for request in &writes {
+        transport
+            .transact(request, REPLY_TIMEOUT, |f| {
+                settings::matches_lighting_write_reply(f, request)
+            })
+            .map_err(|e| format!("指示灯写入未确认：{e}"))?;
+    }
+    let after = read_lighting(transport)?;
+    if &after != desired {
+        return Err("指示灯写入后读回与期望不一致".into());
+    }
+    Ok(after)
 }

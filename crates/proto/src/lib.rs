@@ -12,6 +12,7 @@ pub mod error;
 pub mod event;
 pub mod frame;
 pub mod keyconfig;
+pub mod settings;
 pub mod status;
 pub mod tea;
 
@@ -19,6 +20,7 @@ pub use control::Control;
 pub use error::Error;
 pub use event::VendorKeyEvent;
 pub use keyconfig::{EntryKind, KeyConfigReply, KeyEntry, MouseCode};
+pub use settings::{IndicatorLight, Lighting, NoiseReduction, Version};
 pub use status::Battery;
 
 /// USB 厂商 ID。

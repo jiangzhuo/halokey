@@ -33,6 +33,22 @@
     <div class="log" id="log"></div>
   </section>
   <section class="wide">
+    <h2>设备</h2>
+    <div class="row">
+      <span class="msg" id="info"></span>
+      <button id="info-reload">读取设备信息</button>
+    </div>
+    <div id="lighting" class="row" style="display:none; gap:18px; align-items:flex-start">
+      <label>灯光模式
+        <select id="light-mode"><option value="0">关</option><option value="1">常亮</option><option value="2">模式 2</option></select>
+      </label>
+      <label>全亮亮度 <input type="range" id="light-brightness" min="0" max="20"> <span id="light-brightness-v"></span></label>
+      <div id="lights"></div>
+      <button class="primary" id="light-apply">写入灯光</button>
+      <span class="msg" id="light-msg"></span>
+    </div>
+  </section>
+  <section class="wide">
     <h2>配置 JSON（与 olanzi 兼容，光环与指针移动为 halokey 扩展）</h2>
     <textarea id="json" spellcheck="false"></textarea>
     <div class="row">

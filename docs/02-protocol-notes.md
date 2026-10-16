@@ -40,7 +40,11 @@ The action byte is stable per control but is not a key code; hosts route by `ind
 
 [CONFIRMED] See olanzi docs 02 §6 and 05 §10: key code N is mouse button N+1, `0x05` / `0x06` are wheel up / down, and there is no pointer-movement entry. `halokey keys` renders these as `鼠标按键 N` / `滚轮↑` / `滚轮↓`.
 
-## 6. Open questions
+## 6. Lighting: breathing on every channel
+
+[CONFIRMED] olanzi only allowed `workType = 2` (breathing) on key 1 because that was the only light it had measured. halokey writes `01 0b 88 04 04 <light> …` for any of the four lights; on 2026-10-16 the knob light (index 3) was set to breathing from the settings window, the write was acknowledged, the read-back matched, and the user saw the knob light breathe. This agrees with the Windows tool `doitian/ulanzi-vibekey`, whose SDK read-back showed all four channels accepting the value.
+
+## 7. Open questions
 
 - Whether the standard HID interface stays silent while the heartbeat runs on Linux (it does on macOS). Not yet captured on this platform.
 - The meaning of bytes 6–7 of the battery notice.

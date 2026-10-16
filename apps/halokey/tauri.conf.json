@@ -38,7 +38,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src ipc: http://ipc.localhost"
     },
     "trayIcon": {
       "iconPath": "icons/icon.png",
@@ -49,6 +49,22 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "linux": {
+      "deb": {
+        "files": {
+          "/usr/lib/udev/rules.d/70-halokey.rules": "../../packaging/linux/70-halokey.rules"
+        }
+      }
+    },
+    "category": "Utility",
+    "shortDescription": "Control center for the Ulanzi Vibe Key (AU05)",
+    "longDescription": "Remap the keys and knob, run host-side actions, use the halo radial menu, and manage lighting. Installs a udev rule for /dev/hidraw and /dev/uinput; replug the receiver after installing."
   }
 }

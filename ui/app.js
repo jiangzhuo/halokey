@@ -38,20 +38,36 @@ function actionText(action, entries) {
 
 let current = null;
 
+function cell(text, cls) {
+  const td = document.createElement("td");
+  td.textContent = text;
+  if (cls) td.className = cls;
+  return td;
+}
+
+// 配置文本来自用户编辑的 JSON，一律走 textContent，不拼 HTML。
 function renderControls(map) {
   const tbody = document.querySelector("#controls tbody");
-  tbody.innerHTML = "";
+  tbody.replaceChildren();
   for (const c of [...map.controls].sort((a, b) => a.index - b.index)) {
     const tr = document.createElement("tr");
     const press = actionText(c.pressAction, c.press);
     const dbl = c.doublePressAction || c.doublePress ? actionText(c.doublePressAction, c.doublePress) : "—";
     const lng = c.longPressAction || c.longPress ? actionText(c.longPressAction, c.longPress) : "—";
-    tr.innerHTML = `<td>${CONTROL_NAMES[c.index] ?? c.index}</td><td class="action">${press}</td><td class="action">${dbl}</td><td class="action">${lng}</td>`;
+    tr.append(cell(CONTROL_NAMES[c.index] ?? String(c.index)), cell(press, "action"), cell(dbl, "action"), cell(lng, "action"));
     tbody.appendChild(tr);
   }
   const halos = document.getElementById("halos");
   if (map.halos && map.halos.length) {
-    halos.innerHTML = map.halos.map(h => `<div><span class="pill">${h.id}</span>${h.name}：${h.options.map(o => o.label).join(" · ")}</div>`).join("");
+    halos.replaceChildren();
+    for (const h of map.halos) {
+      const div = document.createElement("div");
+      const pill = document.createElement("span");
+      pill.className = "pill";
+      pill.textContent = h.id;
+      div.append(pill, `${h.name}：${h.options.map(o => o.label).join(" · ")}`);
+      halos.appendChild(div);
+    }
   }
 }
 
@@ -131,3 +147,71 @@ listen("halokey", ({ payload }) => {
 
 refreshSnapshot();
 setInterval(refreshSnapshot, 3000);
+
+
+// ---- 设备信息与灯光 ----
+const LIGHT_NAMES = ["键 1", "键 2", "键 3", "旋钮"];
+let lighting = null;
+
+function renderLighting(l) {
+  lighting = l;
+  const box = document.getElementById("lighting");
+  box.style.display = "flex";
+  document.getElementById("light-mode").value = String(l.mode);
+  const b = document.getElementById("light-brightness");
+  b.value = l.brightness;
+  document.getElementById("light-brightness-v").textContent = l.brightness;
+  const lights = document.getElementById("lights");
+  lights.replaceChildren();
+  l.lights.forEach((x, i) => {
+    const row = document.createElement("div");
+    const name = document.createElement("span");
+    name.textContent = `${LIGHT_NAMES[i]}：`;
+    const kind = document.createElement("select");
+    for (const [v, t] of [[0, "关"], [1, "常亮"], [2, "呼吸"]]) {
+      const o = document.createElement("option");
+      o.value = String(v); o.textContent = t; kind.appendChild(o);
+    }
+    kind.value = String(x.kind);
+    kind.onchange = () => { lighting.lights[i].kind = Number(kind.value); };
+    const slider = document.createElement("input");
+    slider.type = "range"; slider.min = 0; slider.max = 20; slider.value = x.alwaysOnBrightness;
+    const val = document.createElement("span");
+    val.textContent = ` 常亮 ${x.alwaysOnBrightness}`;
+    slider.oninput = () => { lighting.lights[i].alwaysOnBrightness = Number(slider.value); val.textContent = ` 常亮 ${slider.value}`; };
+    row.append(name, kind, slider, val);
+    lights.appendChild(row);
+  });
+}
+
+document.getElementById("light-mode").onchange = (e) => { if (lighting) lighting.mode = Number(e.target.value); };
+document.getElementById("light-brightness").oninput = (e) => {
+  if (lighting) lighting.brightness = Number(e.target.value);
+  document.getElementById("light-brightness-v").textContent = e.target.value;
+};
+
+async function loadInfo() {
+  const info = document.getElementById("info");
+  info.textContent = "读取中…";
+  try {
+    const i = await invoke("device_info");
+    const parts = [];
+    if (i.firmware) parts.push(`本体固件 ${i.firmware}`);
+    if (i.dongleFirmware) parts.push(`接收器固件 ${i.dongleFirmware}`);
+    if (i.noiseReduction) parts.push(`降噪原始值 ${i.noiseReduction.join(" ")}`);
+    info.textContent = parts.join(" · ") || "没有读到信息";
+    if (i.errors.length) log(`设备信息：${i.errors.join("；")}`, "bad");
+    if (i.lighting) renderLighting(i.lighting);
+  } catch (e) { info.textContent = String(e); }
+}
+document.getElementById("info-reload").onclick = loadInfo;
+document.getElementById("light-apply").onclick = async () => {
+  const msg = document.getElementById("light-msg");
+  if (!lighting) return;
+  msg.textContent = "写入中…"; msg.className = "msg";
+  try {
+    const after = await invoke("set_lighting", { lighting });
+    renderLighting(after);
+    msg.textContent = "已写入并读回确认"; msg.className = "msg ok";
+  } catch (e) { msg.textContent = String(e); msg.className = "msg bad"; }
+};

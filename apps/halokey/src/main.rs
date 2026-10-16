@@ -7,7 +7,8 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use halokey_host::{HostKeymap, HostProfile};
-use halokey_runtime::{Backends, Command, Config, Event, Service, Snapshot};
+use halokey_proto::{IndicatorLight, Lighting};
+use halokey_runtime::{Backends, Command, Config, DeviceInfo, Event, Service, Snapshot};
 use serde::Serialize;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
@@ -196,6 +197,121 @@ fn read_device_keys(state: State<'_, App>) -> Result<DeviceKeys, String> {
         .collect())
 }
 
+#[derive(Serialize, serde::Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct UiLight {
+    kind: u8,
+    work_time: u8,
+    breathe_level: u8,
+    breathe_brightness: u8,
+    always_on_brightness: u8,
+}
+
+#[derive(Serialize, serde::Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct UiLighting {
+    mode: u8,
+    brightness: u8,
+    lights: Vec<UiLight>,
+}
+
+impl From<Lighting> for UiLighting {
+    fn from(l: Lighting) -> UiLighting {
+        UiLighting {
+            mode: l.mode,
+            brightness: l.brightness,
+            lights: l
+                .lights
+                .iter()
+                .map(|x| UiLight {
+                    kind: x.kind,
+                    work_time: x.work_time,
+                    breathe_level: x.breathe_level,
+                    breathe_brightness: x.breathe_brightness,
+                    always_on_brightness: x.always_on_brightness,
+                })
+                .collect(),
+        }
+    }
+}
+
+impl TryFrom<UiLighting> for Lighting {
+    type Error = String;
+    fn try_from(u: UiLighting) -> Result<Lighting, String> {
+        if u.lights.len() != 4 {
+            return Err("指示灯参数必须有四盏灯".into());
+        }
+        let light = |x: &UiLight| IndicatorLight {
+            kind: x.kind,
+            work_time: x.work_time,
+            breathe_level: x.breathe_level,
+            breathe_brightness: x.breathe_brightness,
+            always_on_brightness: x.always_on_brightness,
+        };
+        Ok(Lighting {
+            mode: u.mode,
+            brightness: u.brightness,
+            lights: [
+                light(&u.lights[0]),
+                light(&u.lights[1]),
+                light(&u.lights[2]),
+                light(&u.lights[3]),
+            ],
+        })
+    }
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct UiDeviceInfo {
+    firmware: Option<String>,
+    dongle_firmware: Option<String>,
+    noise_reduction: Option<[u8; 4]>,
+    lighting: Option<UiLighting>,
+    errors: Vec<String>,
+}
+
+impl From<DeviceInfo> for UiDeviceInfo {
+    fn from(i: DeviceInfo) -> UiDeviceInfo {
+        UiDeviceInfo {
+            firmware: i.firmware,
+            dongle_firmware: i.dongle_firmware,
+            noise_reduction: i.noise_reduction,
+            lighting: i.lighting.map(UiLighting::from),
+            errors: i.errors,
+        }
+    }
+}
+
+#[tauri::command]
+fn device_info(state: State<'_, App>) -> Result<UiDeviceInfo, String> {
+    let guard = state.service.lock().map_err(|e| e.to_string())?;
+    let service = guard.as_ref().ok_or("服务未运行")?;
+    let (tx, rx) = std::sync::mpsc::channel();
+    if !service.send(Command::QueryInfo(tx)) {
+        return Err("设备线程已退出".into());
+    }
+    let info = rx
+        .recv_timeout(std::time::Duration::from_secs(12))
+        .map_err(|_| "读取超时")?;
+    Ok(info.into())
+}
+
+#[tauri::command]
+fn set_lighting(state: State<'_, App>, lighting: UiLighting) -> Result<UiLighting, String> {
+    let desired = Lighting::try_from(lighting)?;
+    let guard = state.service.lock().map_err(|e| e.to_string())?;
+    let service = guard.as_ref().ok_or("服务未运行")?;
+    let (tx, rx) = std::sync::mpsc::channel();
+    if !service.send(Command::SetLighting(desired, tx)) {
+        return Err("设备线程已退出".into());
+    }
+    let result = rx
+        .recv_timeout(std::time::Duration::from_secs(20))
+        .map_err(|_| "写入超时")??;
+    Ok(result.into())
+}
+
 fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
@@ -226,7 +342,9 @@ fn main() {
             snapshot,
             get_keymap,
             save_keymap,
-            read_device_keys
+            read_device_keys,
+            device_info,
+            set_lighting
         ])
         .setup(move |app| {
             let handle = app.handle().clone();

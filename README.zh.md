@@ -25,6 +25,8 @@ cargo run -p halokey-app                         # 托盘应用：设置窗口 +
 
 `docs/examples/halo-menu.json` 把一个两级光环菜单放在旋钮按下上；复制到 `~/.config/halokey/keymap.json`，或粘贴进设置窗口。
 
+Debian/Ubuntu 安装：在 `apps/halokey` 里 `cargo tauri build --bundles deb`，然后 `sudo dpkg -i target/release/bundle/deb/halokey_*.deb`，重新插拔接收器让自带的 udev 规则生效。
+
 `set-key` 改的是设备自己的表。先挑一个改坏也没关系的格子，并记下它打印的旧值。
 
 ## 为什么再做一个
@@ -39,7 +41,7 @@ Ulanzi Studio 只支持 Windows 和 macOS。目前所有社区项目要么只做
 | 按键与旋钮重映射、分层、单击 / 双击 / 长按 | **已完成**：`halokey-host`，连同测试从 olanzi 移植 |
 | 主机侧动作：键盘、鼠标按键、滚轮、指针移动、切换应用、宏、shell | 除 shell 命令外都已在 Linux X11 上通过 `halokey run` 可用；shell 命令计划中 |
 | 环形"光环"菜单：由旋钮驱动的八选项悬浮层 | **已完成**（Linux）：键位里的 `halos`，支持多级，在 GNOME/X11 上验证 |
-| 灯光、降噪、待机时间、电量读取 | 协议已知，计划中 |
+| 灯光、降噪、待机时间、电量读取 | 灯光读写、电量、版本已完成（实测四盏灯都能呼吸）；降噪只读；待机时间计划中 |
 | 托盘 / 菜单栏图标、登录启动、自动更新 | 托盘图标和设置窗口已完成（`apps/halokey`，Tauri 2）；登录启动与自动更新计划中 |
 
 ## 平台矩阵

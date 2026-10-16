@@ -25,6 +25,8 @@ cargo run -p halokey-app                         # tray app: settings window + h
 
 `docs/examples/halo-menu.json` puts a two-level halo menu on the knob press; copy it to `~/.config/halokey/keymap.json` or paste it into the settings window.
 
+To install on Debian/Ubuntu: `cargo tauri build --bundles deb` in `apps/halokey`, then `sudo dpkg -i target/release/bundle/deb/halokey_*.deb` and replug the receiver so the bundled udev rule applies.
+
 `set-key` writes the device's own table. Pick a slot you can afford to break first, and note the old value it prints.
 
 ## Why another one
@@ -39,7 +41,7 @@ Ulanzi Studio supports only Windows and macOS. Every community project so far is
 | Key and knob remapping, layers, single / double / long press | **done** in `halokey-host`, ported from olanzi with its tests |
 | Host actions: keyboard, mouse buttons, wheel, pointer movement, app switching, macros, shell | all but shell commands work on Linux X11 via `halokey run`; shell commands are planned |
 | Radial "halo" menu: an eight-option overlay driven by the knob | **done** on Linux: `halos` in the keymap, nested menus, verified on GNOME/X11 |
-| Lighting, noise reduction, standby timeouts, battery readout | protocol known, planned |
+| Lighting, noise reduction, standby timeouts, battery readout | lighting read/write, battery and versions done (verified: breathing works on all four lights); noise reduction read-only; standby timeouts planned |
 | Tray / menu bar icon, launch at login, auto-update | tray icon and settings window done (`apps/halokey`, Tauri 2); login item and auto-update planned |
 
 ## Platform matrix
