@@ -48,7 +48,11 @@ The action byte is stable per control but is not a key code; hosts route by `ind
 
 [CONFIRMED] With the heartbeat running the key unit never enters standby, which drains the battery overnight. halokey therefore hands control back after a configurable idle period: it sends `01 01 10 00 00`, stops the heartbeat, and only listens on interface 2. On 2026-10-16 with a one-minute timeout the sequence `key 1 → 75 s idle → key 1 → key 1` produced "idle timeout, control handed back", the firmware typed the stored key for the next press (seen on interface 2), halokey took over again with `01 01 10 00 03`, and the following press arrived as a vendor event. After the handoff the unit soon reports `status = 0` to the online query while in standby, and a host that starts while the unit is in standby cannot read the key table until it wakes; halokey starts with the factory map in that case and reads the table once the unit answers.
 
-## 8. Open questions
+## 8. Power and microphone settings
+
+[CONFIRMED] The standby-state, standby-delay, sleep-delay, microphone-enable and noise-reduction reads listed in vibed's recovered command table answer on firmware 4.4.x as described: `01 01 0d 01` (byte 4), `01 01 2c 01` and `01 01 42 01` (u32 little-endian at offset 4), `01 01 2a 01` (byte 4), `01 01 90 01` (level at 4, low u16 at 5, high u16 at 7). Writing noise reduction with `01 01 90 04 <level> 40 06 e8 03` (Studio's 1600 / 1000 parameters) off and on again read back the new level each time. halokey verifies every one of these writes by read-back instead of parsing an acknowledgement frame.
+
+## 9. Open questions
 
 - Whether the standard HID interface stays silent while the heartbeat runs on Linux (it does on macOS). Not yet captured on this platform.
 - The meaning of bytes 6–7 of the battery notice.
