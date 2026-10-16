@@ -103,10 +103,7 @@ pub fn linux_keycode(usage: u8) -> Option<u16> {
         0x61 => 73,  // KP 9
         0x62 => 82,  // KP 0
         0x63 => 83,  // KP .
-        0x64 => 86,  // 102nd
         0x65 => 127, // Menu / Compose
-        0x66 => 116, // Power
-        0x67 => 117, // KP =
         0x68 => 183, // F13
         0x69 => 184,
         0x6A => 185,

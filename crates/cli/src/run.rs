@@ -135,7 +135,10 @@ pub fn run(transport: &mut Transport, options: Options) -> Result<(), Box<dyn st
             }
             Ok(None) => {}
             Err(e) => {
-                eprintln!("✗ 读取失败：{e}");
+                // Ctrl-C 会打断阻塞读取（EINTR），这不是故障。
+                if !stop.load(Ordering::SeqCst) {
+                    eprintln!("✗ 读取失败：{e}");
+                }
                 break;
             }
         }
