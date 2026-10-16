@@ -56,6 +56,7 @@ crates/hid       hidapi 传输、心跳、热插拔
 crates/host      键位模型、手势路由、宏、动作执行
 crates/input     uinput / CGEvent / SendInput 后端
 crates/wm        切换应用后端
+crates/runtime   命令行与桌面应用共用的设备服务线程
 apps/halokey     Tauri 2 外壳：托盘、设置窗、光环悬浮层
 docs/            设计与协议笔记，英文为默认，`.zh.md` 为中文版
 tools/           仓库检查脚本

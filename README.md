@@ -56,6 +56,7 @@ crates/hid       hidapi transport, heartbeat, hotplug
 crates/host      keymap model, gesture router, macros, action runner
 crates/input     uinput / CGEvent / SendInput backends
 crates/wm        app switching backends
+crates/runtime   device service thread shared by the CLI and the app
 apps/halokey     Tauri 2 shell: tray, settings window, halo overlay
 docs/            design and protocol notes, English default with `.zh.md` twins
 tools/           repository checks

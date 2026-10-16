@@ -28,10 +28,12 @@ crates/input     trait Injector { key_down, key_up, mouse_button, wheel, pointer
                  Linux: uinput · macOS: CGEvent · Windows: SendInput
 crates/wm        trait Launcher { launch(app) -> Activation, is_frontmost(app), poll() }
                  Linux: X11 EWMH now, Wayland per compositor later · macOS: NSWorkspace · Windows: Win32
+crates/runtime   the device service: one thread owning transport, heartbeat, router, injector,
+                 runner; commands in, snapshots and events out. Shared by the CLI and the app.
 apps/halokey     Tauri 2: tray, settings window (webview), halo overlay window, CLI subcommands
 ```
 
-Dependency direction is strictly downward: `apps` → `host` → `proto`; `hid`, `input`, `wm` are leaves that `apps` wires together.
+Dependency direction is strictly downward: `apps` → `runtime` → `host` → `proto`; `hid`, `input`, `wm` are leaves that `runtime` wires together.
 
 ## 3. Data flow
 

@@ -214,15 +214,14 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             dry_run,
             verbose,
         } => {
-            transport.set_sink(None);
-            run::run(
-                &mut transport,
-                run::Options {
-                    config,
-                    dry_run,
-                    verbose,
-                },
-            )?;
+            // 服务自己打开接收器；先释放这里为其他命令打开的句柄。
+            drop(transport);
+            run::run(run::Options {
+                config,
+                dry_run,
+                verbose,
+                serial: cli.serial.clone(),
+            })?;
         }
         Command::Online { state } => {
             transport.set_software_online(matches!(state, OnOff::On))?;

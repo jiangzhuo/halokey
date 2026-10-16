@@ -230,6 +230,7 @@ dependencies = [
  "halokey-host",
  "halokey-input",
  "halokey-proto",
+ "halokey-runtime",
  "halokey-wm",
  "serde_json",
 ]
@@ -263,6 +264,17 @@ dependencies = [
 [[package]]
 name = "halokey-proto"
 version = "0.0.1"
+
+[[package]]
+name = "halokey-runtime"
+version = "0.0.1"
+dependencies = [
+ "halokey-hid",
+ "halokey-host",
+ "halokey-input",
+ "halokey-proto",
+ "halokey-wm",
+]
 
 [[package]]
 name = "halokey-wm"

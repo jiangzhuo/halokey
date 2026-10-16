@@ -1,0 +1,18 @@
+[package]
+name = "halokey-runtime"
+description = "The halokey device service: one thread that owns the vendor channel, heartbeat, gesture router, injector and action runner."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+halokey-proto = { path = "../proto" }
+halokey-hid = { path = "../hid" }
+halokey-host = { path = "../host" }
+halokey-input = { path = "../input" }
+halokey-wm = { path = "../wm" }
+
+[lints]
+workspace = true

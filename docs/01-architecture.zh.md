@@ -28,10 +28,12 @@ crates/input     trait Injector { key_down, key_up, mouse_button, wheel, pointer
                  Linux：uinput · macOS：CGEvent · Windows：SendInput
 crates/wm        trait Launcher { launch(app) -> Activation, is_frontmost(app), poll() }
                  Linux：先做 X11 EWMH，Wayland 之后按合成器适配 · macOS：NSWorkspace · Windows：Win32
+crates/runtime   设备服务：一个线程拥有传输、心跳、路由、注入器、执行器；
+                 命令进、快照与事件出。命令行与桌面应用共用。
 apps/halokey     Tauri 2：托盘、设置窗（webview）、光环悬浮窗、CLI 子命令
 ```
 
-依赖方向严格向下：`apps` → `host` → `proto`；`hid`、`input`、`wm` 是叶子，由 `apps` 组装。
+依赖方向严格向下：`apps` → `runtime` → `host` → `proto`；`hid`、`input`、`wm` 是叶子，由 `runtime` 组装。
 
 ## 3. 数据流
 
