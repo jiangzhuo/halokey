@@ -2,9 +2,10 @@
 //!
 //! [`Injector`] 是平台无关的接口：键盘条目按 HID Usage ID 传入，鼠标按键与滚轮、
 //! 指针移动用相对量。Linux 用 uinput 虚拟设备（X11 与 Wayland 通吃）；
-//! macOS（CGEvent）与 Windows（SendInput）后端尚未实现，`open_default` 在那些平台返回错误。
+//! macOS 用 CGEvent（需要辅助功能权限），Windows 用 SendInput。
+//! macOS 与 Windows 后端只经编译检查，尚未在真机验证。
 
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 
 use std::fmt;
 
@@ -16,6 +17,10 @@ pub mod bridge;
 pub mod hid_usage;
 #[cfg(target_os = "linux")]
 pub mod linux;
+#[cfg(target_os = "macos")]
+pub mod macos;
+#[cfg(target_os = "windows")]
+pub mod windows;
 
 /// 注入错误。
 #[derive(Debug)]
@@ -71,11 +76,11 @@ pub fn open_default() -> Result<Box<dyn Injector>, Error> {
     }
     #[cfg(target_os = "macos")]
     {
-        Err(Error::Unsupported("macOS"))
+        Ok(Box::new(macos::CgEventInjector::open()?))
     }
     #[cfg(target_os = "windows")]
     {
-        Err(Error::Unsupported("Windows"))
+        Ok(Box::new(windows::SendInputInjector::open()?))
     }
     #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
     {
