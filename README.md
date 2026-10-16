@@ -4,7 +4,7 @@
 
 Cross-platform, open-source control center for the Ulanzi Vibe Key (AU05): remap the three keys and the knob, run host-side actions, pick from a radial on-screen menu, and manage lighting, microphone and power settings. One codebase for Linux, macOS and Windows.
 
-**Status: pre-alpha.** On Linux the whole chain runs: protocol, transport, host model, headless daemon, tray app with a settings window and the halo overlay. macOS and Windows backends do not exist yet.
+**Status: pre-alpha.** On Linux the whole chain runs: protocol, transport, host model, headless daemon, tray app with a settings window and the halo overlay. The macOS and Windows backends compile but have not run on hardware.
 
 ## Try it now
 
@@ -49,8 +49,8 @@ Ulanzi Studio supports only Windows and macOS. Every community project so far is
 | Component | Linux | macOS | Windows |
 |---|---|---|---|
 | HID transport | `hidraw` via hidapi | IOKit via hidapi | Win32 HID via hidapi |
-| Input injection | uinput | CGEvent | SendInput |
-| App switching | X11 EWMH (done), Wayland per compositor | NSWorkspace | SetForegroundWindow |
+| Input injection | uinput (done) | CGEvent (compile-checked, untested) | SendInput (compile-checked, untested) |
+| App switching | X11 EWMH (done), Wayland per compositor | NSWorkspace + `open` (compile-checked) | SetForegroundWindow (compile-checked) |
 | Overlay window | X11 ready, Wayland needs layer-shell | non-activating panel | no-activate window |
 
 ## Repository layout

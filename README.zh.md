@@ -4,7 +4,7 @@
 
 Ulanzi Vibe Key（AU05）的跨平台开源控制中心：重映射三个按键和旋钮，执行主机侧动作，用屏幕上的环形菜单做选择，管理灯光、麦克风和电源设置。一套代码覆盖 Linux、macOS 和 Windows。
 
-**状态：pre-alpha。** Linux 上整条链路已经跑通：协议、传输、主机模型、无界面守护进程、带设置窗口和光环悬浮层的托盘应用。macOS 与 Windows 后端尚未开始。
+**状态：pre-alpha。** Linux 上整条链路已经跑通：协议、传输、主机模型、无界面守护进程、带设置窗口和光环悬浮层的托盘应用。macOS 与 Windows 后端已能编译，但没在真机上跑过。
 
 ## 现在就能试
 
@@ -49,8 +49,8 @@ Ulanzi Studio 只支持 Windows 和 macOS。目前所有社区项目要么只做
 | 组件 | Linux | macOS | Windows |
 |---|---|---|---|
 | HID 传输 | hidapi 走 `hidraw` | hidapi 走 IOKit | hidapi 走 Win32 HID |
-| 输入注入 | uinput | CGEvent | SendInput |
-| 切换应用 | X11 EWMH（已完成），Wayland 按合成器适配 | NSWorkspace | SetForegroundWindow |
+| 输入注入 | uinput（已完成） | CGEvent（仅编译检查，未实测） | SendInput（仅编译检查，未实测） |
+| 切换应用 | X11 EWMH（已完成），Wayland 按合成器适配 | NSWorkspace + `open`（仅编译检查） | SetForegroundWindow（仅编译检查） |
 | 悬浮窗 | X11 可用，Wayland 需要 layer-shell | 不抢焦点的面板 | 不激活的窗口 |
 
 ## 仓库布局
