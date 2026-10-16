@@ -215,3 +215,21 @@ document.getElementById("light-apply").onclick = async () => {
     msg.textContent = "已写入并读回确认"; msg.className = "msg ok";
   } catch (e) { msg.textContent = String(e); msg.className = "msg bad"; }
 };
+
+
+// ---- 写入设备表 & 登录启动 ----
+document.getElementById("write-device").onclick = async () => {
+  const msg = document.getElementById("controls-msg");
+  if (!confirm("把基础层的键盘 / 鼠标条目写进设备自己的表？这会持久保存在设备里，应用不运行时设备按它直出。")) return;
+  msg.textContent = "写入中…";
+  try {
+    const report = await invoke("write_device_keys");
+    msg.textContent = report.join("；");
+  } catch (e) { msg.textContent = String(e); }
+};
+const autostart = document.getElementById("autostart");
+invoke("get_autostart").then(v => { autostart.checked = v; }).catch(() => {});
+autostart.onchange = async () => {
+  try { autostart.checked = await invoke("set_autostart", { enabled: autostart.checked }); }
+  catch (e) { log(`✗ 登录启动：${e}`, "bad"); autostart.checked = !autostart.checked; }
+};

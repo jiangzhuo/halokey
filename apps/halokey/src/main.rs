@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use halokey_host::{HostKeymap, HostProfile};
+use halokey_host::{HostAction, HostKeymap, HostProfile};
 use halokey_proto::{IndicatorLight, Lighting};
 use halokey_runtime::{Backends, Command, Config, DeviceInfo, Event, Service, Snapshot};
 use serde::Serialize;
@@ -312,6 +312,95 @@ fn set_lighting(state: State<'_, App>, lighting: UiLighting) -> Result<UiLightin
     Ok(result.into())
 }
 
+fn autostart_path() -> PathBuf {
+    let base = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
+        .unwrap_or_else(|| PathBuf::from("."));
+    base.join("autostart").join("halokey.desktop")
+}
+
+#[tauri::command]
+fn get_autostart() -> bool {
+    autostart_path().exists()
+}
+
+/// 登录启动：写 / 删 XDG autostart 条目，Exec 指向当前可执行文件。
+#[tauri::command]
+fn set_autostart(enabled: bool) -> Result<bool, String> {
+    let path = autostart_path();
+    if !enabled {
+        match std::fs::remove_file(&path) {
+            Ok(()) => return Ok(false),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+            Err(e) => return Err(e.to_string()),
+        }
+    }
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let entry = format!(
+        "[Desktop Entry]\nType=Application\nName=halokey\nComment=Ulanzi Vibe Key control center\nExec={}\nIcon=halokey-app\nTerminal=false\nX-GNOME-Autostart-enabled=true\n",
+        exe.display()
+    );
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, entry).map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
+/// 把基础层六个控件的单击条目写进设备自己的表，应用不运行时设备照此直出。
+/// 只写纯键盘 / 鼠标页条目；其他动作（应用、宏、光环、指针）对应的控件保持设备现值不变。
+#[tauri::command]
+fn write_device_keys(state: State<'_, App>) -> Result<Vec<String>, String> {
+    let guard = state.service.lock().map_err(|e| e.to_string())?;
+    let service = guard.as_ref().ok_or("服务未运行")?;
+    let map = service.snapshot().keymap.ok_or("还没有键位")?;
+    let mut report = Vec::new();
+    for control in &map.controls {
+        let Some(HostAction::Keyboard(entries)) = Some(control.effective_press()) else {
+            report.push(format!(
+                "控件 {}：非键盘动作，设备表保持不变",
+                control.index
+            ));
+            continue;
+        };
+        let entries: Vec<halokey_proto::KeyEntry> = entries
+            .iter()
+            .filter(|e| e.code != 0 || e.kind != 2)
+            .map(|e| halokey_proto::KeyEntry::from_bytes(e.kind, e.code))
+            .collect();
+        let entries = if entries.is_empty() {
+            vec![halokey_proto::KeyEntry::keyboard(0x01)]
+        } else {
+            entries
+        };
+        if entries.len() > halokey_proto::keyconfig::MAX_ENTRIES {
+            report.push(format!(
+                "控件 {}：条目超过 {} 个，跳过",
+                control.index,
+                halokey_proto::keyconfig::MAX_ENTRIES
+            ));
+            continue;
+        }
+        let (tx, rx) = std::sync::mpsc::channel();
+        if !service.send(Command::WriteKey(control.index, entries, tx)) {
+            return Err("设备线程已退出".into());
+        }
+        match rx
+            .recv_timeout(std::time::Duration::from_secs(12))
+            .map_err(|_| "写入超时")?
+        {
+            Ok(reply) => report.push(format!(
+                "控件 {}：已写入 {} 个条目并读回核对",
+                reply.index,
+                reply.entries.len()
+            )),
+            Err(e) => report.push(format!("控件 {}：失败 {e}", control.index)),
+        }
+    }
+    Ok(report)
+}
+
 fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
@@ -344,7 +433,10 @@ fn main() {
             save_keymap,
             read_device_keys,
             device_info,
-            set_lighting
+            set_lighting,
+            get_autostart,
+            set_autostart,
+            write_device_keys
         ])
         .setup(move |app| {
             let handle = app.handle().clone();

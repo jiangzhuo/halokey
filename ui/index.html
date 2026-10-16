@@ -23,6 +23,7 @@
     </table>
     <div class="row">
       <button id="reload">从设备重读</button>
+      <button id="write-device">写入设备（离线备用）</button>
       <span class="msg" id="controls-msg"></span>
     </div>
   </section>
@@ -37,6 +38,7 @@
     <div class="row">
       <span class="msg" id="info"></span>
       <button id="info-reload">读取设备信息</button>
+      <label style="margin-left:auto"><input type="checkbox" id="autostart"> 登录时启动</label>
     </div>
     <div id="lighting" class="row" style="display:none; gap:18px; align-items:flex-start">
       <label>灯光模式
