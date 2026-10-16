@@ -4,7 +4,7 @@
 
 Cross-platform, open-source control center for the Ulanzi Vibe Key (AU05): remap the three keys and the knob, run host-side actions, pick from a radial on-screen menu, and manage lighting, microphone and power settings. One codebase for Linux, macOS and Windows.
 
-**Status: pre-alpha.** The protocol crate and the hidapi transport are done and verified on Linux; the daemon, settings UI and halo overlay do not exist yet.
+**Status: pre-alpha.** Protocol, transport, host model and a headless daemon exist and run on Linux; macOS and Windows backends, the settings UI and the halo overlay do not exist yet.
 
 ## Try it now
 
@@ -16,6 +16,7 @@ cargo run -p halokey-cli -- status               # online state, battery, voltag
 cargo run -p halokey-cli -- keys                 # the six on-device key slots
 cargo run -p halokey-cli -- monitor --heartbeat  # decode vendor events while you press keys
 cargo run -p halokey-cli -- set-key 0 kb 0x68    # write key 1 = F13, then read back (persists on the device)
+cargo run -p halokey-cli -- run -v               # daemon: heartbeat, gestures, uinput injection (needs /dev/uinput)
 ```
 
 `set-key` writes the device's own table. Pick a slot you can afford to break first, and note the old value it prints.
@@ -29,8 +30,8 @@ Ulanzi Studio supports only Windows and macOS. Every community project so far is
 | Feature | State |
 |---|---|
 | Vendor channel (TEA-encrypted HID, report ID `0x55`) | **done**: `halokey-proto` + `halokey-hid`, verified on Linux `hidraw` |
-| Key and knob remapping, layers, single / double / long press | design carried over from olanzi |
-| Host actions: keyboard, mouse buttons, wheel, pointer movement, app switching, macros, shell | planned |
+| Key and knob remapping, layers, single / double / long press | **done** in `halokey-host`, ported from olanzi with its tests |
+| Host actions: keyboard, mouse buttons, wheel, pointer movement, app switching, macros, shell | keyboard, mouse buttons and wheel work on Linux via `halokey run`; the rest is planned |
 | Radial "halo" menu: an eight-option overlay driven by the knob | planned |
 | Lighting, noise reduction, standby timeouts, battery readout | protocol known, planned |
 | Tray / menu bar icon, launch at login, auto-update | planned |
