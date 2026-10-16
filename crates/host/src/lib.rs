@@ -13,7 +13,9 @@ pub mod gesture;
 pub mod keymap;
 pub mod profile;
 
-pub use action::{ApplicationTarget, HostAction, KeyEntry, MacroStep, NamedHostAction};
+pub use action::{
+    ApplicationTarget, HostAction, KeyEntry, MacroStep, NamedHostAction, PointerDelta,
+};
 pub use error::Error;
 pub use gesture::{GestureRouter, Transition};
 pub use keymap::{ControlActionMap, ControlGesture, HostKeymap, HostLayer, LongPressBehavior};

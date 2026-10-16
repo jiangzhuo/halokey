@@ -2,6 +2,7 @@
 //!
 //! Layer 0 是完整的六控件基础映射；Layer 1–3 是稀疏覆盖，未记录的控件或标记为
 //! 透明继承的手势从较低的活动层继承。版本号由内容决定：使用了哪些特性就写哪个版本。
+//! 版本 6 是 halokey 扩展（指针移动、鼠标页条目），olanzi 会拒绝，这正是想要的。
 
 use std::collections::{BTreeSet, HashSet};
 
@@ -210,6 +211,23 @@ impl HostKeymap {
 
     /// 内容所需的最低版本。
     pub fn required_version(&self) -> u32 {
+        let extended = self.all_controls().any(|c| {
+            c.press
+                .iter()
+                .chain(c.double_press.iter().flatten())
+                .chain(c.long_press.iter().flatten())
+                .any(|e| e.kind != 0x02)
+                || c.actions()
+                    .iter()
+                    .filter_map(|a| a.as_ref())
+                    .any(HostAction::uses_halokey_extensions)
+        }) || self
+            .action_library
+            .iter()
+            .any(|i| i.action.uses_halokey_extensions());
+        if extended {
+            return 6;
+        }
         if self
             .all_controls()
             .any(ControlActionMap::uses_non_default_output)
@@ -245,16 +263,21 @@ impl HostKeymap {
         }
     }
 
+    /// 支持的最高版本。
+    pub const MAX_VERSION: u32 = 6;
+
     /// 把版本号对齐到内容；版本已越界时保留原值，由校验报错。
     pub fn normalize_version(&mut self) {
-        if (1..=5).contains(&self.version) {
+        if (1..=Self::MAX_VERSION).contains(&self.version) {
             self.version = self.required_version();
         }
     }
 
     /// 完整校验，与 olanzi 一致。
     pub fn validate(&self) -> Result<(), Error> {
-        if !(1..=5).contains(&self.version) || self.version < self.required_version() {
+        if !(1..=Self::MAX_VERSION).contains(&self.version)
+            || self.version < self.required_version()
+        {
             return Err(Error::UnsupportedVersion);
         }
         let indices: HashSet<u8> = self.controls.iter().map(|c| c.index).collect();
@@ -448,7 +471,7 @@ impl HostKeymap {
             .get("version")
             .and_then(serde_json::Value::as_u64)
             .ok_or(Error::UnsupportedVersion)?;
-        if !(1..=5).contains(&version) {
+        if !(1..=u64::from(Self::MAX_VERSION)).contains(&version) {
             return Err(Error::UnsupportedVersion);
         }
         let wire: Wire = serde_json::from_value(value)?;

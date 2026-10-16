@@ -38,7 +38,10 @@ fn load_config(path: &PathBuf) -> Result<HostKeymap, Box<dyn std::error::Error>>
     }
 }
 
-fn keymap_from_device(transport: &mut Transport) -> Result<HostKeymap, Box<dyn std::error::Error>> {
+/// 读设备六格表，生成基础主机映射。
+pub fn keymap_from_device(
+    transport: &mut Transport,
+) -> Result<HostKeymap, Box<dyn std::error::Error>> {
     let mut bindings: Vec<(u8, Vec<KeyEntry>)> = Vec::new();
     for control in Control::ALL {
         let reply = transport.read_key(control.index(), REPLY_TIMEOUT)?;
@@ -135,10 +138,11 @@ pub fn run(transport: &mut Transport, options: Options) -> Result<(), Box<dyn st
             }
             Ok(None) => {}
             Err(e) => {
-                // Ctrl-C 会打断阻塞读取（EINTR），这不是故障。
-                if !stop.load(Ordering::SeqCst) {
-                    eprintln!("✗ 读取失败：{e}");
+                // Ctrl-C 会打断阻塞读取（EINTR）；信号处理线程可能还没来得及置位，所以回到循环顶再判断。
+                if e.to_string().contains("Interrupted") {
+                    continue;
                 }
+                eprintln!("✗ 读取失败：{e}");
                 break;
             }
         }
@@ -188,7 +192,14 @@ fn handle(
     }
     let applied = bridge.apply(injector, transitions);
     for (index, action) in applied.execute {
-        println!("  (控件 {index} 的动作 {action:?} 尚未支持执行)");
+        match action {
+            halokey_host::HostAction::PointerMove(delta) => {
+                if let Err(e) = injector.pointer_move(delta.dx, delta.dy) {
+                    eprintln!("✗ 控件 {index} 指针移动失败：{e}");
+                }
+            }
+            other => println!("  (控件 {index} 的动作 {other:?} 尚未支持执行)"),
+        }
     }
     for (index, e) in applied.failures {
         eprintln!("✗ 控件 {index} 注入失败：{e}");

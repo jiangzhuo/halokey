@@ -52,6 +52,8 @@ enum Command {
         #[arg(long, default_value_t = 30)]
         seconds: u64,
     },
+    /// 把设备里的六格表导出为主机键位 JSON（可编辑后用 `run --config` 加载）。
+    ExportKeymap,
     /// 无界面守护进程：心跳 + 厂商事件 → 手势 → 注入（Linux uinput）。
     Run {
         /// HostProfile 或 HostKeymap JSON；缺省用设备里的六格表。
@@ -200,6 +202,12 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             if heartbeat {
                 println!("共发送心跳 {} 次", transport.heartbeats_sent());
             }
+        }
+        Command::ExportKeymap => {
+            let keymap = run::keymap_from_device(&mut transport)?;
+            let bytes = keymap.to_json()?;
+            let value: serde_json::Value = serde_json::from_slice(&bytes)?;
+            println!("{}", serde_json::to_string_pretty(&value)?);
         }
         Command::Run {
             config,

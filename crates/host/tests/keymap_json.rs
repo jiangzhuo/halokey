@@ -212,6 +212,25 @@ fn version_selection_follows_content() {
     stale.version = 1;
     assert_eq!(stale.validate(), Err(Error::UnsupportedVersion));
     // 未知的未来动作先报版本不兼容。
+    // 指针移动与鼠标页条目是 halokey 扩展，写版本 6。
+    let mut extended = keymap();
+    extended.controls[4].press_action = Some(HostAction::PointerMove(halokey_host::PointerDelta {
+        dx: 20,
+        dy: 0,
+    }));
+    extended.normalize_version();
+    assert_eq!(extended.version, 6);
+    assert!(extended.validate().is_ok());
+    let text = String::from_utf8(extended.to_json().unwrap()).unwrap();
+    assert!(
+        text.contains(r#""version":6"#)
+            && text.contains(r#""pointerMove":{"_0":{"dx":20,"dy":0}}"#)
+    );
+    assert_eq!(HostKeymap::from_json(text.as_bytes()).unwrap(), extended);
+    let mut wheel = keymap();
+    wheel.controls[5].press = vec![KeyEntry::mouse(halokey_proto::MouseCode::WheelUp)];
+    wheel.normalize_version();
+    assert_eq!(wheel.version, 6);
     let future = r#"{"version":9,"controls":[],"doublePressWindow":0.25,"longPressThreshold":0.5}"#;
     assert_eq!(
         HostKeymap::from_json(future.as_bytes()),

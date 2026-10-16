@@ -25,6 +25,7 @@ pub enum Error {
     MissingLibraryAction,
     UnsupportedKeyEntry(u8, u8),
     TooManyKeyEntries,
+    InvalidPointerDelta,
     Json(String),
 }
 
@@ -55,6 +56,7 @@ impl fmt::Display for Error {
                 write!(f, "不支持类型 0x{kind:02X} 键码 0x{code:02X} 的键盘条目。")
             }
             Error::TooManyKeyEntries => f.write_str("一个动作最多包含 24 个键盘条目。"),
+            Error::InvalidPointerDelta => f.write_str("指针移动的位移不能为零，且每个方向不超过 1000 像素。"),
             Error::Json(message) => write!(f, "配置格式无效：{message}"),
         }
     }

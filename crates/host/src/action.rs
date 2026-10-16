@@ -147,11 +147,23 @@ impl From<MacroStep> for MacroStepWire {
     }
 }
 
+/// 指针相对位移（像素）。halokey 扩展，olanzi 不识别。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PointerDelta {
+    pub dx: i32,
+    pub dy: i32,
+}
+
+impl PointerDelta {
+    /// 单次位移的绝对值上限。
+    pub const MAX_STEP: i32 = 1000;
+}
+
 /// 控件可绑定的动作。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(from = "HostActionWire", into = "HostActionWire")]
 pub enum HostAction {
-    /// 键盘条目（可为组合键）。
+    /// 键盘条目（可为组合键），也可含鼠标页条目。
     Keyboard(Vec<KeyEntry>),
     /// 切换 / 启动应用。
     Application(ApplicationTarget),
@@ -161,6 +173,8 @@ pub enum HostAction {
     Library(String),
     /// 按住期间激活 Layer 1–3。
     MomentaryLayer(u8),
+    /// 每次触发把指针移动给定像素；旋钮每格一次。halokey 扩展，配置版本 6。
+    PointerMove(PointerDelta),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -171,6 +185,7 @@ enum HostActionWire {
     Macro(Arg<Vec<MacroStep>>),
     Library(Arg<String>),
     MomentaryLayer(Arg<u8>),
+    PointerMove(Arg<PointerDelta>),
 }
 
 impl From<HostActionWire> for HostAction {
@@ -181,6 +196,7 @@ impl From<HostActionWire> for HostAction {
             HostActionWire::Macro(a) => HostAction::Macro(a.value),
             HostActionWire::Library(a) => HostAction::Library(a.value),
             HostActionWire::MomentaryLayer(a) => HostAction::MomentaryLayer(a.value),
+            HostActionWire::PointerMove(a) => HostAction::PointerMove(a.value),
         }
     }
 }
@@ -193,6 +209,7 @@ impl From<HostAction> for HostActionWire {
             HostAction::Macro(v) => HostActionWire::Macro(Arg { value: v }),
             HostAction::Library(v) => HostActionWire::Library(Arg { value: v }),
             HostAction::MomentaryLayer(v) => HostActionWire::MomentaryLayer(Arg { value: v }),
+            HostAction::PointerMove(v) => HostActionWire::PointerMove(Arg { value: v }),
         }
     }
 }
@@ -202,6 +219,16 @@ impl HostAction {
     pub fn validate(&self) -> Result<(), Error> {
         match self {
             HostAction::Library(_) => Ok(()),
+            HostAction::PointerMove(delta) => {
+                if delta.dx.abs() <= PointerDelta::MAX_STEP
+                    && delta.dy.abs() <= PointerDelta::MAX_STEP
+                    && (delta.dx, delta.dy) != (0, 0)
+                {
+                    Ok(())
+                } else {
+                    Err(Error::InvalidPointerDelta)
+                }
+            }
             HostAction::MomentaryLayer(layer) => {
                 if (1..=3).contains(layer) {
                     Ok(())
@@ -234,6 +261,18 @@ impl HostAction {
     /// 是否为临时切层。
     pub const fn is_momentary_layer(&self) -> bool {
         matches!(self, HostAction::MomentaryLayer(_))
+    }
+
+    /// 是否用到了 halokey 对 olanzi 格式的扩展（指针移动、鼠标页条目）。
+    pub fn uses_halokey_extensions(&self) -> bool {
+        match self {
+            HostAction::PointerMove(_) => true,
+            HostAction::Keyboard(entries) => entries.iter().any(|e| e.kind != 0x02),
+            HostAction::Macro(steps) => steps
+                .iter()
+                .any(|s| matches!(s, MacroStep::Keyboard(e) if e.iter().any(|k| k.kind != 0x02))),
+            _ => false,
+        }
     }
 }
 
@@ -306,6 +345,20 @@ mod tests {
         assert_eq!(
             serde_json::to_string(&HostAction::Library("x".into())).unwrap(),
             r#"{"library":{"_0":"x"}}"#
+        );
+        let mv = HostAction::PointerMove(PointerDelta { dx: 20, dy: -5 });
+        let text = serde_json::to_string(&mv).unwrap();
+        assert_eq!(text, r#"{"pointerMove":{"_0":{"dx":20,"dy":-5}}}"#);
+        assert_eq!(serde_json::from_str::<HostAction>(&text).unwrap(), mv);
+        assert!(mv.validate().is_ok());
+        assert!(mv.uses_halokey_extensions());
+        assert_eq!(
+            HostAction::PointerMove(PointerDelta { dx: 0, dy: 0 }).validate(),
+            Err(Error::InvalidPointerDelta)
+        );
+        assert_eq!(
+            HostAction::PointerMove(PointerDelta { dx: 1001, dy: 0 }).validate(),
+            Err(Error::InvalidPointerDelta)
         );
     }
 
