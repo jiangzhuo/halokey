@@ -55,20 +55,29 @@ function renderControls(map) {
     const dbl = c.doublePressAction || c.doublePress ? actionText(c.doublePressAction, c.doublePress) : "—";
     const lng = c.longPressAction || c.longPress ? actionText(c.longPressAction, c.longPress) : "—";
     tr.append(cell(CONTROL_NAMES[c.index] ?? String(c.index)), cell(press, "action"), cell(dbl, "action"), cell(lng, "action"));
+    tr.style.cursor = "pointer";
+    tr.title = "点击编辑";
+    tr.onclick = () => window.openEditor(map, c.index, markDirty);
     tbody.appendChild(tr);
   }
-  const halos = document.getElementById("halos");
-  if (map.halos && map.halos.length) {
-    halos.replaceChildren();
-    for (const h of map.halos) {
-      const div = document.createElement("div");
-      const pill = document.createElement("span");
-      pill.className = "pill";
-      pill.textContent = h.id;
-      div.append(pill, `${h.name}：${h.options.map(o => o.label).join(" · ")}`);
-      halos.appendChild(div);
-    }
+  window.renderHaloEditor(map, document.getElementById("halos"), markDirty);
+}
+
+// 表单改动同步进 JSON 文本，再由保存按钮统一校验、应用。
+function markDirty() {
+  if (!current) return;
+  document.getElementById("json").value = JSON.stringify(current, null, 2);
+  const tbody = document.querySelector("#controls tbody");
+  for (const [i, tr] of [...tbody.children].entries()) {
+    const c = [...current.controls].sort((a, b) => a.index - b.index)[i];
+    if (!c) continue;
+    tr.children[1].textContent = actionText(c.pressAction, c.press);
+    tr.children[2].textContent = c.doublePressAction || c.doublePress ? actionText(c.doublePressAction, c.doublePress) : "—";
+    tr.children[3].textContent = c.longPressAction || c.longPress ? actionText(c.longPressAction, c.longPress) : "—";
   }
+  const msg = document.getElementById("save-msg");
+  msg.textContent = "有未保存的改动";
+  msg.className = "msg";
 }
 
 async function loadKeymap() {

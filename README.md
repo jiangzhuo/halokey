@@ -42,7 +42,7 @@ Ulanzi Studio supports only Windows and macOS. Every community project so far is
 | Host actions: keyboard, mouse buttons, wheel, pointer movement, app switching, macros, shell | all but shell commands work on Linux X11 via `halokey run`; shell commands are planned |
 | Radial "halo" menu: an eight-option overlay driven by the knob | **done** on Linux: `halos` in the keymap, nested menus, verified on GNOME/X11 |
 | Lighting, noise reduction, standby timeouts, battery readout | lighting read/write, battery and versions done (verified: breathing works on all four lights); noise reduction read-only; standby timeouts planned |
-| Tray / menu bar icon, launch at login, auto-update | tray icon and settings window done (`apps/halokey`, Tauri 2); login item and auto-update planned |
+| Tray / menu bar icon, launch at login, auto-update | tray icon, settings window and login autostart done (`apps/halokey`, Tauri 2); auto-update planned |
 
 ## Platform matrix
 

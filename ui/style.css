@@ -53,3 +53,10 @@ button:hover { filter: brightness(1.1); }
 .log .k { color: var(--text); }
 .wide { grid-column: 1 / -1; }
 @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
+
+.picker { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.picker select, .picker input, #lighting select { background: #0d1017; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+.picker .fields { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.halo-card { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; }
+.halo-card .row { margin-top: 6px; }
+#editor .row { margin-top: 8px; }
