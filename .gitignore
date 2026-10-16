@@ -21,3 +21,6 @@ __pycache__/
 
 # Tauri
 apps/halokey/gen/
+
+# evidence logs are documentation, not build output
+!docs/evidence/*.log
