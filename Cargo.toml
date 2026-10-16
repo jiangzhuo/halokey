@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = ["crates/proto"]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/jiangzhuo/halokey"
+authors = ["jiangzhuo"]
+
+[workspace.lints.clippy]
+all = "warn"

@@ -1,0 +1,16 @@
+[package]
+name = "halokey-proto"
+description = "Ulanzi Vibe Key (AU05) vendor protocol: TEA, frames, key table, status and events. Pure logic, no I/O."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+
+[lints]
+workspace = true
