@@ -1,0 +1,6 @@
+# Ulanzi Vibe Key AU05 (receiver): let the logged-in user talk to the vendor
+# channel and the standard HID interfaces over /dev/hidraw*.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="fff1", ATTRS{idProduct}=="00dd", MODE="0660", TAG+="uaccess"
+
+# Virtual input device used by halokey to inject keys and mouse events.
+KERNEL=="uinput", SUBSYSTEM=="misc", MODE="0660", TAG+="uaccess", OPTIONS+="static_node=uinput"

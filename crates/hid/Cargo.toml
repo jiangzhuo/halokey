@@ -1,0 +1,23 @@
+[package]
+name = "halokey-hid"
+description = "hidapi transport for the Ulanzi Vibe Key (AU05) vendor channel."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+halokey-proto = { path = "../proto" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+hidapi = { version = "2.6.7", default-features = false, features = ["linux-native-basic-udev"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+hidapi = { version = "2.6.7", default-features = false }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+hidapi = { version = "2.6.7", default-features = false, features = ["windows-native"] }
+
+[lints]
+workspace = true

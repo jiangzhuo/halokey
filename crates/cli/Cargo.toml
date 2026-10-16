@@ -1,0 +1,20 @@
+[package]
+name = "halokey-cli"
+description = "Command-line tool for the Ulanzi Vibe Key (AU05): list, status, key table, monitor."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "halokey"
+path = "src/main.rs"
+
+[dependencies]
+halokey-proto = { path = "../proto" }
+halokey-hid = { path = "../hid" }
+clap = { version = "4.6", features = ["derive"] }
+
+[lints]
+workspace = true
