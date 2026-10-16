@@ -44,7 +44,11 @@ The action byte is stable per control but is not a key code; hosts route by `ind
 
 [CONFIRMED] olanzi only allowed `workType = 2` (breathing) on key 1 because that was the only light it had measured. halokey writes `01 0b 88 04 04 <light> …` for any of the four lights; on 2026-10-16 the knob light (index 3) was set to breathing from the settings window, the write was acknowledged, the read-back matched, and the user saw the knob light breathe. This agrees with the Windows tool `doitian/ulanzi-vibekey`, whose SDK read-back showed all four channels accepting the value.
 
-## 7. Open questions
+## 7. Idle handoff and standby
+
+[CONFIRMED] With the heartbeat running the key unit never enters standby, which drains the battery overnight. halokey therefore hands control back after a configurable idle period: it sends `01 01 10 00 00`, stops the heartbeat, and only listens on interface 2. On 2026-10-16 with a one-minute timeout the sequence `key 1 → 75 s idle → key 1 → key 1` produced "idle timeout, control handed back", the firmware typed the stored key for the next press (seen on interface 2), halokey took over again with `01 01 10 00 03`, and the following press arrived as a vendor event. After the handoff the unit soon reports `status = 0` to the online query while in standby, and a host that starts while the unit is in standby cannot read the key table until it wakes; halokey starts with the factory map in that case and reads the table once the unit answers.
+
+## 8. Open questions
 
 - Whether the standard HID interface stays silent while the heartbeat runs on Linux (it does on macOS). Not yet captured on this platform.
 - The meaning of bytes 6–7 of the battery notice.

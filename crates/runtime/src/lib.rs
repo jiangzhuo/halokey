@@ -468,18 +468,21 @@ impl Worker {
     }
 
     fn session(&mut self, transport: &mut Transport, mut watch: Option<InputWatch>) -> Flow {
+        // 本体可能在待机，读不到键位不算失败：先用默认表接管，等它醒来再读。
+        let mut keymap_pending = false;
         if self.config.keymap.is_none() && self.snapshot().keymap.is_none() {
             match read_keymap(transport) {
                 Ok(map) => self.set_keymap(map),
                 Err(e) => {
-                    self.fail(format!("读取设备键位失败：{e}"));
-                    return Flow::Reconnect;
+                    self.fail(format!(
+                        "本体暂时没有回复键位（可能在待机），先用出厂映射：{e}"
+                    ));
+                    self.set_keymap(HostKeymap::default_keymap());
+                    keymap_pending = true;
                 }
             }
         } else if let Some(map) = self.snapshot().keymap {
-            if self.router.configure(Some(map.clone())).is_empty() {
-                // 已配置过则无需重复；configure 对相同配置返回空。
-            }
+            let _ = self.router.configure(Some(map));
         }
         if let Err(e) = transport
             .set_software_online(true)
@@ -622,6 +625,14 @@ impl Worker {
                 match transport.query_online(REPLY_TIMEOUT) {
                     Ok(online) => self.update(|s| s.online = Some(online)),
                     Err(e) => self.fail(format!("在线查询失败：{e}")),
+                }
+                self.drain_stray();
+            }
+            // 本体醒来后补读设备键位（只在启动时没读到、且用户没给配置的情况下）。
+            if keymap_pending && self.snapshot().online == Some(true) {
+                if let Ok(map) = read_keymap(transport) {
+                    self.set_keymap(map);
+                    keymap_pending = false;
                 }
                 self.drain_stray();
             }
