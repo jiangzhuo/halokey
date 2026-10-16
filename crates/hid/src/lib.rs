@@ -290,3 +290,47 @@ impl Transport {
         Ok(readback)
     }
 }
+
+/// 接收器标准 HID 接口（接口 2）的只读监听，用于在交还控制后发现设备活动。
+///
+/// 读到任何报文（键盘、鼠标、多媒体）都说明用户碰了设备；不解析内容，不发送任何东西。
+pub struct InputWatch {
+    device: hidapi::HidDevice,
+}
+
+impl fmt::Debug for InputWatch {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("InputWatch")
+    }
+}
+
+impl InputWatch {
+    /// 打开与给定厂商通道同一接收器（同序列号）的接口 2。
+    pub fn open(api: &HidApi, vendor: &DeviceId) -> Result<InputWatch, Error> {
+        let info = api
+            .device_list()
+            .find(|d| {
+                d.vendor_id() == halokey_proto::VENDOR_ID
+                    && d.product_id() == halokey_proto::PRODUCT_ID
+                    && d.interface_number() == 2
+                    && d.serial_number().map(str::to_owned) == vendor.serial
+            })
+            .ok_or(Error::NoDevice)?;
+        let device = api.open_path(info.path())?;
+        device.set_blocking_mode(false)?;
+        Ok(InputWatch { device })
+    }
+
+    /// 在 `timeout` 内是否收到了任何输入报文；读到就丢弃。
+    pub fn saw_activity(&mut self, timeout: Duration) -> Result<bool, Error> {
+        let mut buf = [0u8; 64];
+        let millis = timeout.as_millis().min(i32::MAX as u128) as i32;
+        let n = self.device.read_timeout(&mut buf, millis)?;
+        if n == 0 {
+            return Ok(false);
+        }
+        // 排空同一批次的其余报文，避免一次操作触发多次恢复。
+        while self.device.read_timeout(&mut buf, 0)? > 0 {}
+        Ok(true)
+    }
+}

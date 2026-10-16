@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use halokey_hid::{HidApi, Transport};
+use halokey_hid::{HidApi, InputWatch, Transport};
 use halokey_host::runner::KEYBOARD_OWNER;
 use halokey_host::{
     ActionRunner, GestureRouter, Halo, HostAction, HostKeymap, KeyEntry, Launcher, MacroKeys,
@@ -21,6 +21,7 @@ use halokey_host::{
 };
 use halokey_input::{Injector, KeyBridge, RecordingInjector};
 use halokey_proto::frame::Plaintext;
+use halokey_proto::settings::NoiseReductionSetting;
 use halokey_proto::{settings, status, Battery, Control, KeyConfigReply, Lighting, VendorKeyEvent};
 
 /// 心跳间隔。
@@ -46,6 +47,8 @@ pub struct Config {
     pub dry_run: bool,
     /// 用序列号选择接收器。
     pub serial: Option<String>,
+    /// 设备无操作多久后交还控制、停止心跳，让固件自己待机；`None` 永不。
+    pub idle_timeout: Option<Duration>,
 }
 
 /// 外部可读的状态快照。
@@ -67,6 +70,12 @@ pub struct Snapshot {
     pub injected: u64,
     /// 最近的错误文本。
     pub last_error: Option<String>,
+    /// 空闲暂停中：已交还控制，等待设备活动。
+    pub paused: bool,
+    /// 设备报告的待机状态（通知 0x0D）。
+    pub standby: Option<bool>,
+    /// 本体链路（通知 0x0B）。
+    pub link: Option<bool>,
 }
 
 /// 推送给外部的事件。
@@ -88,6 +97,10 @@ pub enum Event {
     HaloSelect(usize),
     /// 光环菜单关闭（确认、取消或超时）。
     HaloHide,
+    /// 空闲超时，已交还控制。
+    Paused,
+    /// 检测到活动，重新接管。
+    Resumed,
     /// 错误（注入、动作、设备）。
     Error(String),
     /// 服务已停止。
@@ -112,8 +125,31 @@ pub enum Command {
     QueryInfo(Sender<DeviceInfo>),
     /// 写指示灯参数：传入期望值，服务按当前读回算出最小写序列并逐条确认。
     SetLighting(Lighting, Sender<Result<Lighting, String>>),
+    /// 改空闲超时；`None` 永不暂停。
+    SetIdleTimeout(Option<Duration>),
+    /// 读电源与麦克风设置。
+    QueryPower(Sender<PowerInfo>),
+    /// 写休眠延时（秒，0 永不），读回核对。
+    SetSleepDelay(u32, Sender<Result<u32, String>>),
+    /// 写待机延时（秒），读回核对。
+    SetStandbyDelay(u32, Sender<Result<u32, String>>),
+    /// 麦克风开关，读回核对。
+    SetMicEnabled(bool, Sender<Result<bool, String>>),
+    /// 降噪等级 0 / 1（低高参数用 Studio 固定值），读回核对。
+    SetNoiseReduction(u8, Sender<Result<NoiseReductionSetting, String>>),
     /// 停止。
     Stop,
+}
+
+/// 电源与麦克风设置；读不到的项为 `None`。
+#[derive(Debug, Clone, Default)]
+pub struct PowerInfo {
+    pub standby: Option<bool>,
+    pub standby_delay: Option<u32>,
+    pub sleep_delay: Option<u32>,
+    pub mic_enabled: Option<bool>,
+    pub noise_reduction: Option<NoiseReductionSetting>,
+    pub errors: Vec<String>,
 }
 
 /// 只读设备信息；查不到的项为 `None`。
@@ -233,6 +269,9 @@ struct Worker {
     stray: (Sender<Plaintext>, Receiver<Plaintext>),
     halo: Option<HaloState>,
     halo_swallowed: std::collections::BTreeSet<u8>,
+    idle_timeout: Option<Duration>,
+    last_activity: Instant,
+    paused: bool,
 }
 
 struct HaloState {
@@ -254,6 +293,7 @@ impl Worker {
         snapshot: Arc<Mutex<Snapshot>>,
         on_event: Box<dyn Fn(Event) + Send>,
     ) -> Worker {
+        let idle_timeout = config.idle_timeout;
         Worker {
             config,
             backends: Some(backends),
@@ -268,6 +308,9 @@ impl Worker {
             stray: mpsc::channel(),
             halo: None,
             halo_swallowed: std::collections::BTreeSet::new(),
+            idle_timeout,
+            last_activity: Instant::now(),
+            paused: false,
         }
     }
 
@@ -339,7 +382,8 @@ impl Worker {
             transport.set_sink(Some(Box::new(move |frame: &Plaintext| {
                 let _ = sender.send(*frame);
             })));
-            match self.session(&mut transport) {
+            let watch = InputWatch::open(&api, &id).ok();
+            match self.session(&mut transport, watch) {
                 Flow::Stop => {
                     self.teardown(&mut transport);
                     break;
@@ -386,6 +430,22 @@ impl Worker {
                 Ok(Command::SetLighting(_, reply)) => {
                     let _ = reply.send(Err("接收器未连接".into()));
                 }
+                Ok(Command::SetIdleTimeout(timeout)) => self.idle_timeout = timeout,
+                Ok(Command::QueryPower(reply)) => {
+                    let _ = reply.send(PowerInfo {
+                        errors: vec!["接收器未连接".into()],
+                        ..PowerInfo::default()
+                    });
+                }
+                Ok(Command::SetSleepDelay(_, reply)) | Ok(Command::SetStandbyDelay(_, reply)) => {
+                    let _ = reply.send(Err("接收器未连接".into()));
+                }
+                Ok(Command::SetMicEnabled(_, reply)) => {
+                    let _ = reply.send(Err("接收器未连接".into()));
+                }
+                Ok(Command::SetNoiseReduction(_, reply)) => {
+                    let _ = reply.send(Err("接收器未连接".into()));
+                }
                 Err(mpsc::RecvTimeoutError::Timeout) => return false,
                 Err(mpsc::RecvTimeoutError::Disconnected) => return true,
             }
@@ -407,7 +467,7 @@ impl Worker {
         self.update(|s| s.keymap = Some(map));
     }
 
-    fn session(&mut self, transport: &mut Transport) -> Flow {
+    fn session(&mut self, transport: &mut Transport, mut watch: Option<InputWatch>) -> Flow {
         if self.config.keymap.is_none() && self.snapshot().keymap.is_none() {
             match read_keymap(transport) {
                 Ok(map) => self.set_keymap(map),
@@ -441,6 +501,8 @@ impl Worker {
         }
         self.drain_stray();
         let mut last_online_check = Instant::now();
+        self.last_activity = Instant::now();
+        self.paused = false;
         loop {
             match self.commands.try_recv() {
                 Ok(Command::Stop) => return Flow::Stop,
@@ -476,10 +538,52 @@ impl Worker {
                     let _ = reply.send(set_lighting(transport, &desired));
                     self.drain_stray();
                 }
+                Ok(Command::SetIdleTimeout(timeout)) => {
+                    self.idle_timeout = timeout;
+                    self.last_activity = Instant::now();
+                }
+                Ok(Command::QueryPower(reply)) => {
+                    let _ = reply.send(query_power(transport));
+                    self.drain_stray();
+                }
+                Ok(Command::SetSleepDelay(seconds, reply)) => {
+                    let _ = reply.send(write_u32_setting(
+                        transport,
+                        settings::sleep_delay_write(seconds),
+                        &settings::SLEEP_DELAY_REQUEST,
+                        settings::is_sleep_delay_reply,
+                        seconds,
+                    ));
+                    self.drain_stray();
+                }
+                Ok(Command::SetStandbyDelay(seconds, reply)) => {
+                    let _ = reply.send(write_u32_setting(
+                        transport,
+                        settings::standby_delay_write(seconds),
+                        &settings::STANDBY_DELAY_REQUEST,
+                        settings::is_standby_delay_reply,
+                        seconds,
+                    ));
+                    self.drain_stray();
+                }
+                Ok(Command::SetMicEnabled(enabled, reply)) => {
+                    let _ = reply.send(write_bool_setting(
+                        transport,
+                        settings::mic_enable_write(enabled),
+                        &settings::MIC_ENABLE_REQUEST,
+                        settings::is_mic_enable_reply,
+                        enabled,
+                    ));
+                    self.drain_stray();
+                }
+                Ok(Command::SetNoiseReduction(level, reply)) => {
+                    let _ = reply.send(set_noise_reduction(transport, level));
+                    self.drain_stray();
+                }
                 Err(TryRecvError::Empty) => {}
                 Err(TryRecvError::Disconnected) => return Flow::Stop,
             }
-            if last_heartbeat.elapsed() >= HEARTBEAT_INTERVAL {
+            if !self.paused && last_heartbeat.elapsed() >= HEARTBEAT_INTERVAL {
                 if let Err(e) = transport.heartbeat() {
                     self.fail(format!("心跳发送失败：{e}"));
                     return Flow::Reconnect;
@@ -521,6 +625,58 @@ impl Worker {
                 }
                 self.drain_stray();
             }
+            if self.paused {
+                // 暂停期间只被动监听标准 HID 接口；设备活动就重新接管。
+                let activity = watch
+                    .as_mut()
+                    .map_or(Ok(false), |w| w.saw_activity(Duration::ZERO));
+                match activity {
+                    Ok(true) => {
+                        if let Err(e) = transport
+                            .set_software_online(true)
+                            .and_then(|()| transport.heartbeat())
+                        {
+                            self.fail(format!("重新接管失败：{e}"));
+                            return Flow::Reconnect;
+                        }
+                        last_heartbeat = Instant::now();
+                        last_echo = Instant::now();
+                        self.last_activity = Instant::now();
+                        self.paused = false;
+                        self.update(|s| {
+                            s.paused = false;
+                            s.heartbeats += 1;
+                        });
+                        (self.on_event)(Event::Resumed);
+                    }
+                    Ok(false) => {}
+                    Err(e) => {
+                        self.fail(format!("监听设备活动失败：{e}"));
+                        watch = None;
+                    }
+                }
+                continue;
+            }
+            if let Some(timeout) = self.idle_timeout {
+                if self.last_activity.elapsed() >= timeout
+                    && !self.bridge.is_holding()
+                    && watch.is_some()
+                {
+                    self.close_halo();
+                    if let Some(runner) = self.runner.as_mut() {
+                        runner.cancel();
+                    }
+                    let transitions = self.router.cancel(false);
+                    self.apply(transitions);
+                    if let Err(e) = transport.set_software_online(false) {
+                        self.fail(format!("交还控制失败：{e}"));
+                    }
+                    self.paused = true;
+                    self.update(|s| s.paused = true);
+                    (self.on_event)(Event::Paused);
+                    continue;
+                }
+            }
             if last_echo.elapsed() > ECHO_TIMEOUT {
                 self.fail("5 秒没有收到心跳回显，接收器可能已断开。".into());
                 return Flow::Reconnect;
@@ -545,7 +701,8 @@ impl Worker {
             return true;
         }
         if let Some(event) = VendorKeyEvent::decode(frame) {
-            // 本体发来按键，必然在线。
+            // 本体发来按键，必然在线，也不算空闲。
+            self.last_activity = Instant::now();
             self.update(|s| s.online = Some(true));
             let now = self.now();
             (self.on_event)(Event::Key(event, now));
@@ -554,6 +711,13 @@ impl Worker {
             }
             let transitions = self.router.receive(event, now);
             self.apply(transitions);
+            return false;
+        }
+        if let Some((kind, value)) = settings::parse_state_notice(frame) {
+            match kind {
+                settings::NOTICE_STANDBY => self.update(|s| s.standby = Some(value == 1)),
+                _ => self.update(|s| s.link = Some(value == 1)),
+            }
             return false;
         }
         if status::is_battery_notice(frame) {
@@ -734,7 +898,11 @@ impl Worker {
             }
         }
         let _ = transport.set_software_online(false);
-        self.update(|s| s.connected = false);
+        self.paused = false;
+        self.update(|s| {
+            s.connected = false;
+            s.paused = false;
+        });
     }
 }
 
@@ -827,4 +995,130 @@ fn set_lighting(transport: &mut Transport, desired: &Lighting) -> Result<Lightin
         return Err("指示灯写入后读回与期望不一致".into());
     }
     Ok(after)
+}
+
+fn read_u32(
+    transport: &mut Transport,
+    request: &[u8],
+    matches: fn(&[u8]) -> bool,
+) -> Result<u32, String> {
+    let frame = transport
+        .transact(request, REPLY_TIMEOUT, |f| matches(f))
+        .map_err(|e| e.to_string())?;
+    settings::parse_u32_reply(&frame).map_err(|e| e.to_string())
+}
+
+fn read_bool(
+    transport: &mut Transport,
+    request: &[u8],
+    matches: fn(&[u8]) -> bool,
+) -> Result<bool, String> {
+    let frame = transport
+        .transact(request, REPLY_TIMEOUT, |f| matches(f))
+        .map_err(|e| e.to_string())?;
+    settings::parse_bool_reply(&frame).map_err(|e| e.to_string())
+}
+
+/// 读电源与麦克风设置；每项独立失败。
+fn query_power(transport: &mut Transport) -> PowerInfo {
+    let mut info = PowerInfo::default();
+    match read_bool(
+        transport,
+        &settings::STANDBY_STATE_REQUEST,
+        settings::is_standby_state_reply,
+    ) {
+        Ok(v) => info.standby = Some(v),
+        Err(e) => info.errors.push(format!("待机状态：{e}")),
+    }
+    match read_u32(
+        transport,
+        &settings::STANDBY_DELAY_REQUEST,
+        settings::is_standby_delay_reply,
+    ) {
+        Ok(v) => info.standby_delay = Some(v),
+        Err(e) => info.errors.push(format!("待机延时：{e}")),
+    }
+    match read_u32(
+        transport,
+        &settings::SLEEP_DELAY_REQUEST,
+        settings::is_sleep_delay_reply,
+    ) {
+        Ok(v) => info.sleep_delay = Some(v),
+        Err(e) => info.errors.push(format!("休眠延时：{e}")),
+    }
+    match read_bool(
+        transport,
+        &settings::MIC_ENABLE_REQUEST,
+        settings::is_mic_enable_reply,
+    ) {
+        Ok(v) => info.mic_enabled = Some(v),
+        Err(e) => info.errors.push(format!("麦克风开关：{e}")),
+    }
+    match transport.transact(&settings::NOISE_REDUCTION_REQUEST, REPLY_TIMEOUT, |f| {
+        settings::is_noise_reduction_reply(f)
+    }) {
+        Ok(f) => match settings::parse_noise_reduction_setting(&f) {
+            Ok(v) => info.noise_reduction = Some(v),
+            Err(e) => info.errors.push(format!("降噪：{e}")),
+        },
+        Err(e) => info.errors.push(format!("降噪：{e}")),
+    }
+    info
+}
+
+/// 写入后不等确认帧（格式未知），直接读回核对。
+fn write_u32_setting(
+    transport: &mut Transport,
+    request: [u8; 8],
+    read_request: &[u8],
+    matches: fn(&[u8]) -> bool,
+    expected: u32,
+) -> Result<u32, String> {
+    transport.send(&request).map_err(|e| e.to_string())?;
+    std::thread::sleep(Duration::from_millis(150));
+    let actual = read_u32(transport, read_request, matches)?;
+    if actual != expected {
+        return Err(format!("写入后读回为 {actual}，期望 {expected}"));
+    }
+    Ok(actual)
+}
+
+fn write_bool_setting(
+    transport: &mut Transport,
+    request: [u8; 5],
+    read_request: &[u8],
+    matches: fn(&[u8]) -> bool,
+    expected: bool,
+) -> Result<bool, String> {
+    transport.send(&request).map_err(|e| e.to_string())?;
+    std::thread::sleep(Duration::from_millis(150));
+    let actual = read_bool(transport, read_request, matches)?;
+    if actual != expected {
+        return Err(format!("写入后读回为 {actual}，期望 {expected}"));
+    }
+    Ok(actual)
+}
+
+fn set_noise_reduction(
+    transport: &mut Transport,
+    level: u8,
+) -> Result<NoiseReductionSetting, String> {
+    if level > 1 {
+        return Err("降噪等级只能是 0 或 1".into());
+    }
+    let (low, high) = settings::NOISE_REDUCTION_STUDIO_PARAMS;
+    transport
+        .send(&settings::noise_reduction_write(level, low, high))
+        .map_err(|e| e.to_string())?;
+    std::thread::sleep(Duration::from_millis(150));
+    let frame = transport
+        .transact(&settings::NOISE_REDUCTION_REQUEST, REPLY_TIMEOUT, |f| {
+            settings::is_noise_reduction_reply(f)
+        })
+        .map_err(|e| e.to_string())?;
+    let actual = settings::parse_noise_reduction_setting(&frame).map_err(|e| e.to_string())?;
+    if actual.level != level {
+        return Err(format!("写入后读回等级为 {}，期望 {level}", actual.level));
+    }
+    Ok(actual)
 }

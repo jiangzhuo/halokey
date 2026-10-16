@@ -1,7 +1,7 @@
 # 02 · 协议笔记
 > 🌐 [English](02-protocol-notes.md)
 
-> 📚 文档集：[README](../README.zh.md) · [01 架构](01-architecture.zh.md) · **02 协议笔记**
+> 📚 文档集：[README](../README.zh.md) · [01 架构](01-architecture.zh.md) · **02 协议笔记** · [03 配置格式](03-config-format.zh.md)
 
 halokey 在 olanzi 记录之外自己确认的 AU05 厂商通道事实。除非另有说明，这里的一切都是在 Linux 上通过 `/dev/hidraw` 用 `halokey` 命令行实测的。原始日志在 [evidence/](evidence/)。
 

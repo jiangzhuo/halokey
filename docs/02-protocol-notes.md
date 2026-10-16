@@ -1,7 +1,7 @@
 # 02 · Protocol Notes
 > 🌐 [中文](02-protocol-notes.zh.md)
 
-> 📚 Docs set: [README](../README.md) · [01 Architecture](01-architecture.md) · **02 Protocol Notes**
+> 📚 Docs set: [README](../README.md) · [01 Architecture](01-architecture.md) · **02 Protocol Notes** · [03 Configuration Format](03-config-format.md)
 
 Facts about the AU05 vendor channel that halokey established itself, on top of the olanzi record. Everything here was measured on Linux through `/dev/hidraw` with the `halokey` CLI unless stated otherwise. Raw logs live in [evidence/](evidence/).
 

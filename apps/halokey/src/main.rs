@@ -8,7 +8,7 @@ use std::sync::Mutex;
 
 use halokey_host::{HostAction, HostKeymap, HostProfile};
 use halokey_proto::{IndicatorLight, Lighting};
-use halokey_runtime::{Backends, Command, Config, DeviceInfo, Event, Service, Snapshot};
+use halokey_runtime::{Backends, Command, Config, DeviceInfo, Event, PowerInfo, Service, Snapshot};
 use serde::Serialize;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
@@ -47,6 +47,8 @@ enum UiEvent {
     Error {
         text: String,
     },
+    Paused,
+    Resumed,
     Stopped,
 }
 
@@ -61,6 +63,10 @@ struct UiSnapshot {
     injected: u64,
     last_error: Option<String>,
     config_path: String,
+    paused: bool,
+    standby: Option<bool>,
+    link: Option<bool>,
+    idle_minutes: u64,
 }
 
 impl UiSnapshot {
@@ -74,6 +80,10 @@ impl UiSnapshot {
             injected: s.injected,
             last_error: s.last_error,
             config_path: config_path.display().to_string(),
+            paused: s.paused,
+            standby: s.standby,
+            link: s.link,
+            idle_minutes: 0,
         }
     }
 }
@@ -118,7 +128,18 @@ fn forward(app: &AppHandle, event: Event) {
         },
         Event::HaloShow(halo, selected) => {
             if let Some(w) = app.get_webview_window("halo") {
-                let _ = w.center();
+                // 光环围着鼠标指针出现；拿不到指针位置就居中。
+                match (app.cursor_position(), w.outer_size()) {
+                    (Ok(pos), Ok(size)) => {
+                        let x = pos.x - f64::from(size.width) / 2.0;
+                        let y = pos.y - f64::from(size.height) / 2.0;
+                        let _ =
+                            w.set_position(tauri::PhysicalPosition::new(x.max(0.0), y.max(0.0)));
+                    }
+                    _ => {
+                        let _ = w.center();
+                    }
+                }
                 let _ = w.show();
             }
             UiEvent::HaloShow { halo, selected }
@@ -131,6 +152,8 @@ fn forward(app: &AppHandle, event: Event) {
             UiEvent::HaloHide
         }
         Event::Error(text) => UiEvent::Error { text },
+        Event::Paused => UiEvent::Paused,
+        Event::Resumed => UiEvent::Resumed,
         Event::Stopped => UiEvent::Stopped,
     };
     let _ = app.emit("halokey", ui);
@@ -312,6 +335,125 @@ fn set_lighting(state: State<'_, App>, lighting: UiLighting) -> Result<UiLightin
     Ok(result.into())
 }
 
+#[derive(Serialize, serde::Deserialize, Clone)]
+#[serde(rename_all = "camelCase", default)]
+struct AppSettings {
+    idle_minutes: u64,
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        AppSettings { idle_minutes: 5 }
+    }
+}
+
+fn settings_path(config_path: &std::path::Path) -> PathBuf {
+    config_path.with_file_name("settings.json")
+}
+
+fn load_settings(config_path: &std::path::Path) -> AppSettings {
+    std::fs::read(settings_path(config_path))
+        .ok()
+        .and_then(|b| serde_json::from_slice(&b).ok())
+        .unwrap_or_default()
+}
+
+fn save_settings(config_path: &std::path::Path, settings: &AppSettings) -> Result<(), String> {
+    let path = settings_path(config_path);
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(
+        &path,
+        serde_json::to_vec_pretty(settings).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_settings(state: State<'_, App>) -> AppSettings {
+    load_settings(&state.config_path)
+}
+
+#[tauri::command]
+fn set_idle_minutes(state: State<'_, App>, minutes: u64) -> Result<(), String> {
+    let settings = AppSettings {
+        idle_minutes: minutes,
+    };
+    save_settings(&state.config_path, &settings)?;
+    let guard = state.service.lock().map_err(|e| e.to_string())?;
+    let service = guard.as_ref().ok_or("服务未运行")?;
+    let timeout = (minutes > 0).then(|| std::time::Duration::from_secs(minutes * 60));
+    if !service.send(Command::SetIdleTimeout(timeout)) {
+        return Err("设备线程已退出".into());
+    }
+    Ok(())
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct UiPower {
+    standby: Option<bool>,
+    standby_delay: Option<u32>,
+    sleep_delay: Option<u32>,
+    mic_enabled: Option<bool>,
+    noise_reduction: Option<u8>,
+    errors: Vec<String>,
+}
+
+impl From<PowerInfo> for UiPower {
+    fn from(p: PowerInfo) -> UiPower {
+        UiPower {
+            standby: p.standby,
+            standby_delay: p.standby_delay,
+            sleep_delay: p.sleep_delay,
+            mic_enabled: p.mic_enabled,
+            noise_reduction: p.noise_reduction.map(|n| n.level),
+            errors: p.errors,
+        }
+    }
+}
+
+fn ask<T: Send + 'static>(
+    state: &State<'_, App>,
+    make: impl FnOnce(std::sync::mpsc::Sender<T>) -> Command,
+    secs: u64,
+) -> Result<T, String> {
+    let guard = state.service.lock().map_err(|e| e.to_string())?;
+    let service = guard.as_ref().ok_or("服务未运行")?;
+    let (tx, rx) = std::sync::mpsc::channel();
+    if !service.send(make(tx)) {
+        return Err("设备线程已退出".into());
+    }
+    rx.recv_timeout(std::time::Duration::from_secs(secs))
+        .map_err(|_| "设备没有在限定时间内回复".to_string())
+}
+
+#[tauri::command]
+fn power_info(state: State<'_, App>) -> Result<UiPower, String> {
+    ask(&state, Command::QueryPower, 15).map(UiPower::from)
+}
+
+#[tauri::command]
+fn set_sleep_delay(state: State<'_, App>, seconds: u32) -> Result<u32, String> {
+    ask(&state, |tx| Command::SetSleepDelay(seconds, tx), 15)?
+}
+
+#[tauri::command]
+fn set_standby_delay(state: State<'_, App>, seconds: u32) -> Result<u32, String> {
+    ask(&state, |tx| Command::SetStandbyDelay(seconds, tx), 15)?
+}
+
+#[tauri::command]
+fn set_mic_enabled(state: State<'_, App>, enabled: bool) -> Result<bool, String> {
+    ask(&state, |tx| Command::SetMicEnabled(enabled, tx), 15)?
+}
+
+#[tauri::command]
+fn set_noise_reduction(state: State<'_, App>, level: u8) -> Result<u8, String> {
+    ask(&state, |tx| Command::SetNoiseReduction(level, tx), 15)?.map(|n| n.level)
+}
+
 fn autostart_path() -> PathBuf {
     let base = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
@@ -415,6 +557,7 @@ fn main() {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     }
     let path = config_path();
+    let idle_minutes = load_settings(&path).idle_minutes;
     let initial = match load_keymap(&path) {
         Ok(map) => map,
         Err(e) => {
@@ -436,7 +579,14 @@ fn main() {
             set_lighting,
             get_autostart,
             set_autostart,
-            write_device_keys
+            write_device_keys,
+            get_settings,
+            set_idle_minutes,
+            power_info,
+            set_sleep_delay,
+            set_standby_delay,
+            set_mic_enabled,
+            set_noise_reduction
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
@@ -445,6 +595,8 @@ fn main() {
                     keymap: initial,
                     dry_run: false,
                     serial: None,
+                    idle_timeout: (idle_minutes > 0)
+                        .then(|| std::time::Duration::from_secs(idle_minutes * 60)),
                 },
                 Backends::platform(),
                 Box::new(move |event| forward(&handle, event)),

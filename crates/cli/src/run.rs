@@ -19,6 +19,8 @@ pub struct Options {
     pub verbose: bool,
     /// 接收器序列号。
     pub serial: Option<String>,
+    /// 空闲多少分钟后交还控制；0 永不。
+    pub idle_minutes: u64,
 }
 
 fn load_config(path: &PathBuf) -> Result<HostKeymap, Box<dyn std::error::Error>> {
@@ -59,6 +61,8 @@ pub fn run(options: Options) -> Result<(), Box<dyn std::error::Error>> {
             keymap,
             dry_run: options.dry_run,
             serial: options.serial,
+            idle_timeout: (options.idle_minutes > 0)
+                .then(|| Duration::from_secs(options.idle_minutes * 60)),
         },
         Backends::platform(),
         Box::new(move |event| match event {
@@ -79,6 +83,8 @@ pub fn run(options: Options) -> Result<(), Box<dyn std::error::Error>> {
             Event::Battery(b) if verbose => {
                 println!("           电量 {:?}% {} mV", b.percent, b.millivolts)
             }
+            Event::Paused => println!("空闲超时，已交还控制；设备活动后自动恢复。"),
+            Event::Resumed => println!("检测到活动，已重新接管。"),
             Event::Error(text) => eprintln!("✗ {text}"),
             Event::Stopped => println!("设备线程已停止。"),
             _ => {}

@@ -1,7 +1,7 @@
 # 01 · 架构
 > 🌐 [English](01-architecture.md)
 
-> 📚 文档集：[README](../README.zh.md) · **01 架构** · [02 协议笔记](02-protocol-notes.zh.md)
+> 📚 文档集：[README](../README.zh.md) · **01 架构** · [02 协议笔记](02-protocol-notes.zh.md) · [03 配置格式](03-config-format.zh.md)
 
 halokey 的设计笔记。除非标注 **[CONFIRMED]**（表示在真机上实测过），这里的一切都是计划。
 

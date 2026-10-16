@@ -80,6 +80,7 @@ halokey is an independent community project. It is not affiliated with or endors
 |---|---|---|
 | 01 | [Architecture](docs/01-architecture.md) | crates, platform adapters, overlay, known risks |
 | 02 | [Protocol Notes](docs/02-protocol-notes.md) | what halokey measured beyond the olanzi record |
+| 03 | [Configuration Format](docs/03-config-format.md) | the keymap JSON: controls, actions, layers, halos |
 
 Every document exists in English (default filename) and Chinese (`.zh.md`); `python3 tools/check_docs.py` verifies that the pairs stay in sync.
 

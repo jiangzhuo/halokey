@@ -95,7 +95,7 @@ async function refreshSnapshot() {
   try {
     const s = await invoke("snapshot");
     document.getElementById("dot").className = "dot" + (s.connected ? " ok" : "");
-    document.getElementById("conn").textContent = s.connected ? (s.online === false ? "接收器在，本体关机" : "已连接") : "未连接";
+    document.getElementById("conn").textContent = !s.connected ? "未连接" : s.paused ? "空闲中，已交还控制" : s.online === false ? "接收器在，本体关机" : "已连接";
     if (s.battery) {
       const [pct, mv, charging] = s.battery;
       document.getElementById("battery").textContent = `电量 ${pct == null ? "?" : pct + "%"} · ${mv} mV${charging ? " · 充电中" : ""}`;
@@ -199,7 +199,7 @@ document.getElementById("light-brightness").oninput = (e) => {
   document.getElementById("light-brightness-v").textContent = e.target.value;
 };
 
-async function loadInfo() {
+let loadInfo = async function () {
   const info = document.getElementById("info");
   info.textContent = "读取中…";
   try {
@@ -212,8 +212,7 @@ async function loadInfo() {
     if (i.errors.length) log(`设备信息：${i.errors.join("；")}`, "bad");
     if (i.lighting) renderLighting(i.lighting);
   } catch (e) { info.textContent = String(e); }
-}
-document.getElementById("info-reload").onclick = loadInfo;
+};
 document.getElementById("light-apply").onclick = async () => {
   const msg = document.getElementById("light-msg");
   if (!lighting) return;
@@ -242,3 +241,40 @@ autostart.onchange = async () => {
   try { autostart.checked = await invoke("set_autostart", { enabled: autostart.checked }); }
   catch (e) { log(`✗ 登录启动：${e}`, "bad"); autostart.checked = !autostart.checked; }
 };
+
+
+// ---- 电源 / 麦克风 / 空闲 ----
+const idleInput = document.getElementById("idle-minutes");
+invoke("get_settings").then(v => { idleInput.value = v.idleMinutes; }).catch(() => {});
+idleInput.onchange = async () => {
+  const msg = document.getElementById("idle-msg");
+  try { await invoke("set_idle_minutes", { minutes: Number(idleInput.value) || 0 }); msg.textContent = "已保存"; }
+  catch (e) { msg.textContent = String(e); }
+};
+
+function showPower(p) {
+  const box = document.getElementById("power");
+  box.style.display = "flex";
+  if (p.sleepDelay != null) document.getElementById("sleep-delay").value = String(p.sleepDelay);
+  if (p.standbyDelay != null) document.getElementById("standby-delay").value = p.standbyDelay;
+  if (p.micEnabled != null) document.getElementById("mic-enabled").checked = p.micEnabled;
+  if (p.noiseReduction != null) document.getElementById("noise-reduction").checked = p.noiseReduction === 1;
+  const msg = document.getElementById("power-msg");
+  msg.textContent = (p.standby != null ? `设备${p.standby ? "待机中" : "活动中"}` : "") + (p.errors.length ? "；" + p.errors.join("；") : "");
+}
+const oldLoadInfo = loadInfo;
+loadInfo = async function () {
+  await oldLoadInfo();
+  try { showPower(await invoke("power_info")); } catch (e) { document.getElementById("power-msg").textContent = String(e); }
+};
+document.getElementById("info-reload").onclick = () => loadInfo();
+async function powerWrite(cmd, args, label) {
+  const msg = document.getElementById("power-msg");
+  msg.textContent = `${label}写入中…`; msg.className = "msg";
+  try { await invoke(cmd, args); msg.textContent = `${label}已写入并读回确认`; msg.className = "msg ok"; }
+  catch (e) { msg.textContent = `${label}：${e}`; msg.className = "msg bad"; }
+}
+document.getElementById("sleep-delay").onchange = (e) => powerWrite("set_sleep_delay", { seconds: Number(e.target.value) }, "休眠延时");
+document.getElementById("standby-delay").onchange = (e) => powerWrite("set_standby_delay", { seconds: Number(e.target.value) }, "待机延时");
+document.getElementById("mic-enabled").onchange = (e) => powerWrite("set_mic_enabled", { enabled: e.target.checked }, "麦克风");
+document.getElementById("noise-reduction").onchange = (e) => powerWrite("set_noise_reduction", { level: e.target.checked ? 1 : 0 }, "降噪");

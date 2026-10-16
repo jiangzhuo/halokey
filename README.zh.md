@@ -80,6 +80,7 @@ halokey 是独立的社区项目，与 Ulanzi 或 Kehwin 无关联、未获其�
 |---|---|---|
 | 01 | [架构](docs/01-architecture.zh.md) | crate 划分、平台适配、悬浮层、已知风险 |
 | 02 | [协议笔记](docs/02-protocol-notes.zh.md) | halokey 在 olanzi 记录之外实测的内容 |
+| 03 | [配置格式](docs/03-config-format.zh.md) | 键位 JSON：控件、动作、层、光环 |
 
 每份文档都有英文版（默认文件名）和中文版（`.zh.md`）；`python3 tools/check_docs.py` 负责检查两版是否同步。
 

@@ -1,7 +1,7 @@
 # 01 · Architecture
 > 🌐 [中文](01-architecture.zh.md)
 
-> 📚 Docs set: [README](../README.md) · **01 Architecture** · [02 Protocol Notes](02-protocol-notes.md)
+> 📚 Docs set: [README](../README.md) · **01 Architecture** · [02 Protocol Notes](02-protocol-notes.md) · [03 Configuration Format](03-config-format.md)
 
 Design notes for halokey. Everything here is a plan unless marked **[CONFIRMED]**, which means it was measured on hardware.
 

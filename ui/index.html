@@ -40,6 +40,19 @@
       <button id="info-reload">读取设备信息</button>
       <label style="margin-left:auto"><input type="checkbox" id="autostart"> 登录时启动</label>
     </div>
+    <div class="row">
+      <label>空闲 <input type="number" id="idle-minutes" min="0" max="240" style="width:60px"> 分钟后交还控制让设备待机（0 = 从不）</label>
+      <span class="msg" id="idle-msg"></span>
+    </div>
+    <div id="power" class="row" style="display:none; gap:14px">
+      <label>休眠 / 自动关机
+        <select id="sleep-delay"><option value="0">从不</option><option value="3600">1 小时</option><option value="7200">2 小时</option><option value="10800">3 小时</option><option value="14400">4 小时</option></select>
+      </label>
+      <label>待机延时 <input type="number" id="standby-delay" min="10" max="86400" style="width:80px"> 秒</label>
+      <label><input type="checkbox" id="mic-enabled"> 麦克风</label>
+      <label><input type="checkbox" id="noise-reduction"> 降噪</label>
+      <span class="msg" id="power-msg"></span>
+    </div>
     <div id="lighting" class="row" style="display:none; gap:18px; align-items:flex-start">
       <label>灯光模式
         <select id="light-mode"><option value="0">关</option><option value="1">常亮</option><option value="2">模式 2</option></select>

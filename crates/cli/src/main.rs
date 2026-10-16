@@ -65,6 +65,9 @@ enum Command {
         /// 打印每个事件与转换。
         #[arg(long, short)]
         verbose: bool,
+        /// 空闲多少分钟后交还控制让设备待机；0 永不。
+        #[arg(long, default_value_t = 5)]
+        idle: u64,
     },
     /// 发送主机接管（on）或交还（off）命令。
     Online {
@@ -213,6 +216,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             config,
             dry_run,
             verbose,
+            idle,
         } => {
             // 服务自己打开接收器；先释放这里为其他命令打开的句柄。
             drop(transport);
@@ -221,6 +225,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 dry_run,
                 verbose,
                 serial: cli.serial.clone(),
+                idle_minutes: idle,
             })?;
         }
         Command::Online { state } => {

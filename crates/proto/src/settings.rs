@@ -310,3 +310,170 @@ mod tests {
         );
     }
 }
+
+// ---- 电源与麦克风（来自 vibed 对 Studio SDK 的恢复，写入后以读回核对，不依赖确认帧格式） ----
+
+/// 待机状态查询 `01 01 0d 01`（回复字节 4：0 / 1）。
+pub const STANDBY_STATE_REQUEST: [u8; 4] = [0x01, 0x01, 0x0D, 0x01];
+/// 待机延时查询 `01 01 2c 01`（回复偏移 4 起 u32 小端，秒）。
+pub const STANDBY_DELAY_REQUEST: [u8; 4] = [0x01, 0x01, 0x2C, 0x01];
+/// 休眠 / 自动关机延时查询 `01 01 42 01`（u32 小端，秒；0 = 永不）。
+pub const SLEEP_DELAY_REQUEST: [u8; 4] = [0x01, 0x01, 0x42, 0x01];
+/// 麦克风开关查询 `01 01 2a 01`（字节 4：0 / 1）。
+pub const MIC_ENABLE_REQUEST: [u8; 4] = [0x01, 0x01, 0x2A, 0x01];
+
+/// Studio 提供的休眠延时选项（秒）；0 表示永不。
+pub const SLEEP_DELAY_CHOICES: [u32; 5] = [0, 3600, 7200, 10800, 14400];
+/// Studio 写降噪时固定使用的低 / 高参数。
+pub const NOISE_REDUCTION_STUDIO_PARAMS: (u16, u16) = (1600, 1000);
+
+/// 构造 u32 写命令：`01 01 <cmd> 02 <seconds LE>`。
+const fn write_u32(cmd: u8, value: u32) -> [u8; 8] {
+    let b = value.to_le_bytes();
+    [0x01, 0x01, cmd, 0x02, b[0], b[1], b[2], b[3]]
+}
+
+/// 待机延时写命令。[INFERRED] 来自 SDK 恢复，vibed 在固件 4.4.0 上读回成功。
+pub const fn standby_delay_write(seconds: u32) -> [u8; 8] {
+    write_u32(0x2C, seconds)
+}
+
+/// 休眠延时写命令。[INFERRED] 同上。
+pub const fn sleep_delay_write(seconds: u32) -> [u8; 8] {
+    write_u32(0x42, seconds)
+}
+
+/// 麦克风开关写命令 `01 01 2a 00 <0|1>`。[INFERRED]
+pub const fn mic_enable_write(enabled: bool) -> [u8; 5] {
+    [0x01, 0x01, 0x2A, 0x00, if enabled { 1 } else { 0 }]
+}
+
+/// 降噪写命令 `01 01 90 04 <level> <low LE> <high LE>`。[INFERRED] Studio 用 level 0/1，low 1600，high 1000。
+pub fn noise_reduction_write(level: u8, low: u16, high: u16) -> [u8; 9] {
+    let l = low.to_le_bytes();
+    let h = high.to_le_bytes();
+    [0x01, 0x01, 0x90, 0x04, level, l[0], l[1], h[0], h[1]]
+}
+
+fn is_reply_of(frame: &[u8], cmd: u8) -> bool {
+    frame.len() >= 5
+        && frame[0] & 0x1F == 0x01
+        && frame[1] == 0x01
+        && frame[2] == cmd
+        && frame[3] == 0x11
+}
+
+/// 是否为待机状态回复。
+pub fn is_standby_state_reply(frame: &[u8]) -> bool {
+    is_reply_of(frame, 0x0D)
+}
+/// 是否为待机延时回复。
+pub fn is_standby_delay_reply(frame: &[u8]) -> bool {
+    is_reply_of(frame, 0x2C) && frame.len() >= 8
+}
+/// 是否为休眠延时回复。
+pub fn is_sleep_delay_reply(frame: &[u8]) -> bool {
+    is_reply_of(frame, 0x42) && frame.len() >= 8
+}
+/// 是否为麦克风开关回复。
+pub fn is_mic_enable_reply(frame: &[u8]) -> bool {
+    is_reply_of(frame, 0x2A)
+}
+
+/// 解析字节 4 的布尔值。
+pub fn parse_bool_reply(frame: &[u8]) -> Result<bool, Error> {
+    match frame.get(4) {
+        Some(0) => Ok(false),
+        Some(1) => Ok(true),
+        _ => Err(Error::InvalidFrame),
+    }
+}
+
+/// 解析偏移 4 起的 u32 小端。
+pub fn parse_u32_reply(frame: &[u8]) -> Result<u32, Error> {
+    if frame.len() < 8 {
+        return Err(Error::InvalidFrame);
+    }
+    Ok(u32::from_le_bytes([frame[4], frame[5], frame[6], frame[7]]))
+}
+
+/// 降噪读回复的结构化解释：level 在 4，low u16 在 5，high u16 在 7。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NoiseReductionSetting {
+    pub level: u8,
+    pub low: u16,
+    pub high: u16,
+}
+
+/// 按 SDK 恢复的布局解析降噪回复。[INFERRED]
+pub fn parse_noise_reduction_setting(frame: &[u8]) -> Result<NoiseReductionSetting, Error> {
+    if !is_noise_reduction_reply(frame) || frame.len() < 9 {
+        return Err(Error::InvalidFrame);
+    }
+    Ok(NoiseReductionSetting {
+        level: frame[4],
+        low: u16::from_le_bytes([frame[5], frame[6]]),
+        high: u16::from_le_bytes([frame[7], frame[8]]),
+    })
+}
+
+/// 通知子类型：待机状态变化（字节 2）。
+pub const NOTICE_STANDBY: u8 = 0x0D;
+/// 通知子类型：本体链路（字节 2 的 bit 0）。
+pub const NOTICE_LINK: u8 = 0x0B;
+
+/// 解析待机 / 链路通知；返回 `(子类型, 值)`，其他通知返回 `None`。
+pub fn parse_state_notice(frame: &[u8]) -> Option<(u8, u8)> {
+    if frame.len() < 3 || frame[0] & 0x1F != 0x0B {
+        return None;
+    }
+    match frame[1] {
+        NOTICE_STANDBY => Some((NOTICE_STANDBY, frame[2])),
+        NOTICE_LINK => Some((NOTICE_LINK, frame[2] & 1)),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod power_tests {
+    use super::*;
+
+    #[test]
+    fn power_and_mic_commands_and_replies() {
+        assert_eq!(sleep_delay_write(3600), [1, 1, 0x42, 2, 0x10, 0x0E, 0, 0]);
+        assert_eq!(standby_delay_write(300), [1, 1, 0x2C, 2, 0x2C, 0x01, 0, 0]);
+        assert_eq!(mic_enable_write(true), [1, 1, 0x2A, 0, 1]);
+        assert_eq!(
+            noise_reduction_write(1, 1600, 1000),
+            [1, 1, 0x90, 4, 1, 0x40, 0x06, 0xE8, 0x03]
+        );
+        let sleep = [0x81, 1, 0x42, 0x11, 0x10, 0x0E, 0, 0];
+        assert!(is_sleep_delay_reply(&sleep));
+        assert_eq!(parse_u32_reply(&sleep), Ok(3600));
+        assert!(!is_standby_delay_reply(&sleep));
+        assert_eq!(parse_bool_reply(&[0x81, 1, 0x0D, 0x11, 1]), Ok(true));
+        assert_eq!(
+            parse_bool_reply(&[0x81, 1, 0x0D, 0x11, 2]),
+            Err(Error::InvalidFrame)
+        );
+        let nr = parse_noise_reduction_setting(&[0x81, 1, 0x90, 0x11, 1, 0x40, 0x06, 0xE8, 0x03])
+            .unwrap();
+        assert_eq!(
+            nr,
+            NoiseReductionSetting {
+                level: 1,
+                low: 1600,
+                high: 1000
+            }
+        );
+        assert_eq!(
+            parse_state_notice(&[0x0B, 0x0D, 1]),
+            Some((NOTICE_STANDBY, 1))
+        );
+        assert_eq!(
+            parse_state_notice(&[0x0B, 0x0B, 0x03]),
+            Some((NOTICE_LINK, 1))
+        );
+        assert_eq!(parse_state_notice(&[0x0B, 0x7B, 0]), None);
+    }
+}
