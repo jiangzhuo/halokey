@@ -1,0 +1,129 @@
+{
+  "controls": [
+    {
+      "doublePressBehavior": "tap",
+      "doublePressTapCount": 2,
+      "index": 0,
+      "longPressBehavior": "hold",
+      "longPressTapCount": 2,
+      "press": [
+        {
+          "code": 9,
+          "type": 2
+        }
+      ],
+      "pressBehavior": "hold",
+      "pressTapCount": 2,
+      "pressAction": {
+        "pointerMove": {
+          "_0": {
+            "dx": 0,
+            "dy": -40
+          }
+        }
+      }
+    },
+    {
+      "doublePressBehavior": "tap",
+      "doublePressTapCount": 2,
+      "index": 1,
+      "longPressBehavior": "hold",
+      "longPressTapCount": 2,
+      "press": [
+        {
+          "code": 40,
+          "type": 2
+        }
+      ],
+      "pressBehavior": "hold",
+      "pressTapCount": 2
+    },
+    {
+      "doublePressBehavior": "tap",
+      "doublePressTapCount": 2,
+      "index": 2,
+      "longPressBehavior": "hold",
+      "longPressTapCount": 2,
+      "press": [
+        {
+          "code": 43,
+          "type": 2
+        }
+      ],
+      "pressBehavior": "hold",
+      "pressTapCount": 2,
+      "pressAction": {
+        "pointerMove": {
+          "_0": {
+            "dx": 0,
+            "dy": 40
+          }
+        }
+      }
+    },
+    {
+      "doublePressBehavior": "tap",
+      "doublePressTapCount": 2,
+      "index": 3,
+      "longPressBehavior": "hold",
+      "longPressTapCount": 2,
+      "press": [
+        {
+          "code": 42,
+          "type": 2
+        }
+      ],
+      "pressBehavior": "hold",
+      "pressTapCount": 2
+    },
+    {
+      "doublePressBehavior": "tap",
+      "doublePressTapCount": 2,
+      "index": 4,
+      "longPressBehavior": "hold",
+      "longPressTapCount": 2,
+      "press": [
+        {
+          "code": 6,
+          "type": 7
+        }
+      ],
+      "pressBehavior": "hold",
+      "pressTapCount": 2,
+      "pressAction": {
+        "pointerMove": {
+          "_0": {
+            "dx": 25,
+            "dy": 0
+          }
+        }
+      }
+    },
+    {
+      "doublePressBehavior": "tap",
+      "doublePressTapCount": 2,
+      "index": 5,
+      "longPressBehavior": "hold",
+      "longPressTapCount": 2,
+      "press": [
+        {
+          "code": 5,
+          "type": 7
+        }
+      ],
+      "pressBehavior": "hold",
+      "pressTapCount": 2,
+      "pressAction": {
+        "pointerMove": {
+          "_0": {
+            "dx": -25,
+            "dy": 0
+          }
+        }
+      }
+    }
+  ],
+  "doublePressWindow": 0.25,
+  "longPressThreshold": 0.5,
+  "version": 6
+}
