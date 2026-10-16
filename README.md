@@ -4,7 +4,7 @@
 
 Cross-platform, open-source control center for the Ulanzi Vibe Key (AU05): remap the three keys and the knob, run host-side actions, pick from a radial on-screen menu, and manage lighting, microphone and power settings. One codebase for Linux, macOS and Windows.
 
-**Status: pre-alpha.** Protocol, transport, host model and a headless daemon exist and run on Linux; macOS and Windows backends, the settings UI and the halo overlay do not exist yet.
+**Status: pre-alpha.** On Linux the whole chain runs: protocol, transport, host model, headless daemon, tray app with a settings window and the halo overlay. macOS and Windows backends do not exist yet.
 
 ## Try it now
 
@@ -20,7 +20,10 @@ cargo run -p halokey-cli -- run -v               # daemon: heartbeat, gestures, 
 cargo run -p halokey-cli -- export-keymap > my.json   # the device table as editable host keymap JSON
 cargo run -p halokey-cli -- run --config docs/examples/knob-moves-pointer.json   # knob moves the mouse pointer
 cargo run -p halokey-cli -- run --config docs/examples/switch-apps-and-macro.json # keys switch apps, knob press runs a macro
+cargo run -p halokey-app                         # tray app: settings window + halo overlay, reads ~/.config/halokey/keymap.json
 ```
+
+`docs/examples/halo-menu.json` puts a two-level halo menu on the knob press; copy it to `~/.config/halokey/keymap.json` or paste it into the settings window.
 
 `set-key` writes the device's own table. Pick a slot you can afford to break first, and note the old value it prints.
 
@@ -35,9 +38,9 @@ Ulanzi Studio supports only Windows and macOS. Every community project so far is
 | Vendor channel (TEA-encrypted HID, report ID `0x55`) | **done**: `halokey-proto` + `halokey-hid`, verified on Linux `hidraw` |
 | Key and knob remapping, layers, single / double / long press | **done** in `halokey-host`, ported from olanzi with its tests |
 | Host actions: keyboard, mouse buttons, wheel, pointer movement, app switching, macros, shell | all but shell commands work on Linux X11 via `halokey run`; shell commands are planned |
-| Radial "halo" menu: an eight-option overlay driven by the knob | planned |
+| Radial "halo" menu: an eight-option overlay driven by the knob | **done** on Linux: `halos` in the keymap, nested menus, verified on GNOME/X11 |
 | Lighting, noise reduction, standby timeouts, battery readout | protocol known, planned |
-| Tray / menu bar icon, launch at login, auto-update | planned |
+| Tray / menu bar icon, launch at login, auto-update | tray icon and settings window done (`apps/halokey`, Tauri 2); login item and auto-update planned |
 
 ## Platform matrix
 

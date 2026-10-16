@@ -18,3 +18,6 @@ apps/halokey/src-tauri/gen/
 # Python tooling
 __pycache__/
 .venv/
+
+# Tauri
+apps/halokey/gen/

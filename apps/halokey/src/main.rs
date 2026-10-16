@@ -1,0 +1,292 @@
+//! halokey 桌面应用：托盘、设置窗口、光环悬浮层。设备逻辑全部在 `halokey-runtime` 的线程里。
+
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![forbid(unsafe_code)]
+
+use std::path::PathBuf;
+use std::sync::Mutex;
+
+use halokey_host::{HostKeymap, HostProfile};
+use halokey_runtime::{Backends, Command, Config, Event, Service, Snapshot};
+use serde::Serialize;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{TrayIconBuilder, TrayIconEvent};
+use tauri::{AppHandle, Emitter, Manager, State};
+
+/// 应用状态：设备服务与配置路径。
+struct App {
+    service: Mutex<Option<Service>>,
+    config_path: PathBuf,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+enum UiEvent {
+    Connected,
+    Disconnected,
+    Key {
+        control: u8,
+        name: String,
+        pressed: bool,
+        at: f64,
+    },
+    Battery {
+        percent: Option<u8>,
+        millivolts: u16,
+        charging: Option<bool>,
+    },
+    HaloShow {
+        halo: halokey_host::Halo,
+        selected: usize,
+    },
+    HaloSelect {
+        selected: usize,
+    },
+    HaloHide,
+    Error {
+        text: String,
+    },
+    Stopped,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct UiSnapshot {
+    connected: bool,
+    online: Option<bool>,
+    battery: Option<(Option<u8>, u16, Option<bool>)>,
+    heartbeats: u64,
+    echoes: u64,
+    injected: u64,
+    last_error: Option<String>,
+    config_path: String,
+}
+
+impl UiSnapshot {
+    fn from(s: Snapshot, config_path: &std::path::Path) -> UiSnapshot {
+        UiSnapshot {
+            connected: s.connected,
+            online: s.online,
+            battery: s.battery.map(|b| (b.percent, b.millivolts, b.charging)),
+            heartbeats: s.heartbeats,
+            echoes: s.echoes,
+            injected: s.injected,
+            last_error: s.last_error,
+            config_path: config_path.display().to_string(),
+        }
+    }
+}
+
+fn config_path() -> PathBuf {
+    let base = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
+        .unwrap_or_else(|| PathBuf::from("."));
+    base.join("halokey").join("keymap.json")
+}
+
+fn load_keymap(path: &std::path::Path) -> Result<Option<HostKeymap>, String> {
+    let bytes = match std::fs::read(path) {
+        Ok(b) => b,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(e.to_string()),
+    };
+    match HostProfile::from_json(&bytes) {
+        Ok(profile) => Ok(Some(profile.keymap)),
+        Err(_) => HostKeymap::from_json(&bytes)
+            .map(Some)
+            .map_err(|e| e.to_string()),
+    }
+}
+
+fn forward(app: &AppHandle, event: Event) {
+    let ui = match event {
+        Event::Connected => UiEvent::Connected,
+        Event::Disconnected => UiEvent::Disconnected,
+        Event::Key(e, at) => UiEvent::Key {
+            control: e.control.index(),
+            name: e.control.name().to_string(),
+            pressed: e.pressed,
+            at,
+        },
+        Event::Transitions(_) => return,
+        Event::Battery(b) => UiEvent::Battery {
+            percent: b.percent,
+            millivolts: b.millivolts,
+            charging: b.charging,
+        },
+        Event::HaloShow(halo, selected) => {
+            if let Some(w) = app.get_webview_window("halo") {
+                let _ = w.center();
+                let _ = w.show();
+            }
+            UiEvent::HaloShow { halo, selected }
+        }
+        Event::HaloSelect(selected) => UiEvent::HaloSelect { selected },
+        Event::HaloHide => {
+            if let Some(w) = app.get_webview_window("halo") {
+                let _ = w.hide();
+            }
+            UiEvent::HaloHide
+        }
+        Event::Error(text) => UiEvent::Error { text },
+        Event::Stopped => UiEvent::Stopped,
+    };
+    let _ = app.emit("halokey", ui);
+}
+
+#[tauri::command]
+fn snapshot(state: State<'_, App>) -> Result<UiSnapshot, String> {
+    let guard = state.service.lock().map_err(|e| e.to_string())?;
+    let service = guard.as_ref().ok_or("服务未运行")?;
+    Ok(UiSnapshot::from(service.snapshot(), &state.config_path))
+}
+
+#[tauri::command]
+fn get_keymap(state: State<'_, App>) -> Result<serde_json::Value, String> {
+    let guard = state.service.lock().map_err(|e| e.to_string())?;
+    let service = guard.as_ref().ok_or("服务未运行")?;
+    let map = service
+        .snapshot()
+        .keymap
+        .ok_or("还没有键位（等待接收器）")?;
+    let bytes = map.to_json().map_err(|e| e.to_string())?;
+    serde_json::from_slice(&bytes).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn save_keymap(state: State<'_, App>, keymap: serde_json::Value) -> Result<(), String> {
+    let bytes = serde_json::to_vec(&keymap).map_err(|e| e.to_string())?;
+    let map = HostKeymap::from_json(&bytes).map_err(|e| e.to_string())?;
+    let pretty = serde_json::to_vec_pretty(&keymap).map_err(|e| e.to_string())?;
+    if let Some(dir) = state.config_path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&state.config_path, pretty).map_err(|e| e.to_string())?;
+    let guard = state.service.lock().map_err(|e| e.to_string())?;
+    let service = guard.as_ref().ok_or("服务未运行")?;
+    if !service.send(Command::SetKeymap(map)) {
+        return Err("设备线程已退出".into());
+    }
+    Ok(())
+}
+
+/// 设备六格表：`(index, [(type, code)])`。
+type DeviceKeys = Vec<(u8, Vec<(u8, u8)>)>;
+
+#[tauri::command]
+fn read_device_keys(state: State<'_, App>) -> Result<DeviceKeys, String> {
+    let guard = state.service.lock().map_err(|e| e.to_string())?;
+    let service = guard.as_ref().ok_or("服务未运行")?;
+    let (tx, rx) = std::sync::mpsc::channel();
+    if !service.send(Command::ReadKeys(tx)) {
+        return Err("设备线程已退出".into());
+    }
+    let replies = rx
+        .recv_timeout(std::time::Duration::from_secs(12))
+        .map_err(|_| "读取超时")??;
+    Ok(replies
+        .into_iter()
+        .map(|r| {
+            (
+                r.index,
+                r.entries.iter().map(|e| (e.kind.byte(), e.code)).collect(),
+            )
+        })
+        .collect())
+}
+
+fn show_main(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.show();
+        let _ = w.set_focus();
+    }
+}
+
+fn main() {
+    // NVIDIA 上 WebKitGTK 的 DMA-BUF 渲染会出现空白窗口；未显式设置时关掉它。
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+    let path = config_path();
+    let initial = match load_keymap(&path) {
+        Ok(map) => map,
+        Err(e) => {
+            eprintln!("配置读取失败，将使用设备表：{e}");
+            None
+        }
+    };
+    tauri::Builder::default()
+        .manage(App {
+            service: Mutex::new(None),
+            config_path: path,
+        })
+        .invoke_handler(tauri::generate_handler![
+            snapshot,
+            get_keymap,
+            save_keymap,
+            read_device_keys
+        ])
+        .setup(move |app| {
+            let handle = app.handle().clone();
+            let service = Service::spawn(
+                Config {
+                    keymap: initial,
+                    dry_run: false,
+                    serial: None,
+                },
+                Backends::platform(),
+                Box::new(move |event| forward(&handle, event)),
+            );
+            *app.state::<App>().service.lock().expect("state lock") = Some(service);
+
+            let open = MenuItem::with_id(app, "open", "打开设置", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&open, &quit])?;
+            let icon = app.default_window_icon().cloned().expect("图标");
+            TrayIconBuilder::with_id("tray")
+                .icon(icon)
+                .tooltip("halokey")
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id().as_ref() {
+                    "open" => show_main(app),
+                    "quit" => {
+                        if let Some(service) = app
+                            .state::<App>()
+                            .service
+                            .lock()
+                            .ok()
+                            .and_then(|mut g| g.take())
+                        {
+                            service.stop();
+                        }
+                        app.exit(0);
+                    }
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: tauri::tray::MouseButton::Left,
+                        ..
+                    } = event
+                    {
+                        show_main(tray.app_handle());
+                    }
+                })
+                .build(app)?;
+            Ok(())
+        })
+        .on_window_event(|window, event| {
+            // 关闭设置窗只是隐藏；应用留在托盘。
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == "main" {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
+        .run(tauri::generate_context!())
+        .expect("halokey 启动失败");
+}

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>halokey</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>halokey</h1>
+  <div class="status">
+    <span><i class="dot" id="dot"></i><span id="conn">未连接</span></span>
+    <span id="battery">电量 —</span>
+    <span id="stats"></span>
+  </div>
+</header>
+<main>
+  <section>
+    <h2>控件</h2>
+    <table id="controls">
+      <thead><tr><th style="width:92px">控件</th><th>单击</th><th>双击</th><th>长按</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="row">
+      <button id="reload">从设备重读</button>
+      <span class="msg" id="controls-msg"></span>
+    </div>
+  </section>
+  <section>
+    <h2>光环菜单</h2>
+    <div id="halos" class="msg">没有定义光环菜单。在右侧 JSON 的 <code>halos</code> 里添加，然后把某个控件的动作设为 <code>{"halo":{"_0":"id"}}</code>。</div>
+    <h2 style="margin-top:14px">最近事件</h2>
+    <div class="log" id="log"></div>
+  </section>
+  <section class="wide">
+    <h2>配置 JSON（与 olanzi 兼容，光环与指针移动为 halokey 扩展）</h2>
+    <textarea id="json" spellcheck="false"></textarea>
+    <div class="row">
+      <button class="primary" id="save">保存并应用</button>
+      <button id="reset">放弃修改</button>
+      <span class="msg" id="save-msg"></span>
+      <span class="msg" id="path"></span>
+    </div>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

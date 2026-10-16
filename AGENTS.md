@@ -49,6 +49,8 @@ Rust workspace + Tauri 2。crate 划分与数据流见 `docs/01-architecture.md`
 | 判断设备离线看原始明文 | 真离线：`06 03 0a 11 00`；代码 bug：一行都不打印 |
 | 输入监控 / 辅助功能权限失败要大声报错 | 静默跳过会变成"按了没反应" |
 | `pkill -f` 会杀掉包含同样字符串的当前 shell | 用 `pgrep` 精确匹配 |
+| NVIDIA + WebKitGTK 窗口空白 | 设 `WEBKIT_DISABLE_DMABUF_RENDERER=1`（应用已内置） |
+| `cargo build -p` 不会重编其他 bin | 验证 CLI 行为前先 `cargo build --workspace`，否则用的是旧二进制 |
 
 ## 6. 安全规则
 

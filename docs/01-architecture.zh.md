@@ -71,6 +71,7 @@ device ──vendor event──▶ hid ──▶ host (gesture router, layers) �
 | Windows HID 要求输出报告长度与描述符完全一致 | 含 report ID 补满 64 字节，发布前真机验证 |
 | macOS：`IOHIDManagerOpen` 全有全无 | hidapi 按设备逐个 `IOHIDDeviceOpen`；要验证，绝不退回 manager 调用 |
 | Wayland 没有置顶窗 | 有 layer-shell 的用 layer-shell，其他环境记录降级行为 |
+| NVIDIA 上 WebKitGTK 的 DMA-BUF 渲染器会把窗口画成空白 | 应用启动时若未设置则自动设 `WEBKIT_DISABLE_DMABUF_RENDERER=1` |
 | `/dev/hidraw` 和 `/dev/uinput` 默认只有 root 可用 | 附带 udev 规则和用户组说明 |
 | 主机崩溃后设备停留在厂商事件模式不出声 | 心跳看门狗，并记录社区报告的固件超时恢复行为 |
 
@@ -78,6 +79,6 @@ device ──vendor event──▶ hid ──▶ host (gesture router, layers) �
 
 1. `proto` 带基于证据日志的单元测试；`hid` 在三个平台上读出六格表。**Linux 已于 2026-10-16 完成**；macOS 与 Windows 仍待真机运行。
 2. 无界面守护进程：心跳、厂商事件、键盘和鼠标注入、导入 olanzi 键位。**Linux 的 `halokey run` 已于 2026-10-16 真机验证**（键 1 打出 `f`，键 2 发出 Enter，旋钮滚动页面，换上 `docs/examples/knob-moves-pointer.json` 后旋钮移动了指针））。切换应用与宏已于 2026-10-16 在 GNOME/X11 上用 `docs/examples/switch-apps-and-macro.json` 验证：按键拉起 Text Editor 与 Chrome，旋钮按下切回编辑器并打出 `hi`。**里程碑 2 在 Linux 上完成。**
-3. 托盘和设置窗。
-4. 光环悬浮层。
+3. 托盘和设置窗。**Linux 已于 2026-10-16 完成**（`apps/halokey`，Tauri 2.12，原生 HTML/JS，JSON 编辑器；表单式编辑器待做）。
+4. 光环悬浮层。**Linux 已于 2026-10-16 完成**：不可聚焦的透明窗口由运行时事件驱动；旋转选择、按下确认、按键取消、空闲 4 秒关闭；多级光环已验证。
 5. 灯光、麦克风、电源设置；打包、签名、自动更新。

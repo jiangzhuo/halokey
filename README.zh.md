@@ -4,7 +4,7 @@
 
 Ulanzi Vibe Key（AU05）的跨平台开源控制中心：重映射三个按键和旋钮，执行主机侧动作，用屏幕上的环形菜单做选择，管理灯光、麦克风和电源设置。一套代码覆盖 Linux、macOS 和 Windows。
 
-**状态：pre-alpha。** 协议、传输、主机模型和无界面守护进程已在 Linux 上运行；macOS 与 Windows 后端、设置界面和光环悬浮层尚未开始。
+**状态：pre-alpha。** Linux 上整条链路已经跑通：协议、传输、主机模型、无界面守护进程、带设置窗口和光环悬浮层的托盘应用。macOS 与 Windows 后端尚未开始。
 
 ## 现在就能试
 
@@ -20,7 +20,10 @@ cargo run -p halokey-cli -- run -v               # 守护进程：心跳、手�
 cargo run -p halokey-cli -- export-keymap > my.json   # 设备表导出为可编辑的主机键位 JSON
 cargo run -p halokey-cli -- run --config docs/examples/knob-moves-pointer.json   # 旋钮移动鼠标指针
 cargo run -p halokey-cli -- run --config docs/examples/switch-apps-and-macro.json # 按键切换应用，旋钮按下跑宏
+cargo run -p halokey-app                         # 托盘应用：设置窗口 + 光环悬浮层，读取 ~/.config/halokey/keymap.json
 ```
+
+`docs/examples/halo-menu.json` 把一个两级光环菜单放在旋钮按下上；复制到 `~/.config/halokey/keymap.json`，或粘贴进设置窗口。
 
 `set-key` 改的是设备自己的表。先挑一个改坏也没关系的格子，并记下它打印的旧值。
 
@@ -35,9 +38,9 @@ Ulanzi Studio 只支持 Windows 和 macOS。目前所有社区项目要么只做
 | 厂商通道（TEA 加密 HID，report ID `0x55`） | **已完成**：`halokey-proto` + `halokey-hid`，在 Linux `hidraw` 上验证 |
 | 按键与旋钮重映射、分层、单击 / 双击 / 长按 | **已完成**：`halokey-host`，连同测试从 olanzi 移植 |
 | 主机侧动作：键盘、鼠标按键、滚轮、指针移动、切换应用、宏、shell | 除 shell 命令外都已在 Linux X11 上通过 `halokey run` 可用；shell 命令计划中 |
-| 环形"光环"菜单：由旋钮驱动的八选项悬浮层 | 计划中 |
+| 环形"光环"菜单：由旋钮驱动的八选项悬浮层 | **已完成**（Linux）：键位里的 `halos`，支持多级，在 GNOME/X11 上验证 |
 | 灯光、降噪、待机时间、电量读取 | 协议已知，计划中 |
-| 托盘 / 菜单栏图标、登录启动、自动更新 | 计划中 |
+| 托盘 / 菜单栏图标、登录启动、自动更新 | 托盘图标和设置窗口已完成（`apps/halokey`，Tauri 2）；登录启动与自动更新计划中 |
 
 ## 平台矩阵
 

@@ -71,6 +71,7 @@ The heartbeat keeps the device in vendor-event mode. When halokey stops, suspend
 | Windows HID requires the output report to be exactly the descriptor length | pad to 64 bytes including the report ID, verify on hardware before release |
 | macOS: `IOHIDManagerOpen` is all-or-nothing | hidapi opens each device with `IOHIDDeviceOpen`; verify, never regress to the manager call |
 | Wayland has no always-on-top | layer-shell where available, documented degradation elsewhere |
+| WebKitGTK renders a blank window with the DMA-BUF renderer on NVIDIA | the app sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` at startup unless already set |
 | `/dev/hidraw` and `/dev/uinput` are root-only by default | ship a udev rule and a user-group instruction |
 | Vendor event mode leaves the device silent if the host crashes | heartbeat watchdog, firmware timeout recovery documented from community reports |
 
@@ -78,6 +79,6 @@ The heartbeat keeps the device in vendor-event mode. When halokey stops, suspend
 
 1. `proto` with unit tests from the evidence logs; `hid` reads the six-slot table on all three platforms. **Linux done 2026-10-16**; macOS and Windows still to be run on hardware.
 2. Headless daemon: heartbeat, vendor events, keyboard and mouse injection, olanzi keymap import. **Linux: `halokey run` verified on hardware 2026-10-16** (key 1 typed `f`, key 2 sent Enter, knob scrolled a page, and with `docs/examples/knob-moves-pointer.json` the knob moved the pointer)). App switching and macros verified on GNOME/X11 2026-10-16 with `docs/examples/switch-apps-and-macro.json`: keys raised Text Editor and Chrome, knob press switched to the editor and typed `hi`. **Milestone 2 complete on Linux.**
-3. Tray and settings window.
-4. Halo overlay.
+3. Tray and settings window. **Done on Linux 2026-10-16** (`apps/halokey`, Tauri 2.12, vanilla HTML/JS, JSON editor; a form-based editor is still to come).
+4. Halo overlay. **Done on Linux 2026-10-16**: non-focusable transparent window driven by runtime events; rotation selects, press confirms, keys cancel, 4 s idle closes; nested halos verified.
 5. Lighting, microphone, power settings; packaging, signing, auto-update.
