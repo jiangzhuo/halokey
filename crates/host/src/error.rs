@@ -26,6 +26,7 @@ pub enum Error {
     UnsupportedKeyEntry(u8, u8),
     TooManyKeyEntries,
     InvalidPointerDelta,
+    NotQueueable,
     Json(String),
 }
 
@@ -57,6 +58,7 @@ impl fmt::Display for Error {
             }
             Error::TooManyKeyEntries => f.write_str("一个动作最多包含 24 个键盘条目。"),
             Error::InvalidPointerDelta => f.write_str("指针移动的位移不能为零，且每个方向不超过 1000 像素。"),
+            Error::NotQueueable => f.write_str("该动作由手势路由直接执行，不进入动作队列。"),
             Error::Json(message) => write!(f, "配置格式无效：{message}"),
         }
     }

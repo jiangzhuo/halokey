@@ -19,6 +19,7 @@ cargo run -p halokey-cli -- set-key 0 kb 0x68    # 把键 1 写成 F13 并读回
 cargo run -p halokey-cli -- run -v               # 守护进程：心跳、手势、uinput 注入（需要 /dev/uinput）
 cargo run -p halokey-cli -- export-keymap > my.json   # 设备表导出为可编辑的主机键位 JSON
 cargo run -p halokey-cli -- run --config docs/examples/knob-moves-pointer.json   # 旋钮移动鼠标指针
+cargo run -p halokey-cli -- run --config docs/examples/switch-apps-and-macro.json # 按键切换应用，旋钮按下跑宏
 ```
 
 `set-key` 改的是设备自己的表。先挑一个改坏也没关系的格子，并记下它打印的旧值。
@@ -33,7 +34,7 @@ Ulanzi Studio 只支持 Windows 和 macOS。目前所有社区项目要么只做
 |---|---|
 | 厂商通道（TEA 加密 HID，report ID `0x55`） | **已完成**：`halokey-proto` + `halokey-hid`，在 Linux `hidraw` 上验证 |
 | 按键与旋钮重映射、分层、单击 / 双击 / 长按 | **已完成**：`halokey-host`，连同测试从 olanzi 移植 |
-| 主机侧动作：键盘、鼠标按键、滚轮、指针移动、切换应用、宏、shell | 键盘、鼠标按键、滚轮、指针移动已在 Linux 上通过 `halokey run` 可用；切换应用、宏、shell 计划中 |
+| 主机侧动作：键盘、鼠标按键、滚轮、指针移动、切换应用、宏、shell | 除 shell 命令外都已在 Linux X11 上通过 `halokey run` 可用；shell 命令计划中 |
 | 环形"光环"菜单：由旋钮驱动的八选项悬浮层 | 计划中 |
 | 灯光、降噪、待机时间、电量读取 | 协议已知，计划中 |
 | 托盘 / 菜单栏图标、登录启动、自动更新 | 计划中 |
@@ -44,7 +45,7 @@ Ulanzi Studio 只支持 Windows 和 macOS。目前所有社区项目要么只做
 |---|---|---|---|
 | HID 传输 | hidapi 走 `hidraw` | hidapi 走 IOKit | hidapi 走 Win32 HID |
 | 输入注入 | uinput | CGEvent | SendInput |
-| 切换应用 | X11 EWMH，Wayland 按合成器适配 | NSWorkspace | SetForegroundWindow |
+| 切换应用 | X11 EWMH（已完成），Wayland 按合成器适配 | NSWorkspace | SetForegroundWindow |
 | 悬浮窗 | X11 可用，Wayland 需要 layer-shell | 不抢焦点的面板 | 不激活的窗口 |
 
 ## 仓库布局

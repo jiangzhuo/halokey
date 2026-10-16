@@ -26,7 +26,7 @@ crates/host      HostKeymap 模型（与 olanzi 的 JSON 兼容）、手势路�
                  动作执行。纯逻辑、确定性，用假时钟做单元测试。
 crates/input     trait Injector { key_down, key_up, mouse_button, wheel, pointer_move }
                  Linux：uinput · macOS：CGEvent · Windows：SendInput
-crates/wm        trait WindowManager { activate(app), frontmost() }
+crates/wm        trait Launcher { launch(app) -> Activation, is_frontmost(app), poll() }
                  Linux：先做 X11 EWMH，Wayland 之后按合成器适配 · macOS：NSWorkspace · Windows：Win32
 apps/halokey     Tauri 2：托盘、设置窗（webview）、光环悬浮窗、CLI 子命令
 ```
@@ -75,7 +75,7 @@ device ──vendor event──▶ hid ──▶ host (gesture router, layers) �
 ## 7. 里程碑
 
 1. `proto` 带基于证据日志的单元测试；`hid` 在三个平台上读出六格表。**Linux 已于 2026-10-16 完成**；macOS 与 Windows 仍待真机运行。
-2. 无界面守护进程：心跳、厂商事件、键盘和鼠标注入、导入 olanzi 键位。**Linux 的 `halokey run` 已于 2026-10-16 真机验证**（键 1 打出 `f`，键 2 发出 Enter，旋钮滚动页面，换上 `docs/examples/knob-moves-pointer.json` 后旋钮移动了指针）；宏与切换应用的执行尚未实现。
+2. 无界面守护进程：心跳、厂商事件、键盘和鼠标注入、导入 olanzi 键位。**Linux 的 `halokey run` 已于 2026-10-16 真机验证**（键 1 打出 `f`，键 2 发出 Enter，旋钮滚动页面，换上 `docs/examples/knob-moves-pointer.json` 后旋钮移动了指针））。切换应用与宏已于 2026-10-16 在 GNOME/X11 上用 `docs/examples/switch-apps-and-macro.json` 验证：按键拉起 Text Editor 与 Chrome，旋钮按下切回编辑器并打出 `hi`。**里程碑 2 在 Linux 上完成。**
 3. 托盘和设置窗。
 4. 光环悬浮层。
 5. 灯光、麦克风、电源设置；打包、签名、自动更新。

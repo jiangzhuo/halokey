@@ -9,7 +9,10 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use halokey_hid::Transport;
-use halokey_host::{GestureRouter, HostKeymap, HostProfile, KeyEntry};
+use halokey_host::runner::KEYBOARD_OWNER;
+use halokey_host::{
+    ActionRunner, GestureRouter, HostKeymap, HostProfile, KeyEntry, Launcher, MacroKeys,
+};
 use halokey_input::{Injector, KeyBridge, RecordingInjector};
 use halokey_proto::{status, Control, VendorKeyEvent};
 
@@ -81,6 +84,8 @@ pub fn run(transport: &mut Transport, options: Options) -> Result<(), Box<dyn st
     let mut router = GestureRouter::new();
     router.configure(Some(keymap));
     let mut bridge = KeyBridge::new();
+    let launcher = halokey_wm::open_default();
+    let mut runner = ActionRunner::new(launcher);
     let start = Instant::now();
     let now = |start: Instant| start.elapsed().as_secs_f64();
 
@@ -118,6 +123,7 @@ pub fn run(transport: &mut Transport, options: Options) -> Result<(), Box<dyn st
                     handle(
                         &mut bridge,
                         &mut router,
+                        &mut runner,
                         injector.as_mut(),
                         transitions,
                         options.verbose,
@@ -150,10 +156,18 @@ pub fn run(transport: &mut Transport, options: Options) -> Result<(), Box<dyn st
         handle(
             &mut bridge,
             &mut router,
+            &mut runner,
             injector.as_mut(),
             transitions,
             options.verbose,
         );
+        let mut keys = MacroKeyBridge {
+            bridge: &mut bridge,
+            injector: injector.as_mut(),
+        };
+        if let Err(e) = runner.pump(now(start), &mut keys) {
+            eprintln!("✗ 动作执行失败：{e}");
+        }
         if let Some(t) = last_echo {
             if t.elapsed() > Duration::from_secs(5) {
                 eprintln!("⚠ 5 秒没有收到心跳回显，接收器可能已断开。");
@@ -163,6 +177,7 @@ pub fn run(transport: &mut Transport, options: Options) -> Result<(), Box<dyn st
     }
 
     println!("正在退出：松开所有键、停止心跳、交还控制。");
+    runner.cancel();
     router.cancel(false);
     for (index, e) in bridge.release_all(injector.as_mut()) {
         eprintln!("✗ 控件 {index} 松开失败：{e}");
@@ -175,9 +190,26 @@ pub fn run(transport: &mut Transport, options: Options) -> Result<(), Box<dyn st
     Ok(())
 }
 
+/// 宏按键通过键桥发布，使用保留的所有者编号，不和六个控件争抢同一个键。
+struct MacroKeyBridge<'a> {
+    bridge: &'a mut KeyBridge,
+    injector: &'a mut dyn Injector,
+}
+
+impl MacroKeys for MacroKeyBridge<'_> {
+    type Error = halokey_input::Error;
+    fn press(&mut self, entries: &[KeyEntry]) -> Result<(), Self::Error> {
+        self.bridge.press(self.injector, KEYBOARD_OWNER, entries)
+    }
+    fn release(&mut self) -> Result<(), Self::Error> {
+        self.bridge.release(self.injector, KEYBOARD_OWNER)
+    }
+}
+
 fn handle(
     bridge: &mut KeyBridge,
     router: &mut GestureRouter,
+    runner: &mut ActionRunner<Box<dyn Launcher>>,
     injector: &mut dyn Injector,
     transitions: Vec<halokey_host::Transition>,
     verbose: bool,
@@ -198,7 +230,11 @@ fn handle(
                     eprintln!("✗ 控件 {index} 指针移动失败：{e}");
                 }
             }
-            other => println!("  (控件 {index} 的动作 {other:?} 尚未支持执行)"),
+            other => match runner.enqueue(index, other) {
+                Ok(true) => {}
+                Ok(false) => println!("  (控件 {index} 已有动作在执行或队列已满，忽略本次触发)"),
+                Err(e) => eprintln!("✗ 控件 {index} 的动作无法排队：{e}"),
+            },
         }
     }
     for (index, e) in applied.failures {

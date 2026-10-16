@@ -19,6 +19,7 @@ cargo run -p halokey-cli -- set-key 0 kb 0x68    # write key 1 = F13, then read 
 cargo run -p halokey-cli -- run -v               # daemon: heartbeat, gestures, uinput injection (needs /dev/uinput)
 cargo run -p halokey-cli -- export-keymap > my.json   # the device table as editable host keymap JSON
 cargo run -p halokey-cli -- run --config docs/examples/knob-moves-pointer.json   # knob moves the mouse pointer
+cargo run -p halokey-cli -- run --config docs/examples/switch-apps-and-macro.json # keys switch apps, knob press runs a macro
 ```
 
 `set-key` writes the device's own table. Pick a slot you can afford to break first, and note the old value it prints.
@@ -33,7 +34,7 @@ Ulanzi Studio supports only Windows and macOS. Every community project so far is
 |---|---|
 | Vendor channel (TEA-encrypted HID, report ID `0x55`) | **done**: `halokey-proto` + `halokey-hid`, verified on Linux `hidraw` |
 | Key and knob remapping, layers, single / double / long press | **done** in `halokey-host`, ported from olanzi with its tests |
-| Host actions: keyboard, mouse buttons, wheel, pointer movement, app switching, macros, shell | keyboard, mouse buttons, wheel and pointer movement work on Linux via `halokey run`; app switching, macros and shell are planned |
+| Host actions: keyboard, mouse buttons, wheel, pointer movement, app switching, macros, shell | all but shell commands work on Linux X11 via `halokey run`; shell commands are planned |
 | Radial "halo" menu: an eight-option overlay driven by the knob | planned |
 | Lighting, noise reduction, standby timeouts, battery readout | protocol known, planned |
 | Tray / menu bar icon, launch at login, auto-update | planned |
@@ -44,7 +45,7 @@ Ulanzi Studio supports only Windows and macOS. Every community project so far is
 |---|---|---|---|
 | HID transport | `hidraw` via hidapi | IOKit via hidapi | Win32 HID via hidapi |
 | Input injection | uinput | CGEvent | SendInput |
-| App switching | X11 EWMH, Wayland per compositor | NSWorkspace | SetForegroundWindow |
+| App switching | X11 EWMH (done), Wayland per compositor | NSWorkspace | SetForegroundWindow |
 | Overlay window | X11 ready, Wayland needs layer-shell | non-activating panel | no-activate window |
 
 ## Repository layout

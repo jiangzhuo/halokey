@@ -1,0 +1,170 @@
+{
+  "controls": [
+    {
+      "doublePressBehavior": "tap",
+      "doublePressTapCount": 2,
+      "index": 0,
+      "longPressBehavior": "hold",
+      "longPressTapCount": 2,
+      "press": [
+        {
+          "code": 9,
+          "type": 2
+        }
+      ],
+      "pressBehavior": "hold",
+      "pressTapCount": 2
+    },
+    {
+      "doublePressBehavior": "tap",
+      "doublePressTapCount": 2,
+      "index": 1,
+      "longPressBehavior": "hold",
+      "longPressTapCount": 2,
+      "press": [
+        {
+          "code": 40,
+          "type": 2
+        }
+      ],
+      "pressBehavior": "hold",
+      "pressTapCount": 2,
+      "pressAction": {
+        "application": {
+          "_0": {
+            "bundleIdentifier": "gnome-text-editor",
+            "path": "",
+            "name": "Text Editor"
+          }
+        }
+      }
+    },
+    {
+      "doublePressBehavior": "tap",
+      "doublePressTapCount": 2,
+      "index": 2,
+      "longPressBehavior": "hold",
+      "longPressTapCount": 2,
+      "press": [
+        {
+          "code": 43,
+          "type": 2
+        }
+      ],
+      "pressBehavior": "hold",
+      "pressTapCount": 2,
+      "pressAction": {
+        "application": {
+          "_0": {
+            "bundleIdentifier": "google-chrome",
+            "path": "",
+            "name": "Chrome"
+          }
+        }
+      }
+    },
+    {
+      "doublePressBehavior": "tap",
+      "doublePressTapCount": 2,
+      "index": 3,
+      "longPressBehavior": "hold",
+      "longPressTapCount": 2,
+      "press": [
+        {
+          "code": 42,
+          "type": 2
+        }
+      ],
+      "pressBehavior": "hold",
+      "pressTapCount": 2,
+      "pressAction": {
+        "macro": {
+          "_0": [
+            {
+              "application": {
+                "_0": {
+                  "bundleIdentifier": "gnome-text-editor",
+                  "path": "",
+                  "name": "Text Editor"
+                }
+              }
+            },
+            {
+              "delay": {
+                "_0": 0.3
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "type": 2,
+                    "code": 11
+                  }
+                ]
+              }
+            },
+            {
+              "delay": {
+                "_0": 0.1
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "type": 2,
+                    "code": 12
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "type": 2,
+                    "code": 40
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "doublePressBehavior": "tap",
+      "doublePressTapCount": 2,
+      "index": 4,
+      "longPressBehavior": "hold",
+      "longPressTapCount": 2,
+      "press": [
+        {
+          "code": 6,
+          "type": 7
+        }
+      ],
+      "pressBehavior": "hold",
+      "pressTapCount": 2
+    },
+    {
+      "doublePressBehavior": "tap",
+      "doublePressTapCount": 2,
+      "index": 5,
+      "longPressBehavior": "hold",
+      "longPressTapCount": 2,
+      "press": [
+        {
+          "code": 5,
+          "type": 7
+        }
+      ],
+      "pressBehavior": "hold",
+      "pressTapCount": 2
+    }
+  ],
+  "doublePressWindow": 0.25,
+  "longPressThreshold": 0.5,
+  "version": 6
+}
