@@ -4,7 +4,21 @@
 
 Cross-platform, open-source control center for the Ulanzi Vibe Key (AU05): remap the three keys and the knob, run host-side actions, pick from a radial on-screen menu, and manage lighting, microphone and power settings. One codebase for Linux, macOS and Windows.
 
-**Status: pre-alpha, design phase.** The protocol is verified; no application code exists yet.
+**Status: pre-alpha.** The protocol crate and the hidapi transport are done and verified on Linux; the daemon, settings UI and halo overlay do not exist yet.
+
+## Try it now
+
+Requires a Rust toolchain (`rustup`). On Linux, copy `packaging/linux/70-halokey.rules` to `/etc/udev/rules.d/` and replug the receiver, or temporarily `chmod a+rw /dev/hidraw*`.
+
+```sh
+cargo run -p halokey-cli -- list                 # find the receiver's vendor channel
+cargo run -p halokey-cli -- status               # online state, battery, voltage
+cargo run -p halokey-cli -- keys                 # the six on-device key slots
+cargo run -p halokey-cli -- monitor --heartbeat  # decode vendor events while you press keys
+cargo run -p halokey-cli -- set-key 0 kb 0x68    # write key 1 = F13, then read back (persists on the device)
+```
+
+`set-key` writes the device's own table. Pick a slot you can afford to break first, and note the old value it prints.
 
 ## Why another one
 
@@ -14,7 +28,7 @@ Ulanzi Studio supports only Windows and macOS. Every community project so far is
 
 | Feature | State |
 |---|---|
-| Vendor channel (TEA-encrypted HID, report ID `0x55`) | protocol verified on Linux `hidraw` and macOS IOKit |
+| Vendor channel (TEA-encrypted HID, report ID `0x55`) | **done**: `halokey-proto` + `halokey-hid`, verified on Linux `hidraw` |
 | Key and knob remapping, layers, single / double / long press | design carried over from olanzi |
 | Host actions: keyboard, mouse buttons, wheel, pointer movement, app switching, macros, shell | planned |
 | Radial "halo" menu: an eight-option overlay driven by the knob | planned |
@@ -30,7 +44,7 @@ Ulanzi Studio supports only Windows and macOS. Every community project so far is
 | App switching | X11 EWMH, Wayland per compositor | NSWorkspace | SetForegroundWindow |
 | Overlay window | X11 ready, Wayland needs layer-shell | non-activating panel | no-activate window |
 
-## Repository layout (planned)
+## Repository layout
 
 ```text
 crates/proto     TEA, frame codec, command table, key table – pure, heavily unit-tested
@@ -55,6 +69,7 @@ halokey is an independent community project. It is not affiliated with or endors
 | # | Document | Content |
 |---|---|---|
 | 01 | [Architecture](docs/01-architecture.md) | crates, platform adapters, overlay, known risks |
+| 02 | [Protocol Notes](docs/02-protocol-notes.md) | what halokey measured beyond the olanzi record |
 
 Every document exists in English (default filename) and Chinese (`.zh.md`); `python3 tools/check_docs.py` verifies that the pairs stay in sync.
 

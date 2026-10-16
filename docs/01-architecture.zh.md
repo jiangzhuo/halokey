@@ -1,7 +1,7 @@
 # 01 · 架构
 > 🌐 [English](01-architecture.md)
 
-> 📚 文档集：[README](../README.zh.md) · **01 架构**
+> 📚 文档集：[README](../README.zh.md) · **01 架构** · [02 协议笔记](02-protocol-notes.zh.md)
 
 halokey 的设计笔记。除非标注 **[CONFIRMED]**（表示在真机上实测过），这里的一切都是计划。
 
@@ -74,7 +74,7 @@ device ──vendor event──▶ hid ──▶ host (gesture router, layers) �
 
 ## 7. 里程碑
 
-1. `proto` 带基于证据日志的单元测试；`hid` 在三个平台上读出六格表。
+1. `proto` 带基于证据日志的单元测试；`hid` 在三个平台上读出六格表。**Linux 已于 2026-10-16 完成**；macOS 与 Windows 仍待真机运行。
 2. 无界面守护进程：心跳、厂商事件、键盘和鼠标注入、导入 olanzi 键位。
 3. 托盘和设置窗。
 4. 光环悬浮层。

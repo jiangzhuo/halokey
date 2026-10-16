@@ -71,6 +71,37 @@ pub fn parse_battery(frame: &[u8]) -> Result<Battery, Error> {
     })
 }
 
+/// 通知帧（cmd `0x0B`）的子类型字节位置。
+pub const NOTICE_CMD: u8 = 0x0B;
+/// 电量广播通知的子类型。
+pub const NOTICE_BATTERY: u8 = 0x7B;
+
+/// 是否为电量广播 `0b 7b …`。设备每隔数秒主动发送，不需要请求。
+pub fn is_battery_notice(frame: &[u8]) -> bool {
+    frame.len() >= 6 && frame[0] & 0x1F == NOTICE_CMD && frame[1] == NOTICE_BATTERY
+}
+
+/// 解析电量广播。
+///
+/// [INFERRED] 帧偏移 2–3 为小端电压（毫伏），偏移 5 为百分比：2026-10-16 Linux 上
+/// 四个样本的电压与百分比都和随后的 `01 01 02 01` 读数一致（`cf 0e` / `d0 0e` = 3791 / 3792 mV，
+/// `3c` = 60%）。偏移 6（`c6`、`c1`、`c0`、`bb`）与偏移 7（恒为 `01`）含义未解，
+/// 所以这里不给出充电状态。
+pub fn parse_battery_notice(frame: &[u8]) -> Result<Battery, Error> {
+    if !is_battery_notice(frame) {
+        return Err(Error::InvalidFrame);
+    }
+    let millivolts = u16::from_le_bytes([frame[2], frame[3]]);
+    if millivolts == 0 || millivolts == 0xFFFF {
+        return Err(Error::InvalidFrame);
+    }
+    Ok(Battery {
+        millivolts,
+        percent: (frame[5] <= 100).then_some(frame[5]),
+        charging: None,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -129,5 +160,31 @@ mod tests {
             parse_battery(&[0x81, 1, 2, 0x01, 0, 0, 0, 0]),
             Err(Error::InvalidFrame)
         );
+    }
+
+    #[test]
+    fn battery_notice_matches_polled_reading() {
+        let notice = [0x0B, 0x7B, 0xCF, 0x0E, 0x00, 0x3C, 0xC6, 0x01, 0, 0, 0, 0];
+        assert!(is_battery_notice(&notice));
+        assert_eq!(
+            parse_battery_notice(&notice),
+            Ok(Battery {
+                millivolts: 3791,
+                percent: Some(60),
+                charging: None
+            })
+        );
+        let older = [0x0B, 0x7B, 0x15, 0x0F, 0x00, 0x46, 0xC1, 0x01];
+        assert_eq!(parse_battery_notice(&older).unwrap().percent, Some(70));
+        assert_eq!(parse_battery_notice(&older).unwrap().millivolts, 3861);
+        assert_eq!(
+            parse_battery_notice(&[0x0B, 0x7C, 0xCF, 0x0E, 0, 0x3C]),
+            Err(Error::InvalidFrame)
+        );
+        assert_eq!(
+            parse_battery_notice(&[0x0B, 0x7B, 0, 0, 0, 0x3C]),
+            Err(Error::InvalidFrame)
+        );
+        assert!(!is_battery_reply(&notice));
     }
 }

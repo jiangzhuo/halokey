@@ -1,7 +1,7 @@
 # 01 · Architecture
 > 🌐 [中文](01-architecture.zh.md)
 
-> 📚 Docs set: [README](../README.md) · **01 Architecture**
+> 📚 Docs set: [README](../README.md) · **01 Architecture** · [02 Protocol Notes](02-protocol-notes.md)
 
 Design notes for halokey. Everything here is a plan unless marked **[CONFIRMED]**, which means it was measured on hardware.
 
@@ -74,7 +74,7 @@ The heartbeat keeps the device in vendor-event mode. When halokey stops, suspend
 
 ## 7. Milestones
 
-1. `proto` with unit tests from the evidence logs; `hid` reads the six-slot table on all three platforms.
+1. `proto` with unit tests from the evidence logs; `hid` reads the six-slot table on all three platforms. **Linux done 2026-10-16**; macOS and Windows still to be run on hardware.
 2. Headless daemon: heartbeat, vendor events, keyboard and mouse injection, olanzi keymap import.
 3. Tray and settings window.
 4. Halo overlay.

@@ -4,7 +4,21 @@
 
 Ulanzi Vibe Key（AU05）的跨平台开源控制中心：重映射三个按键和旋钮，执行主机侧动作，用屏幕上的环形菜单做选择，管理灯光、麦克风和电源设置。一套代码覆盖 Linux、macOS 和 Windows。
 
-**状态：pre-alpha，设计阶段。** 协议已验证，应用代码尚未开始。
+**状态：pre-alpha。** 协议 crate 和 hidapi 传输层已完成并在 Linux 真机验证；守护进程、设置界面和光环悬浮层尚未开始。
+
+## 现在就能试
+
+需要 Rust 工具链（`rustup`）。Linux 上把 `packaging/linux/70-halokey.rules` 复制到 `/etc/udev/rules.d/` 后重新插拔接收器，或临时 `chmod a+rw /dev/hidraw*`。
+
+```sh
+cargo run -p halokey-cli -- list                 # 找到接收器的厂商通道
+cargo run -p halokey-cli -- status               # 在线状态、电量、电压
+cargo run -p halokey-cli -- keys                 # 设备端六个按键格
+cargo run -p halokey-cli -- monitor --heartbeat  # 按键时解码厂商事件
+cargo run -p halokey-cli -- set-key 0 kb 0x68    # 把键 1 写成 F13 并读回（持久化在设备里）
+```
+
+`set-key` 改的是设备自己的表。先挑一个改坏也没关系的格子，并记下它打印的旧值。
 
 ## 为什么再做一个
 
@@ -14,7 +28,7 @@ Ulanzi Studio 只支持 Windows 和 macOS。目前所有社区项目要么只做
 
 | 功能 | 状态 |
 |---|---|
-| 厂商通道（TEA 加密 HID，report ID `0x55`） | 协议已在 Linux `hidraw` 和 macOS IOKit 上验证 |
+| 厂商通道（TEA 加密 HID，report ID `0x55`） | **已完成**：`halokey-proto` + `halokey-hid`，在 Linux `hidraw` 上验证 |
 | 按键与旋钮重映射、分层、单击 / 双击 / 长按 | 设计沿用 olanzi |
 | 主机侧动作：键盘、鼠标按键、滚轮、指针移动、切换应用、宏、shell | 计划中 |
 | 环形"光环"菜单：由旋钮驱动的八选项悬浮层 | 计划中 |
@@ -30,7 +44,7 @@ Ulanzi Studio 只支持 Windows 和 macOS。目前所有社区项目要么只做
 | 切换应用 | X11 EWMH，Wayland 按合成器适配 | NSWorkspace | SetForegroundWindow |
 | 悬浮窗 | X11 可用，Wayland 需要 layer-shell | 不抢焦点的面板 | 不激活的窗口 |
 
-## 仓库布局（计划）
+## 仓库布局
 
 ```text
 crates/proto     TEA、帧编解码、命令表、键码表 – 纯逻辑，重点单元测试
@@ -55,6 +69,7 @@ halokey 是独立的社区项目，与 Ulanzi 或 Kehwin 无关联、未获其�
 | # | 文档 | 内容 |
 |---|---|---|
 | 01 | [架构](docs/01-architecture.zh.md) | crate 划分、平台适配、悬浮层、已知风险 |
+| 02 | [协议笔记](docs/02-protocol-notes.zh.md) | halokey 在 olanzi 记录之外实测的内容 |
 
 每份文档都有英文版（默认文件名）和中文版（`.zh.md`）；`python3 tools/check_docs.py` 负责检查两版是否同步。
 

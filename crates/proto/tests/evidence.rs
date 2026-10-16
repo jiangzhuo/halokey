@@ -1,7 +1,7 @@
 //! 用真机证据日志做回归：olanzi `docs/evidence/2026-10-16-linux-hidraw-mouse-type.log`。
 
 use halokey_proto::keyconfig::{self, ACCESS_READ_REPLY};
-use halokey_proto::{frame, Control, EntryKind, KeyEntry, MouseCode};
+use halokey_proto::{frame, status, Control, EntryKind, KeyEntry, MouseCode, VendorKeyEvent};
 
 fn hex(text: &str) -> Vec<u8> {
     text.split_whitespace()
@@ -79,4 +79,39 @@ fn request_encodes_to_wire_and_decodes_back() {
     let decoded = frame::decode_report(&wire).unwrap();
     assert_eq!(&decoded[..5], &hex("01 06 50 01 00")[..]);
     assert!(decoded[5..].iter().all(|b| *b == 0));
+}
+
+#[test]
+fn vendor_events_for_all_six_controls_from_linux_monitor() {
+    // docs/evidence/2026-10-16-linux-vendor-events.log
+    let samples = [
+        ("8b 10 6f 01 00", Control::Key1, true, 0x6f),
+        ("8b 10 6f 00 00", Control::Key1, false, 0x6f),
+        ("8b 10 70 01 01", Control::Key2, true, 0x70),
+        ("8b 10 71 00 02", Control::Key3, false, 0x71),
+        ("8b 10 6e 01 03", Control::KnobPress, true, 0x6e),
+        ("8b 10 72 01 04", Control::KnobRight, true, 0x72),
+        ("8b 10 73 01 05", Control::KnobLeft, true, 0x73),
+    ];
+    for (text, control, pressed, action) in samples {
+        let plaintext = hex(text);
+        assert_eq!(frame::cmd(&plaintext), Some(0x0B));
+        assert_eq!(
+            VendorKeyEvent::decode(&plaintext),
+            Some(VendorKeyEvent {
+                control,
+                pressed,
+                action
+            })
+        );
+        assert!(!status::is_battery_notice(&plaintext));
+    }
+    // 心跳回显不是按键事件，也不是回复。
+    let echo = hex("06 01 23 00 01");
+    assert_eq!(VendorKeyEvent::decode(&echo), None);
+    assert!(!frame::is_reply(&echo));
+    assert_eq!(echo, status::HEARTBEAT);
+    // 同一监听里的电量广播与 `status` 读到的 60% / 3791 mV 一致。
+    let notice = status::parse_battery_notice(&hex("0b 7b d0 0e 00 3c c6 01")).unwrap();
+    assert_eq!((notice.millivolts, notice.percent), (3792, Some(60)));
 }
