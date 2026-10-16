@@ -1,0 +1,18 @@
+[package]
+name = "halokey-input"
+description = "Input injection backends for halokey: uinput on Linux (CGEvent and SendInput to follow)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+halokey-host = { path = "../host" }
+halokey-proto = { path = "../proto" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+evdev = "0.13.2"
+
+[lints]
+workspace = true

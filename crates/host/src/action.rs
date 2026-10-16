@@ -30,18 +30,42 @@ impl KeyEntry {
     pub const fn is_modifier(self) -> bool {
         self.kind == 0x02 && matches!(self.code, 0xE0..=0xE7)
     }
+
+    /// 鼠标页条目（类型 `0x07`）。
+    pub const fn mouse(code: halokey_proto::MouseCode) -> KeyEntry {
+        KeyEntry {
+            kind: 0x07,
+            code: code.code(),
+        }
+    }
+
+    /// 鼠标页条目的解释；键盘页返回 `None`。
+    pub const fn mouse_code(self) -> Option<halokey_proto::MouseCode> {
+        if self.kind == 0x07 {
+            halokey_proto::MouseCode::from_code(self.code)
+        } else {
+            None
+        }
+    }
 }
 
 /// 一个动作最多包含的键盘条目数。
 pub const MAX_KEY_ENTRIES: usize = 24;
 
-/// 校验一组键盘条目：只接受键盘页、已确认可用的键码；允许为空。
+/// 校验一组条目：键盘页只接受已确认可用的键码，鼠标页只接受按键 1–5 与滚轮；允许为空。
+///
+/// 鼠标页条目是 halokey 对 olanzi 格式的扩展：设备自己的表就能存它们，主机侧由注入器执行。
 pub fn validate_entries(entries: &[KeyEntry]) -> Result<(), Error> {
     if entries.len() > MAX_KEY_ENTRIES {
         return Err(Error::TooManyKeyEntries);
     }
     for entry in entries {
-        if entry.kind != 0x02 || !halokey_proto::keyconfig::is_allowed_keyboard_code(entry.code) {
+        let ok = match entry.kind {
+            0x02 => halokey_proto::keyconfig::is_allowed_keyboard_code(entry.code),
+            0x07 => halokey_proto::MouseCode::from_code(entry.code).is_some(),
+            _ => false,
+        };
+        if !ok {
             return Err(Error::UnsupportedKeyEntry(entry.kind, entry.code));
         }
     }

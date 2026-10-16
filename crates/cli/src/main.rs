@@ -2,6 +2,9 @@
 //!
 //! 读命令随时安全；`set-key` 会持久化写入设备，写后自动读回核对。
 
+mod run;
+
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use clap::{Parser, Subcommand, ValueEnum};
@@ -48,6 +51,18 @@ enum Command {
         /// 监听秒数，0 表示直到 Ctrl-C。
         #[arg(long, default_value_t = 30)]
         seconds: u64,
+    },
+    /// 无界面守护进程：心跳 + 厂商事件 → 手势 → 注入（Linux uinput）。
+    Run {
+        /// HostProfile 或 HostKeymap JSON；缺省用设备里的六格表。
+        #[arg(long)]
+        config: Option<PathBuf>,
+        /// 只打印转换，不注入。
+        #[arg(long)]
+        dry_run: bool,
+        /// 打印每个事件与转换。
+        #[arg(long, short)]
+        verbose: bool,
     },
     /// 发送主机接管（on）或交还（off）命令。
     Online {
@@ -185,6 +200,21 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             if heartbeat {
                 println!("共发送心跳 {} 次", transport.heartbeats_sent());
             }
+        }
+        Command::Run {
+            config,
+            dry_run,
+            verbose,
+        } => {
+            transport.set_sink(None);
+            run::run(
+                &mut transport,
+                run::Options {
+                    config,
+                    dry_run,
+                    verbose,
+                },
+            )?;
         }
         Command::Online { state } => {
             transport.set_software_online(matches!(state, OnOff::On))?;
