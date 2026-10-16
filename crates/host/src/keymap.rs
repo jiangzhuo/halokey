@@ -9,7 +9,7 @@ use std::collections::{BTreeSet, HashSet};
 use serde::de::Error as _;
 use serde::{Deserialize, Serialize};
 
-use crate::action::{validate_entries, HostAction, KeyEntry, NamedHostAction};
+use crate::action::{validate_entries, Halo, HostAction, KeyEntry, NamedHostAction};
 use crate::Error;
 
 /// 键盘动作的输出方式。
@@ -154,6 +154,8 @@ pub struct HostKeymap {
     pub controls: Vec<ControlActionMap>,
     pub action_library: Vec<NamedHostAction>,
     pub layers: Vec<HostLayer>,
+    /// 光环菜单（halokey 扩展）。
+    pub halos: Vec<Halo>,
     /// 双击判定窗口，秒。
     pub double_press_window: f64,
     /// 长按阈值，秒。
@@ -171,6 +173,7 @@ impl HostKeymap {
             controls,
             action_library: Vec::new(),
             layers: Vec::new(),
+            halos: Vec::new(),
             double_press_window: 0.25,
             long_press_threshold: 0.5,
         };
@@ -322,6 +325,20 @@ impl HostKeymap {
                 return Err(Error::DuplicateLibraryEntry);
             }
         }
+        let halo_ids: HashSet<&str> = self.halos.iter().map(|h| h.id.as_str()).collect();
+        if halo_ids.len() != self.halos.len() {
+            return Err(Error::InvalidHalo);
+        }
+        for halo in &self.halos {
+            halo.validate()?;
+            for option in &halo.options {
+                if let HostAction::Halo(id) = &option.action {
+                    if !halo_ids.contains(id.as_str()) {
+                        return Err(Error::MissingHalo);
+                    }
+                }
+            }
+        }
         for control in self.all_controls() {
             let press = control.effective_press();
             let double = control.effective_double_press();
@@ -358,9 +375,13 @@ impl HostKeymap {
                 return Err(Error::UnsupportedGesture);
             }
             for action in [Some(press), double, long].into_iter().flatten() {
-                self.resolve(&action)
-                    .ok_or(Error::MissingLibraryAction)?
-                    .validate()?;
+                let resolved = self.resolve(&action).ok_or(Error::MissingLibraryAction)?;
+                resolved.validate()?;
+                if let HostAction::Halo(id) = &resolved {
+                    if !halo_ids.contains(id.as_str()) {
+                        return Err(Error::MissingHalo);
+                    }
+                }
             }
             validate_entries(&control.press)?;
             if let Some(entries) = &control.double_press {
@@ -384,6 +405,11 @@ impl HostKeymap {
             }
         }
         Ok(())
+    }
+
+    /// 按 id 查光环菜单。
+    pub fn halo(&self, id: &str) -> Option<&Halo> {
+        self.halos.iter().find(|h| h.id == id)
     }
 
     /// 只解析一层引用；无效目标或嵌套引用返回 `None`，由 [`validate`](Self::validate) 给出明确错误。
@@ -480,6 +506,7 @@ impl HostKeymap {
             controls: wire.controls,
             action_library: wire.action_library,
             layers: wire.layers,
+            halos: wire.halos,
             double_press_window: wire.double_press_window,
             long_press_threshold: wire.long_press_threshold,
         };
@@ -506,6 +533,8 @@ struct Wire {
     layers: Vec<HostLayer>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     action_library: Vec<NamedHostAction>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    halos: Vec<Halo>,
     double_press_window: f64,
     long_press_threshold: f64,
 }
@@ -517,6 +546,7 @@ impl From<HostKeymap> for Wire {
             controls: m.controls,
             layers: m.layers,
             action_library: m.action_library,
+            halos: m.halos,
             double_press_window: m.double_press_window,
             long_press_threshold: m.long_press_threshold,
         }

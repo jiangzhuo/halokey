@@ -16,7 +16,8 @@ use std::time::{Duration, Instant};
 use halokey_hid::{HidApi, Transport};
 use halokey_host::runner::KEYBOARD_OWNER;
 use halokey_host::{
-    ActionRunner, GestureRouter, HostAction, HostKeymap, KeyEntry, Launcher, MacroKeys, Transition,
+    ActionRunner, GestureRouter, Halo, HostAction, HostKeymap, KeyEntry, Launcher, MacroKeys,
+    Transition,
 };
 use halokey_input::{Injector, KeyBridge, RecordingInjector};
 use halokey_proto::frame::Plaintext;
@@ -28,6 +29,10 @@ pub const HEARTBEAT_INTERVAL: Duration = Duration::from_millis(800);
 pub const ECHO_TIMEOUT: Duration = Duration::from_secs(5);
 /// 没有接收器时的重试间隔。
 pub const RETRY_INTERVAL: Duration = Duration::from_secs(1);
+/// 光环菜单无操作多久后自动关闭。
+pub const HALO_TIMEOUT: Duration = Duration::from_secs(4);
+/// 光环菜单选项执行时使用的按键所有者编号。
+pub const HALO_OWNER: u8 = 0xFE;
 const PUMP_TIMEOUT: Duration = Duration::from_millis(20);
 const REPLY_TIMEOUT: Duration = Duration::from_millis(1500);
 
@@ -75,6 +80,12 @@ pub enum Event {
     Transitions(Vec<Transition>),
     /// 电量更新。
     Battery(Battery),
+    /// 打开光环菜单，附初始选中项。
+    HaloShow(Halo, usize),
+    /// 光环菜单选中项变化。
+    HaloSelect(usize),
+    /// 光环菜单关闭（确认、取消或超时）。
+    HaloHide,
     /// 错误（注入、动作、设备）。
     Error(String),
     /// 服务已停止。
@@ -204,6 +215,14 @@ struct Worker {
     runner: Option<ActionRunner<Box<dyn Launcher>>>,
     start: Instant,
     stray: (Sender<Plaintext>, Receiver<Plaintext>),
+    halo: Option<HaloState>,
+    halo_swallowed: std::collections::BTreeSet<u8>,
+}
+
+struct HaloState {
+    halo: Halo,
+    selected: usize,
+    last_input: Instant,
 }
 
 enum Flow {
@@ -231,6 +250,8 @@ impl Worker {
             runner: None,
             start: Instant::now(),
             stray: mpsc::channel(),
+            halo: None,
+            halo_swallowed: std::collections::BTreeSet::new(),
         }
     }
 
@@ -347,6 +368,7 @@ impl Worker {
     }
 
     fn set_keymap(&mut self, map: HostKeymap) {
+        self.close_halo();
         if let Some(runner) = self.runner.as_mut() {
             runner.cancel();
         }
@@ -449,6 +471,13 @@ impl Worker {
             let transitions = self.router.advance(now);
             self.apply(transitions);
             self.pump_runner(now);
+            if self
+                .halo
+                .as_ref()
+                .is_some_and(|h| h.last_input.elapsed() > HALO_TIMEOUT)
+            {
+                self.close_halo();
+            }
             if last_echo.elapsed() > ECHO_TIMEOUT {
                 self.fail("5 秒没有收到心跳回显，接收器可能已断开。".into());
                 return Flow::Reconnect;
@@ -475,6 +504,9 @@ impl Worker {
         if let Some(event) = VendorKeyEvent::decode(frame) {
             let now = self.now();
             (self.on_event)(Event::Key(event, now));
+            if self.intercept_for_halo(event) {
+                return false;
+            }
             let transitions = self.router.receive(event, now);
             self.apply(transitions);
             return false;
@@ -492,6 +524,100 @@ impl Worker {
         false
     }
 
+    /// 光环菜单打开时接管旋钮与按键；返回 `true` 表示事件已被消费，不再交给手势路由。
+    fn intercept_for_halo(&mut self, event: VendorKeyEvent) -> bool {
+        let index = event.control.index();
+        if !event.pressed {
+            // 被吞掉的按下，其松开也吞掉；其余松开照常路由，保持物理状态一致。
+            return self.halo_swallowed.remove(&index);
+        }
+        let Some(state) = self.halo.as_mut() else {
+            return false;
+        };
+        state.last_input = Instant::now();
+        match event.control {
+            Control::KnobRight | Control::KnobLeft => {
+                let n = state.halo.options.len();
+                state.selected = if event.control == Control::KnobRight {
+                    (state.selected + 1) % n
+                } else {
+                    (state.selected + n - 1) % n
+                };
+                (self.on_event)(Event::HaloSelect(state.selected));
+                true
+            }
+            Control::KnobPress => {
+                self.halo_swallowed.insert(index);
+                let action = state.halo.options[state.selected].action.clone();
+                self.close_halo();
+                self.execute_halo_action(action);
+                true
+            }
+            Control::Key1 | Control::Key2 | Control::Key3 => {
+                self.halo_swallowed.insert(index);
+                self.close_halo();
+                true
+            }
+        }
+    }
+
+    fn open_halo(&mut self, id: &str) {
+        let Some(halo) = self
+            .snapshot()
+            .keymap
+            .as_ref()
+            .and_then(|m| m.halo(id).cloned())
+        else {
+            self.fail(format!("光环菜单「{id}」不存在"));
+            return;
+        };
+        self.halo = Some(HaloState {
+            halo: halo.clone(),
+            selected: 0,
+            last_input: Instant::now(),
+        });
+        (self.on_event)(Event::HaloShow(halo, 0));
+    }
+
+    fn close_halo(&mut self) {
+        if self.halo.take().is_some() {
+            (self.on_event)(Event::HaloHide);
+        }
+    }
+
+    fn execute_halo_action(&mut self, action: HostAction) {
+        match action {
+            HostAction::Keyboard(entries) => {
+                let Some(mut injector) = self.injector.take() else {
+                    return;
+                };
+                let result = self
+                    .bridge
+                    .press(injector.as_mut(), HALO_OWNER, &entries)
+                    .and_then(|()| self.bridge.release(injector.as_mut(), HALO_OWNER));
+                self.injector = Some(injector);
+                if let Err(e) = result {
+                    self.fail(format!("光环选项按键失败：{e}"));
+                }
+            }
+            HostAction::PointerMove(delta) => {
+                if let Some(injector) = self.injector.as_mut() {
+                    if let Err(e) = injector.pointer_move(delta.dx, delta.dy) {
+                        self.fail(format!("光环选项指针移动失败：{e}"));
+                    }
+                }
+            }
+            HostAction::Halo(id) => self.open_halo(&id),
+            other => {
+                if let Some(runner) = self.runner.as_mut() {
+                    if let Err(e) = runner.enqueue(HALO_OWNER, other) {
+                        self.fail(format!("光环选项无法排队：{e}"));
+                    }
+                }
+            }
+        }
+    }
+
     fn apply(&mut self, transitions: Vec<Transition>) {
         if transitions.is_empty() {
             return;
@@ -504,8 +630,10 @@ impl Worker {
         let injected = self.bridge.events;
         self.update(|s| s.injected = injected);
         let mut errors = Vec::new();
+        let mut halos = Vec::new();
         for (index, action) in applied.execute {
             match action {
+                HostAction::Halo(id) => halos.push(id),
                 HostAction::PointerMove(delta) => {
                     if let Err(e) = injector.pointer_move(delta.dx, delta.dy) {
                         errors.push(format!("控件 {index} 指针移动失败：{e}"));
@@ -528,6 +656,9 @@ impl Worker {
         for text in errors {
             self.fail(text);
         }
+        for id in halos {
+            self.open_halo(&id);
+        }
     }
 
     fn pump_runner(&mut self, now: f64) {
@@ -546,6 +677,7 @@ impl Worker {
     }
 
     fn teardown(&mut self, transport: &mut Transport) {
+        self.close_halo();
         if let Some(runner) = self.runner.as_mut() {
             runner.cancel();
         }

@@ -175,6 +175,8 @@ pub enum HostAction {
     MomentaryLayer(u8),
     /// 每次触发把指针移动给定像素；旋钮每格一次。halokey 扩展，配置版本 6。
     PointerMove(PointerDelta),
+    /// 打开一个光环菜单（按 id 引用配置里的 `halos`）。halokey 扩展，配置版本 6。
+    Halo(String),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -186,6 +188,7 @@ enum HostActionWire {
     Library(Arg<String>),
     MomentaryLayer(Arg<u8>),
     PointerMove(Arg<PointerDelta>),
+    Halo(Arg<String>),
 }
 
 impl From<HostActionWire> for HostAction {
@@ -197,6 +200,7 @@ impl From<HostActionWire> for HostAction {
             HostActionWire::Library(a) => HostAction::Library(a.value),
             HostActionWire::MomentaryLayer(a) => HostAction::MomentaryLayer(a.value),
             HostActionWire::PointerMove(a) => HostAction::PointerMove(a.value),
+            HostActionWire::Halo(a) => HostAction::Halo(a.value),
         }
     }
 }
@@ -210,6 +214,7 @@ impl From<HostAction> for HostActionWire {
             HostAction::Library(v) => HostActionWire::Library(Arg { value: v }),
             HostAction::MomentaryLayer(v) => HostActionWire::MomentaryLayer(Arg { value: v }),
             HostAction::PointerMove(v) => HostActionWire::PointerMove(Arg { value: v }),
+            HostAction::Halo(v) => HostActionWire::Halo(Arg { value: v }),
         }
     }
 }
@@ -219,6 +224,13 @@ impl HostAction {
     pub fn validate(&self) -> Result<(), Error> {
         match self {
             HostAction::Library(_) => Ok(()),
+            HostAction::Halo(id) => {
+                if id.trim().is_empty() || id.chars().count() > 80 {
+                    Err(Error::InvalidHalo)
+                } else {
+                    Ok(())
+                }
+            }
             HostAction::PointerMove(delta) => {
                 if delta.dx.abs() <= PointerDelta::MAX_STEP
                     && delta.dy.abs() <= PointerDelta::MAX_STEP
@@ -266,7 +278,7 @@ impl HostAction {
     /// 是否用到了 halokey 对 olanzi 格式的扩展（指针移动、鼠标页条目）。
     pub fn uses_halokey_extensions(&self) -> bool {
         match self {
-            HostAction::PointerMove(_) => true,
+            HostAction::PointerMove(_) | HostAction::Halo(_) => true,
             HostAction::Keyboard(entries) => entries.iter().any(|e| e.kind != 0x02),
             HostAction::Macro(steps) => steps
                 .iter()
@@ -420,5 +432,54 @@ mod tests {
         assert_eq!(bad.validate(), Err(Error::DuplicateLibraryEntry));
         assert!(is_uuid("123E4567-E89B-12D3-A456-426614174000"));
         assert!(!is_uuid("123e4567e89b12d3a456426614174000"));
+    }
+}
+
+/// 光环菜单里的一个选项。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HaloOption {
+    /// 显示文字。
+    pub label: String,
+    /// 选中后执行的动作；可以是另一个光环。
+    pub action: HostAction,
+}
+
+/// 一个光环菜单：最多八个选项，旋钮旋转选择、旋钮按下确认。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Halo {
+    /// 配置内唯一的标识。
+    pub id: String,
+    /// 显示名称。
+    pub name: String,
+    pub options: Vec<HaloOption>,
+}
+
+impl Halo {
+    /// 每个光环最多的选项数。
+    pub const MAX_OPTIONS: usize = 8;
+
+    /// 标识与名称非空且不超过 80 字，1–8 个选项，每个选项的动作合法且不能是库引用或切层。
+    pub fn validate(&self) -> Result<(), Error> {
+        let text_ok =
+            |t: &str| !t.trim().is_empty() && t.chars().count() <= 80 && !t.contains('\0');
+        if !text_ok(&self.id)
+            || !text_ok(&self.name)
+            || self.options.is_empty()
+            || self.options.len() > Self::MAX_OPTIONS
+        {
+            return Err(Error::InvalidHalo);
+        }
+        for option in &self.options {
+            if !text_ok(&option.label) {
+                return Err(Error::InvalidHalo);
+            }
+            match option.action {
+                HostAction::Library(_) | HostAction::MomentaryLayer(_) => {
+                    return Err(Error::InvalidHalo)
+                }
+                _ => option.action.validate()?,
+            }
+        }
+        Ok(())
     }
 }

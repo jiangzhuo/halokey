@@ -271,3 +271,53 @@ fn profile_round_trip_and_legacy_codes_migration() {
     };
     assert_eq!(blank.validate(), Err(Error::InvalidName));
 }
+
+#[test]
+fn halos_are_validated_and_referenced_by_id() {
+    use halokey_host::{Halo, HaloOption};
+    let mut map = keymap();
+    map.halos.push(Halo {
+        id: "apps".into(),
+        name: "应用".into(),
+        options: vec![
+            HaloOption {
+                label: "编辑器".into(),
+                action: HostAction::Application(ApplicationTarget {
+                    bundle_identifier: "gnome-text-editor".into(),
+                    path: String::new(),
+                    name: "Editor".into(),
+                }),
+            },
+            HaloOption {
+                label: "回车".into(),
+                action: HostAction::Keyboard(vec![KeyEntry::new(0x28)]),
+            },
+        ],
+    });
+    map.controls[3].press_action = Some(HostAction::Halo("apps".into()));
+    map.normalize_version();
+    assert_eq!(map.version, 6);
+    assert!(map.validate().is_ok());
+    let bytes = map.to_json().unwrap();
+    let text = String::from_utf8(bytes.clone()).unwrap();
+    assert!(text.contains(r#""halo":{"_0":"apps"}"#) && text.contains(r#""halos":[{"id":"apps""#));
+    assert_eq!(HostKeymap::from_json(&bytes).unwrap(), map);
+    assert_eq!(map.halo("apps").map(|h| h.options.len()), Some(2));
+    map.controls[3].press_action = Some(HostAction::Halo("nope".into()));
+    assert_eq!(map.validate(), Err(Error::MissingHalo));
+    map.controls[3].press_action = None;
+    map.halos[0].options.clear();
+    assert_eq!(map.validate(), Err(Error::InvalidHalo));
+    map.halos[0].options = vec![HaloOption {
+        label: "x".into(),
+        action: HostAction::MomentaryLayer(1),
+    }];
+    assert_eq!(map.validate(), Err(Error::InvalidHalo));
+    map.halos[0].options = (0..9)
+        .map(|i| HaloOption {
+            label: format!("{i}"),
+            action: HostAction::Keyboard(vec![]),
+        })
+        .collect();
+    assert_eq!(map.validate(), Err(Error::InvalidHalo));
+}

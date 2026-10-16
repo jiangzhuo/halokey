@@ -27,6 +27,8 @@ pub enum Error {
     TooManyKeyEntries,
     InvalidPointerDelta,
     NotQueueable,
+    InvalidHalo,
+    MissingHalo,
     Json(String),
 }
 
@@ -59,6 +61,8 @@ impl fmt::Display for Error {
             Error::TooManyKeyEntries => f.write_str("一个动作最多包含 24 个键盘条目。"),
             Error::InvalidPointerDelta => f.write_str("指针移动的位移不能为零，且每个方向不超过 1000 像素。"),
             Error::NotQueueable => f.write_str("该动作由手势路由直接执行，不进入动作队列。"),
+            Error::InvalidHalo => f.write_str("光环菜单需要标识、名称和 1–8 个带名字的选项，选项不能引用功能库或切层。"),
+            Error::MissingHalo => f.write_str("引用的光环菜单不存在。"),
             Error::Json(message) => write!(f, "配置格式无效：{message}"),
         }
     }

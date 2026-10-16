@@ -183,7 +183,7 @@ impl<L: Launcher> ActionRunner<L> {
             HostAction::Application(target) => vec![MacroStep::Application(target)],
             HostAction::Macro(steps) => steps,
             HostAction::Library(_) => return Err(Error::MissingLibraryAction),
-            HostAction::MomentaryLayer(_) | HostAction::PointerMove(_) => {
+            HostAction::MomentaryLayer(_) | HostAction::PointerMove(_) | HostAction::Halo(_) => {
                 return Err(Error::NotQueueable)
             }
         };
