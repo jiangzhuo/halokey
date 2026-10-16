@@ -512,6 +512,15 @@ impl Worker {
             {
                 self.close_halo();
             }
+            // 接收器刚插上时无线链路可能还没恢复，首次查询会答"离线"；定期复查。
+            if last_online_check.elapsed() >= ONLINE_RECHECK {
+                last_online_check = Instant::now();
+                match transport.query_online(REPLY_TIMEOUT) {
+                    Ok(online) => self.update(|s| s.online = Some(online)),
+                    Err(e) => self.fail(format!("在线查询失败：{e}")),
+                }
+                self.drain_stray();
+            }
             if last_echo.elapsed() > ECHO_TIMEOUT {
                 self.fail("5 秒没有收到心跳回显，接收器可能已断开。".into());
                 return Flow::Reconnect;
