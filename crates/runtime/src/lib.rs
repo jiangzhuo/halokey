@@ -29,6 +29,8 @@ pub const HEARTBEAT_INTERVAL: Duration = Duration::from_millis(800);
 pub const ECHO_TIMEOUT: Duration = Duration::from_secs(5);
 /// 没有接收器时的重试间隔。
 pub const RETRY_INTERVAL: Duration = Duration::from_secs(1);
+/// 本体在线状态的复查间隔；按键事件和电量广播也会即时把状态置为在线。
+pub const ONLINE_RECHECK: Duration = Duration::from_secs(10);
 /// 光环菜单无操作多久后自动关闭。
 pub const HALO_TIMEOUT: Duration = Duration::from_secs(4);
 /// 光环菜单选项执行时使用的按键所有者编号。
@@ -438,6 +440,7 @@ impl Worker {
             Err(e) => self.fail(format!("在线查询失败：{e}")),
         }
         self.drain_stray();
+        let mut last_online_check = Instant::now();
         loop {
             match self.commands.try_recv() {
                 Ok(Command::Stop) => return Flow::Stop,
@@ -533,6 +536,8 @@ impl Worker {
             return true;
         }
         if let Some(event) = VendorKeyEvent::decode(frame) {
+            // 本体发来按键，必然在线。
+            self.update(|s| s.online = Some(true));
             let now = self.now();
             (self.on_event)(Event::Key(event, now));
             if self.intercept_for_halo(event) {
@@ -543,6 +548,7 @@ impl Worker {
             return false;
         }
         if status::is_battery_notice(frame) {
+            self.update(|s| s.online = Some(true));
             if let Ok(b) = status::parse_battery_notice(frame) {
                 let merged = Battery {
                     charging: self.snapshot().battery.and_then(|old| old.charging),
