@@ -11,7 +11,7 @@
   for (let c = 0x68; c <= 0x73; c++) KEYS.push([c, `F${c - 0x68 + 13}`]);
   KEYS.push([0x01, "Fn"]);
   const MODS = [[0xE0, "Ctrl"], [0xE1, "Shift"], [0xE2, "Alt"], [0xE3, "Super"]];
-  const MOUSE = [[0, "左键"], [1, "右键"], [2, "中键"], [3, "鼠标键 4"], [4, "鼠标键 5"], [5, "滚轮↑"], [6, "滚轮↓"]];
+  const MOUSE = [[0, "左键"], [1, "右键"], [2, "中键"], [3, "鼠标键 4"], [4, "鼠标键 5"], [5, "滚轮↑"], [6, "滚轮↓"]].map(([c, n]) => [c, t(n)]);
   const GESTURES = [["press", "单击", "pressAction", "press"], ["double", "双击", "doublePressAction", "doublePress"], ["long", "长按", "longPressAction", "longPress"]];
 
   function el(tag, props = {}, children = []) {
@@ -71,9 +71,9 @@
   // 渲染动作选择器；onChange(state) 在任何字段变化时回调。
   function actionPicker(state, halos, onChange, { allowLayer = false } = {}) {
     const box = el("div", { class: "picker" });
-    const types = [["none", "无"], ["keyboard", "键盘"], ["mouse", "鼠标"], ["application", "切换应用"], ["pointerMove", "指针移动"], ["halo", "光环菜单"]];
-    if (allowLayer) types.push(["layer", "MO 切层"]);
-    if (state.type === "raw") types.push(["raw", "（复杂动作，请在 JSON 里改）"]);
+    const types = [["none", "无"], ["keyboard", "键盘"], ["mouse", "鼠标"], ["application", "切换应用"], ["pointerMove", "指针移动"], ["halo", "光环菜单"]].map(([v, n]) => [v, t(n)]);
+    if (allowLayer) types.push(["layer", t("MO 切层")]);
+    if (state.type === "raw") types.push(["raw", t("（复杂动作，请在 JSON 里改）")]);
     const typeSel = el("select");
     for (const [v, t] of types) typeSel.append(option(v, t, v === state.type));
     const fields = el("div", { class: "fields" });
@@ -88,7 +88,7 @@
             fields.append(el("label", {}, [cb, ` ${name} `]));
           }
           const keySel = el("select");
-          keySel.append(option(0, "（仅修饰键）", !state.key));
+          keySel.append(option(0, t("（仅修饰键）"), !state.key));
           for (const [code, name] of KEYS) keySel.append(option(code, name, code === state.key));
           keySel.onchange = () => { state.key = Number(keySel.value); onChange(state); };
           fields.append(keySel);
@@ -102,9 +102,9 @@
           break;
         }
         case "application": {
-          const cls = el("input", { placeholder: "WM_CLASS，如 google-chrome", value: state.cls || "" });
-          const name = el("input", { placeholder: "显示名", value: state.name || "" });
-          const path = el("input", { placeholder: "可执行文件路径（可选）", value: state.path || "" });
+          const cls = el("input", { placeholder: t("WM_CLASS，如 google-chrome"), value: state.cls || "" });
+          const name = el("input", { placeholder: t("显示名"), value: state.name || "" });
+          const path = el("input", { placeholder: t("可执行文件路径（可选）"), value: state.path || "" });
           for (const [i, k] of [[cls, "cls"], [name, "name"], [path, "path"]]) i.oninput = () => { state[k] = i.value; onChange(state); };
           fields.append(cls, name, path);
           break;
@@ -114,12 +114,12 @@
           const dy = el("input", { type: "number", value: state.dy ?? 0, style: "width:70px" });
           dx.oninput = () => { state.dx = dx.value; onChange(state); };
           dy.oninput = () => { state.dy = dy.value; onChange(state); };
-          fields.append("dx ", dx, " dy ", dy, " 像素");
+          fields.append("dx ", dx, " dy ", dy, " " + t("像素"));
           break;
         }
         case "halo": {
           const sel = el("select");
-          if (!halos.length) sel.append(option("", "（先在下方添加光环菜单）", true));
+          if (!halos.length) sel.append(option("", t("（先在下方添加光环菜单）"), true));
           for (const h of halos) sel.append(option(h.id, `${h.name} (${h.id})`, h.id === state.id));
           if (!state.id && halos.length) state.id = halos[0].id;
           sel.onchange = () => { state.id = sel.value; onChange(state); };
@@ -154,7 +154,7 @@
 
   // ---- 控件编辑面板 ----
   const panel = el("section", { class: "wide", id: "editor" });
-  const title = el("h2", { text: "编辑动作" });
+  const title = el("h2", { text: t("编辑动作") });
   const body = el("div");
   panel.append(title, body);
   document.querySelector("main").insertBefore(panel, document.getElementById("json").closest("section"));
@@ -164,7 +164,7 @@
     const control = map.controls.find(c => c.index === index);
     if (!control) return;
     panel.style.display = "";
-    title.textContent = `编辑：${["键 1", "键 2", "键 3", "旋钮按下", "旋钮 → 右拧", "旋钮 ← 左拧"][index]}`;
+    title.textContent = `${t("编辑动作")}: ${t(["键 1", "键 2", "键 3", "旋钮按下", "旋钮 → 右拧", "旋钮 ← 左拧"][index])}`;
     body.replaceChildren();
     const gestures = index < 4 ? GESTURES : GESTURES.slice(0, 1);
     for (const [id, label, actionKey, entriesKey] of gestures) {
@@ -178,17 +178,17 @@
         else { delete control[actionKey]; control[entriesKey] = entries; }
         onDirty();
       };
-      row.append(el("strong", { text: label, style: "width:48px" }), actionPicker(state, map.halos || [], apply, { allowLayer: index < 4 && id !== "double" }));
+      row.append(el("strong", { text: t(label), style: "width:48px" }), actionPicker(state, map.halos || [], apply, { allowLayer: index < 4 && id !== "double" }));
       if (id === "press") {
         const beh = el("select");
-        for (const [v, t] of [["hold", "跟随按住"], ["tap", "短按一次"], ["burst", "连按"]]) beh.append(option(v, t, (control.pressBehavior || "hold") === v));
+        for (const [v, label] of [["hold", "跟随按住"], ["tap", "短按一次"], ["burst", "连按"]]) beh.append(option(v, t(label), (control.pressBehavior || "hold") === v));
         beh.onchange = () => { control.pressBehavior = beh.value; onDirty(); };
-        row.append(" 输出 ", beh);
+        row.append(" " + t("输出") + " ", beh);
       }
       body.append(row);
     }
-    const close = el("button", { text: "收起", onclick: () => { panel.style.display = "none"; } });
-    body.append(el("div", { class: "row" }, [close, el("span", { class: "msg", text: "改动会进入下方 JSON，点「保存并应用」生效。" })]));
+    const close = el("button", { text: t("收起"), onclick: () => { panel.style.display = "none"; } });
+    body.append(el("div", { class: "row" }, [close, el("span", { class: "msg", text: t("改动会进入下方 JSON，点「保存并应用」生效。") })]));
   };
 
   // ---- 光环菜单编辑 ----
@@ -198,14 +198,14 @@
     for (const h of map.halos) {
       const card = el("div", { class: "halo-card" });
       const id = el("input", { value: h.id, placeholder: "id", style: "width:90px" });
-      const name = el("input", { value: h.name, placeholder: "名称", style: "width:120px" });
+      const name = el("input", { value: h.name, placeholder: t("名称"), style: "width:120px" });
       id.oninput = () => { h.id = id.value; onDirty(); };
       name.oninput = () => { h.name = name.value; onDirty(); };
-      const del = el("button", { text: "删除菜单", onclick: () => { map.halos = map.halos.filter(x => x !== h); onDirty(); window.renderHaloEditor(map, container, onDirty); } });
-      card.append(el("div", { class: "row" }, [el("span", { class: "pill", text: "光环" }), id, name, del]));
+      const del = el("button", { text: t("删除菜单"), onclick: () => { map.halos = map.halos.filter(x => x !== h); onDirty(); window.renderHaloEditor(map, container, onDirty); } });
+      card.append(el("div", { class: "row" }, [el("span", { class: "pill", text: "halo" }), id, name, del]));
       h.options.forEach((o, i) => {
         const row = el("div", { class: "row" });
-        const label = el("input", { value: o.label, placeholder: "选项文字", style: "width:110px" });
+        const label = el("input", { value: o.label, placeholder: t("选项文字"), style: "width:110px" });
         label.oninput = () => { o.label = label.value; onDirty(); };
         const state = decompose(o.action, null);
         const picker = actionPicker(state, map.halos, (st) => { const { action, entries } = compose(st); o.action = action || { keyboard: { _0: entries } }; onDirty(); });
@@ -214,10 +214,10 @@
         card.append(row);
       });
       if (h.options.length < 8) {
-        card.append(el("button", { text: "+ 选项", onclick: () => { h.options.push({ label: "新选项", action: { keyboard: { _0: [{ type: 2, code: 0x28 }] } } }); onDirty(); window.renderHaloEditor(map, container, onDirty); } }));
+        card.append(el("button", { text: t("+ 选项"), onclick: () => { h.options.push({ label: t("新选项"), action: { keyboard: { _0: [{ type: 2, code: 0x28 }] } } }); onDirty(); window.renderHaloEditor(map, container, onDirty); } }));
       }
       container.append(card);
     }
-    container.append(el("button", { text: "+ 新建光环菜单", onclick: () => { map.halos.push({ id: `halo${map.halos.length + 1}`, name: "新菜单", options: [{ label: "回车", action: { keyboard: { _0: [{ type: 2, code: 0x28 }] } } }] }); onDirty(); window.renderHaloEditor(map, container, onDirty); } }));
+    container.append(el("button", { text: t("+ 新建光环菜单"), onclick: () => { map.halos.push({ id: `halo${map.halos.length + 1}`, name: t("新菜单"), options: [{ label: "Enter", action: { keyboard: { _0: [{ type: 2, code: 0x28 }] } } }] }); onDirty(); window.renderHaloEditor(map, container, onDirty); } }));
   };
 })();
