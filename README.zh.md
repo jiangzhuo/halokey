@@ -20,6 +20,7 @@ cargo run -p halokey-cli -- run -v               # 守护进程：心跳、手�
 cargo run -p halokey-cli -- export-keymap > my.json   # 设备表导出为可编辑的主机键位 JSON
 cargo run -p halokey-cli -- run --config docs/examples/knob-moves-pointer.json   # 旋钮移动鼠标指针
 cargo run -p halokey-cli -- run --config docs/examples/switch-apps-and-macro.json # 按键切换应用，旋钮按下跑宏
+cd ui && npm install && cd ..                    # 只需一次；Tauri 构建会自己跑 Vite
 cargo run -p halokey-app                         # 托盘应用：设置窗口 + 光环悬浮层，读取 ~/.config/halokey/keymap.json
 ```
 

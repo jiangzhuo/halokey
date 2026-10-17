@@ -31,6 +31,7 @@ crates/wm        trait Launcher { launch(app) -> Activation, is_frontmost(app), 
 crates/runtime   the device service: one thread owning transport, heartbeat, router, injector,
                  runner; commands in, snapshots and events out. Shared by the CLI and the app.
 apps/halokey     Tauri 2: tray, settings window (webview), halo overlay window, CLI subcommands
+ui/              Svelte 5 + Vite front end for both windows (`index.html`, `halo.html` → `ui/dist`)
 ```
 
 Dependency direction is strictly downward: `apps` → `runtime` → `host` → `proto`; `hid`, `input`, `wm` are leaves that `runtime` wires together.
@@ -79,6 +80,6 @@ The heartbeat keeps the device in vendor-event mode. When halokey stops, suspend
 
 1. `proto` with unit tests from the evidence logs; `hid` reads the six-slot table on all three platforms. **Linux done 2026-10-16**; macOS and Windows still to be run on hardware.
 2. Headless daemon: heartbeat, vendor events, keyboard and mouse injection, olanzi keymap import. **Linux: `halokey run` verified on hardware 2026-10-16** (key 1 typed `f`, key 2 sent Enter, knob scrolled a page, and with `docs/examples/knob-moves-pointer.json` the knob moved the pointer)). App switching and macros verified on GNOME/X11 2026-10-16 with `docs/examples/switch-apps-and-macro.json`: keys raised Text Editor and Chrome, knob press switched to the editor and typed `hi`. **Milestone 2 complete on Linux.**
-3. Tray and settings window. **Done on Linux 2026-10-16** (`apps/halokey`, Tauri 2.12, vanilla HTML/JS, JSON editor plus a form-based action and halo editor, device panel, autostart toggle, write-to-device backup).
+3. Tray and settings window. **Done on Linux 2026-10-16** (`apps/halokey`, Tauri 2.12, vanilla HTML/JS, JSON editor plus a form-based action and halo editor, device panel, autostart toggle, write-to-device backup). **Front end rebuilt 2026-10-17** (phase 1 of the redesign): Svelte 5 + Vite + TypeScript in `ui/`, olanzi-style keymap page (layer bar, product render, gesture cards, categorised palette, save/undo with Rust-side validation) and a read-only settings page; per-layer backlight, halo editor and the remaining settings writes follow in later phases.
 4. Halo overlay. **Done on Linux 2026-10-16**: non-focusable transparent window driven by runtime events; rotation selects, press confirms, keys cancel, 4 s idle closes; nested halos verified.
 5. Lighting, microphone, power settings; packaging, signing, auto-update. **Lighting read/write and device info done 2026-10-16**; `cargo tauri build` produces a `.deb` with the udev rule. Microphone and standby writes done; signing and auto-update remain.
