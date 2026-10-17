@@ -41,4 +41,17 @@ describe("Keymap palette", () => {
     flushSync();
     expect(controlAt(draft.v.map!, 0, 4)!.pressAction).toEqual({ pointerMove: { _0: { dx: 20, dy: 0 } } });
   });
+  it("leaves the Layer panel when a rotation or double press gets selected", () => {
+    setLang("zh");
+    const draft = $state<{ v: Draft }>({ v: loadSaved(initialDraft(), load()) });
+    app = mount(Keymap, { target: document.body, props: { get draft() { return draft.v; }, set draft(d: Draft) { draft.v = d; }, snapshot: null } });
+    flushSync();
+    byText("Layer")!.click();
+    flushSync();
+    expect(byText("MO(1)")).toBeTruthy();
+    buttons().find((b) => b.textContent?.includes("右旋"))!.click();
+    flushSync();
+    expect(byText("MO(1)")).toBeUndefined();
+    expect(byText("Enter")).toBeTruthy();
+  });
 });

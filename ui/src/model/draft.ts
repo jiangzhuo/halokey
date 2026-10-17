@@ -63,6 +63,8 @@ export const assignEntries = (d: Draft, entries: KeyEntry[]) => mutate(d, (_m, c
   uninherit(c, g); (c as any)[GKEY[g]] = entries; delete (c as any)[AKEY[g]]; return true;
 });
 export const assignAction = (d: Draft, action: HostAction) => mutate(d, (_m, c, g) => {
+  // MO 只允许按键与旋钮按下的单击 / 长按（与 Rust 校验一致）。
+  if ("momentaryLayer" in action && (isRotation(d.selection.index) || g === "double")) return false;
   uninherit(c, g); (c as any)[AKEY[g]] = action; if (g !== "press") delete (c as any)[GKEY[g]]; return true;
 });
 export const clearGesture = (d: Draft) => mutate(d, (_m, c, g) => {

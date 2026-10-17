@@ -62,4 +62,14 @@ describe("draft reducer", () => {
     d = setTapCount(select(d, { layer: 0, index: 0, gesture: "press" }), 99);
     expect(controlAt(d.map!, 0, 0)!.pressTapCount).toBe(20);
   });
+  it("refuses momentary layer on rotation and double press", () => {
+    let d = loadSaved(initialDraft(), load());
+    const before = JSON.stringify(d.map);
+    d = assignAction(select(d, { layer: 0, index: 4, gesture: "press" }), { momentaryLayer: { _0: 1 } });
+    d = assignAction(select(d, { layer: 0, index: 0, gesture: "double" }), { momentaryLayer: { _0: 1 } });
+    expect(JSON.stringify(d.map)).toBe(before);
+    expect(d.dirty).toBe(false);
+    d = assignAction(select(d, { layer: 0, index: 0, gesture: "long" }), { momentaryLayer: { _0: 2 } });
+    expect(controlAt(d.map!, 0, 0)!.longPressAction).toEqual({ momentaryLayer: { _0: 2 } });
+  });
 });

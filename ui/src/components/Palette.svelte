@@ -19,6 +19,8 @@
   const rotation = $derived(isRotation(sel.index));
   const cat = $derived(CATEGORIES.find((c) => c.id === category)!);
   const layerAllowed = $derived(!rotation && sel.gesture !== "double");
+  // 选中切到旋转 / 双击时 Layer 面板已不适用，退回常用。
+  $effect(() => { if (!layerAllowed && category === "layer") category = "common"; });
   const pointer = (dx: number, dy: number) => { draft = assignAction(draft, { pointerMove: { _0: { dx, dy } } }); };
 </script>
 
