@@ -27,3 +27,6 @@ apps/halokey/gen/
 
 # brainstorming mockups
 .superpowers/
+
+ui/node_modules/
+ui/dist/

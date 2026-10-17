@@ -590,6 +590,10 @@ fn main() {
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
+            // 调试用：HALOKEY_SHOW_MAIN=1 时启动即显示设置窗口，省去点托盘。
+            if std::env::var_os("HALOKEY_SHOW_MAIN").is_some() {
+                show_main(&handle);
+            }
             let service = Service::spawn(
                 Config {
                     keymap: initial,

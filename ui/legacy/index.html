@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>halokey</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>halokey</h1>
+  <div class="status">
+    <span><i class="dot" id="dot"></i><span id="conn" data-i18n="未连接">未连接</span></span>
+    <span id="battery" data-i18n="电量 —">电量 —</span>
+    <span id="stats"></span>
+    <span><a href="#" id="lang-zh">中文</a> · <a href="#" id="lang-en">English</a></span>
+  </div>
+</header>
+<main>
+  <section>
+    <h2 data-i18n="控件">控件</h2>
+    <table id="controls">
+      <thead><tr><th style="width:92px">控件</th><th data-i18n="单击">单击</th><th data-i18n="双击">双击</th><th data-i18n="长按">长按</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="row">
+      <button id="reload" data-i18n="从设备重读">从设备重读</button>
+      <button id="write-device" data-i18n="写入设备（离线备用）">写入设备（离线备用）</button>
+      <span class="msg" id="controls-msg"></span>
+    </div>
+  </section>
+  <section>
+    <h2 data-i18n="光环菜单">光环菜单</h2>
+    <div id="halos"></div>
+    <h2 style="margin-top:14px" data-i18n="最近事件">最近事件</h2>
+    <div class="log" id="log"></div>
+  </section>
+  <section class="wide">
+    <h2 data-i18n="设备">设备</h2>
+    <div class="row">
+      <span class="msg" id="info"></span>
+      <button id="info-reload" data-i18n="读取设备信息">读取设备信息</button>
+      <label style="margin-left:auto"><input type="checkbox" id="autostart"> 登录时启动</label>
+    </div>
+    <div class="row">
+      <label><span data-i18n="空闲">空闲</span> <input type="number" id="idle-minutes" min="0" max="240" style="width:60px"> <span data-i18n="分钟后交还控制让设备待机（0 = 从不）">分钟后交还控制让设备待机（0 = 从不）</span></label>
+      <span class="msg" id="idle-msg"></span>
+    </div>
+    <div id="power" class="row" style="display:none; gap:14px">
+      <label><span data-i18n="休眠 / 自动关机">休眠 / 自动关机</span>
+        <select id="sleep-delay"><option value="0" data-i18n="从不">从不</option><option value="3600" data-i18n="1 小时">1 小时</option><option value="7200" data-i18n="2 小时">2 小时</option><option value="10800" data-i18n="3 小时">3 小时</option><option value="14400" data-i18n="4 小时">4 小时</option></select>
+      </label>
+      <label><span data-i18n="待机延时">待机延时</span> <input type="number" id="standby-delay" min="10" max="86400" style="width:80px"> <span data-i18n="秒">秒</span></label>
+      <label><input type="checkbox" id="mic-enabled"> <span data-i18n="麦克风">麦克风</span></label>
+      <label><input type="checkbox" id="noise-reduction"> <span data-i18n="降噪">降噪</span></label>
+      <span class="msg" id="power-msg"></span>
+    </div>
+    <div id="lighting" class="row" style="display:none; gap:18px; align-items:flex-start">
+      <label><span data-i18n="灯光模式">灯光模式</span>
+        <select id="light-mode"><option value="0" data-i18n="关">关</option><option value="1" data-i18n="常亮">常亮</option><option value="2" data-i18n="模式 2">模式 2</option></select>
+      </label>
+      <label><span data-i18n="全亮亮度">全亮亮度</span> <input type="range" id="light-brightness" min="0" max="20"> <span id="light-brightness-v"></span></label>
+      <div id="lights"></div>
+      <button class="primary" id="light-apply" data-i18n="写入灯光">写入灯光</button>
+      <span class="msg" id="light-msg"></span>
+    </div>
+  </section>
+  <section class="wide">
+    <h2 data-i18n="配置 JSON（与 olanzi 兼容，光环与指针移动为 halokey 扩展）">配置 JSON（与 olanzi 兼容，光环与指针移动为 halokey 扩展）</h2>
+    <textarea id="json" spellcheck="false"></textarea>
+    <div class="row">
+      <button class="primary" id="save" data-i18n="保存并应用">保存并应用</button>
+      <button id="reset" data-i18n="放弃修改">放弃修改</button>
+      <span class="msg" id="save-msg"></span>
+      <span class="msg" id="path"></span>
+    </div>
+  </section>
+</main>
+<script src="i18n.js"></script>
+<script src="editor.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

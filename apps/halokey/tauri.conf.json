@@ -4,7 +4,10 @@
   "version": "0.0.1",
   "identifier": "dev.halokey.app",
   "build": {
-    "frontendDist": "../../ui"
+    "beforeDevCommand": "npm --prefix ../../ui run dev",
+    "beforeBuildCommand": "npm --prefix ../../ui run build",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../../ui/dist"
   },
   "app": {
     "withGlobalTauri": true,
@@ -13,10 +16,10 @@
         "label": "main",
         "title": "halokey",
         "url": "index.html",
-        "width": 900,
-        "height": 640,
-        "minWidth": 720,
-        "minHeight": 480,
+        "width": 1100,
+        "height": 760,
+        "minWidth": 960,
+        "minHeight": 640,
         "visible": false
       },
       {
@@ -38,7 +41,8 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src ipc: http://ipc.localhost"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src ipc: http://ipc.localhost",
+      "devCsp": null
     },
     "trayIcon": {
       "iconPath": "icons/icon.png",
