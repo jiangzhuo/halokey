@@ -23,7 +23,7 @@
   const leader = (side: "left" | "right", from: number, to: number) =>
     side === "left" ? `M40 ${from} H30 L10 ${to} H0` : `M0 ${from} H10 L30 ${to} H40`;
   const LEFT: [number, number, number][] = [[5, 84, 30], [3, 84, 127], [1, 201, 211]];
-  const RIGHT: [number, number, number][] = [[4, 84, 30], [0, 153, 90], [2, 249, 249]];
+  const RIGHT: [number, number, number][] = [[4, 84, 30], [0, 153, 127], [2, 249, 211]];
   const lights = $derived(["off", "off", "off", "off"] as ("off" | "solid" | "breathe")[]); // 第 2 期接本层背光
   const _snapshot = $derived(snapshot); // 第 2 期接本层背光时使用
   let saving = $state(false);
@@ -82,8 +82,8 @@
   .knobs.end { justify-content: flex-end; }
   .left .name { color: var(--muted); font-size: 14px; margin-top: 12px; }
   .left > :global(.card:last-of-type) { margin-top: 6px; }
-  .right > :global(.card:first-of-type) { margin-top: 2px; }
-  .right > :global(.card:last-of-type) { margin-top: 81px; }
+  /* 右侧两张卡片与左侧两张同高（顶 91 / 175 px），左右对称。 */
+  .right > :global(.card:first-of-type) { margin-top: 39px; }
   .leader { display: block; overflow: visible; }
   .leader path { fill: none; stroke: #55555d; stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; transition: stroke 120ms; }
   .leader circle { fill: #55555d; transition: fill 120ms; }
