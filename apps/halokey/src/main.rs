@@ -154,7 +154,10 @@ fn forward(app: &AppHandle, event: Event) {
             }
             UiEvent::HaloHide
         }
-        Event::Error(text) => UiEvent::Error { text },
+        Event::Error(text) => {
+            eprintln!("[halokey] 运行时错误：{text}");
+            UiEvent::Error { text }
+        }
         Event::Paused => UiEvent::Paused,
         Event::Resumed => UiEvent::Resumed,
         Event::Stopped => UiEvent::Stopped,
@@ -194,7 +197,18 @@ fn validate_keymap(keymap: serde_json::Value) -> Result<(), String> {
 fn save_keymap(state: State<'_, App>, keymap: serde_json::Value) -> Result<(), String> {
     let bytes = serde_json::to_vec(&keymap).map_err(|e| e.to_string())?;
     let map = HostKeymap::from_json(&bytes).map_err(|e| e.to_string())?;
-    let pretty = serde_json::to_vec_pretty(&keymap).map_err(|e| e.to_string())?;
+    for c in &map.controls {
+        eprintln!(
+            "[halokey] 保存键位：控件 {} 单击 = {:?}",
+            c.index,
+            c.effective_press()
+        );
+    }
+    // 落盘归一化后的形状（版本号由内容决定），而不是界面原样回传的 JSON。
+    let normalized: serde_json::Value =
+        serde_json::from_slice(&map.to_json().map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+    let pretty = serde_json::to_vec_pretty(&normalized).map_err(|e| e.to_string())?;
     if let Some(dir) = state.config_path.parent() {
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }

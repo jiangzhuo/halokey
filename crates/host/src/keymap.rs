@@ -510,8 +510,9 @@ impl HostKeymap {
             double_press_window: wire.double_press_window,
             long_press_threshold: wire.long_press_threshold,
         };
-        map.validate()?;
+        // 版本由内容决定：调用方（界面、设备表导出）给的旧版本号先归一，再校验。
         map.normalize_version();
+        map.validate()?;
         Ok(map)
     }
 
