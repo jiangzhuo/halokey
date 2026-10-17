@@ -1051,7 +1051,15 @@ fn read_lighting(transport: &mut Transport) -> Result<Lighting, String> {
 fn write_layer_lighting(transport: &mut Transport, desired: &LayerLighting) -> Result<(), String> {
     let current = read_lighting(transport)?;
     let target = desired.device_lighting(&current);
-    let writes = settings::lighting_writes(&target, &current).map_err(|e| e.to_string())?;
+    let mut writes = settings::lighting_writes(&target, &current).map_err(|e| e.to_string())?;
+    // 固件只让这次被写到的灯（重新）开始显示，没写到的灯会被打断：亮着的灯不管有没有变化都补写
+    // 灯效与工作时长，让它们一起重新开始。
+    for (i, light) in target.lights.iter().enumerate() {
+        if light.kind != 0 {
+            writes.push(settings::lighting_write_frame(&target, 0x04, i as u8));
+            writes.push(settings::lighting_write_frame(&target, 0x08, i as u8));
+        }
+    }
     if std::env::var_os("HALOKEY_DEBUG").is_some() {
         eprintln!("[halokey] 背光：现值 {current:?}\n[halokey] 背光：目标 {target:?}\n[halokey] 背光：{} 条写入", writes.len());
     }

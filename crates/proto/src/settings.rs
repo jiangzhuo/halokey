@@ -83,23 +83,26 @@ pub fn parse_lighting(frame: &[u8]) -> Result<Lighting, Error> {
 ///
 /// [CONFIRMED] 掩码 1 模式、2 全亮亮度、4 灯效、0x20 呼吸亮度、0x40 常亮亮度；偏移 5 为灯序号。
 /// [INFERRED] 掩码 0x08 工作时长（vibed 实测）。呼吸参数不允许修改。
+/// 一条指示灯写命令：掩码选字段、`focus` 选灯，帧里携带完整的期望记录。
+pub fn lighting_write_frame(desired: &Lighting, mask: u8, focus: u8) -> Vec<u8> {
+    let mut f = vec![
+        0x01,
+        0x0B,
+        0x88,
+        0x04,
+        mask,
+        focus,
+        desired.mode,
+        desired.brightness,
+    ];
+    for light in &desired.lights {
+        f.extend_from_slice(&light.bytes());
+    }
+    f
+}
+
 pub fn lighting_writes(desired: &Lighting, expected: &Lighting) -> Result<Vec<Vec<u8>>, Error> {
-    let frame = |mask: u8, focus: u8| -> Vec<u8> {
-        let mut f = vec![
-            0x01,
-            0x0B,
-            0x88,
-            0x04,
-            mask,
-            focus,
-            desired.mode,
-            desired.brightness,
-        ];
-        for light in &desired.lights {
-            f.extend_from_slice(&light.bytes());
-        }
-        f
-    };
+    let frame = |mask: u8, focus: u8| lighting_write_frame(desired, mask, focus);
     let mut writes = Vec::new();
     if desired.mode != expected.mode {
         if desired.mode > 2 {
@@ -292,6 +295,15 @@ mod tests {
         let w = lighting_writes(&longer, &lighting).unwrap();
         assert_eq!(w.len(), 1);
         assert_eq!(&w[0][..6], &[1, 0x0B, 0x88, 4, 0x08, 0]);
+        assert_eq!(
+            lighting_write_frame(&longer, 0x08, 0),
+            w[0],
+            "单独构帧与最小差异序列一致"
+        );
+        assert_eq!(
+            lighting_write_frame(&longer, 4, 3)[..6],
+            [1, 0x0B, 0x88, 4, 4, 3]
+        );
         let mut ack = w[0].clone();
         ack[0] = 0x81;
         ack[3] = 0x14;
