@@ -24,3 +24,10 @@ halokey-runtime = { path = "../../crates/runtime" }
 
 [lints]
 workspace = true
+
+[features]
+# Tauri 用 `custom-protocol` 特性决定"嵌入 ui/dist"还是"加载 devUrl"，与 cargo profile 无关。
+# 默认嵌入，这样 `cargo build --release` 就是发布版；开发时 `cargo run --no-default-features`
+# （或 `cargo tauri dev`，它会自己加 --no-default-features）才加载 Vite 开发服务器。
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

@@ -24,7 +24,7 @@
 
 ## 3. 技术栈
 
-Rust workspace + Tauri 2；前端在 `ui/`，Svelte 5 + Vite + TypeScript（`npm test` / `npm run check`，调试版 `cargo run` 加载 Vite 开发服务器 `http://localhost:5177`（先 `npm run dev`）；发布版 `cargo tauri build` 自己跑 `npm run build` 并嵌入 `ui/dist`）。crate 划分与数据流见 `docs/01-architecture.md`。
+Rust workspace + Tauri 2；前端在 `ui/`，Svelte 5 + Vite + TypeScript（`npm test` / `npm run check`，调试版 `cargo run -p halokey-app --no-default-features` 加载 Vite 开发服务器 `http://localhost:5177`（先 `npm run dev`）；`cargo build --release -p halokey-app`（默认特性 `custom-protocol`）与 `cargo tauri build` 嵌入 `ui/dist`，后者会自己跑 `npm run build`，前者要先手动 `npm run build`）。crate 划分与数据流见 `docs/01-architecture.md`。
 平台相关代码只允许出现在 `crates/input`、`crates/wm`、`crates/hid` 的平台模块和 `apps/halokey` 里。
 
 ## 4. 协议不变量（直接用，不要重新推导）
