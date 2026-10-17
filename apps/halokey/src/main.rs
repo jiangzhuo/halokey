@@ -117,13 +117,23 @@ fn forward(app: &AppHandle, event: Event) {
     let ui = match event {
         Event::Connected => UiEvent::Connected,
         Event::Disconnected => UiEvent::Disconnected,
-        Event::Key(e, at) => UiEvent::Key {
-            control: e.control.index(),
-            name: e.control.name().to_string(),
-            pressed: e.pressed,
-            at,
-        },
-        Event::Transitions(_) => return,
+        Event::Key(e, at) => {
+            eprintln!(
+                "[halokey] 按键事件：{} pressed={} at={at:.3}",
+                e.control.name(),
+                e.pressed
+            );
+            UiEvent::Key {
+                control: e.control.index(),
+                name: e.control.name().to_string(),
+                pressed: e.pressed,
+                at,
+            }
+        }
+        Event::Transitions(ts) => {
+            eprintln!("[halokey] 手势过渡：{ts:?}");
+            return;
+        }
         Event::Battery(b) => UiEvent::Battery {
             percent: b.percent,
             millivolts: b.millivolts,
@@ -158,8 +168,14 @@ fn forward(app: &AppHandle, event: Event) {
             eprintln!("[halokey] 运行时错误：{text}");
             UiEvent::Error { text }
         }
-        Event::Paused => UiEvent::Paused,
-        Event::Resumed => UiEvent::Resumed,
+        Event::Paused => {
+            eprintln!("[halokey] 空闲，已交还控制");
+            UiEvent::Paused
+        }
+        Event::Resumed => {
+            eprintln!("[halokey] 设备活动，重新接管");
+            UiEvent::Resumed
+        }
         Event::Stopped => UiEvent::Stopped,
     };
     let _ = app.emit("halokey", ui);
