@@ -4,6 +4,9 @@
   import GestureCard from "../components/GestureCard.svelte";
   import KnobLabel from "../components/KnobLabel.svelte";
   import Palette from "../components/Palette.svelte";
+  import BottomBar from "../components/BottomBar.svelte";
+  import { api } from "../lib/tauri";
+  import { markSaved, revert } from "../model/draft";
   import { t } from "../lib/i18n";
   import type { UiSnapshot } from "../lib/tauri";
   import { actionLabel, CONTROL_NAMES } from "../model/labels";
@@ -17,7 +20,17 @@
   const ctl = (i: number) => resolvedControl(map!, sel.layer, i);
   const pick = (index: number, gesture: Gesture) => { draft = select(draft, { layer: sel.layer, index, gesture }); };
   const lights = $derived(["off", "off", "off", "off"] as ("off" | "solid" | "breathe")[]); // 第 2 期接本层背光
-  const _snapshot = $derived(snapshot); // 第 9 期之前暂不使用，保留 prop 形状
+  const _snapshot = $derived(snapshot); // 第 2 期接本层背光时使用
+  let saving = $state(false);
+  let message = $state("");
+  let error = $state(false);
+  async function save() {
+    if (!draft.map) return;
+    saving = true; error = false; message = "";
+    try { await api.validateKeymap(draft.map); await api.saveKeymap(draft.map); draft = markSaved(draft); message = t("已保存"); }
+    catch (e) { error = true; message = String(e); }
+    finally { saving = false; }
+  }
 </script>
 
 {#if !map}
@@ -39,6 +52,7 @@
     </div>
   </section>
   <Palette bind:draft {halos} apps={(map.actionLibrary ?? []).filter((a) => "application" in a.action)} macros={(map.actionLibrary ?? []).filter((a) => "macro" in a.action)} />
+  <BottomBar dirty={draft.dirty} {saving} {message} {error} onSave={save} onRevert={() => { draft = revert(draft); message = ""; }} />
 {/if}
 
 <style>

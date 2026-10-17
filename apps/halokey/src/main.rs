@@ -67,6 +67,8 @@ struct UiSnapshot {
     standby: Option<bool>,
     link: Option<bool>,
     idle_minutes: u64,
+    /// 当前按住的 MO 层，从底到顶。
+    active_layers: Vec<u8>,
 }
 
 impl UiSnapshot {
@@ -84,6 +86,7 @@ impl UiSnapshot {
             standby: s.standby,
             link: s.link,
             idle_minutes: 0,
+            active_layers: s.active_layers,
         }
     }
 }
@@ -176,6 +179,15 @@ fn get_keymap(state: State<'_, App>) -> Result<serde_json::Value, String> {
         .ok_or("还没有键位（等待接收器）")?;
     let bytes = map.to_json().map_err(|e| e.to_string())?;
     serde_json::from_slice(&bytes).map_err(|e| e.to_string())
+}
+
+/// 只校验不保存，供界面在保存前显示错误。
+#[tauri::command]
+fn validate_keymap(keymap: serde_json::Value) -> Result<(), String> {
+    let bytes = serde_json::to_vec(&keymap).map_err(|e| e.to_string())?;
+    HostKeymap::from_json(&bytes)
+        .map(|_| ())
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -573,6 +585,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             snapshot,
             get_keymap,
+            validate_keymap,
             save_keymap,
             read_device_keys,
             device_info,
@@ -655,4 +668,22 @@ fn main() {
         })
         .run(tauri::generate_context!())
         .expect("halokey 启动失败");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_keymap_accepts_examples_and_rejects_bad_shapes() {
+        let good: serde_json::Value =
+            serde_json::from_str(include_str!("../../../docs/examples/halo-menu.json")).unwrap();
+        assert!(validate_keymap(good.clone()).is_ok());
+        let mut bad = good.clone();
+        bad["controls"].as_array_mut().unwrap().pop();
+        assert!(validate_keymap(bad).is_err());
+        let mut hold_on_double = good;
+        hold_on_double["controls"][0]["doublePressBehavior"] = "hold".into();
+        assert!(validate_keymap(hold_on_double).is_err());
+    }
 }

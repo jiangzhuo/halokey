@@ -76,6 +76,8 @@ pub struct Snapshot {
     pub standby: Option<bool>,
     /// 本体链路（通知 0x0B）。
     pub link: Option<bool>,
+    /// 当前按住的 MO 层，从底到顶；空表示只有基础层。
+    pub active_layers: Vec<u8>,
 }
 
 /// 推送给外部的事件。
@@ -844,6 +846,8 @@ impl Worker {
             return;
         }
         (self.on_event)(Event::Transitions(transitions.clone()));
+        let layers = self.router.active_layers();
+        self.update(|s| s.active_layers = layers);
         let Some(mut injector) = self.injector.take() else {
             return;
         };
