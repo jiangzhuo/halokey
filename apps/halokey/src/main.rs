@@ -113,16 +113,23 @@ fn load_keymap(path: &std::path::Path) -> Result<Option<HostKeymap>, String> {
     }
 }
 
+/// `HALOKEY_DEBUG=1` 时把每个按键事件与手势过渡打到 stderr（排障用）。
+fn debug_log() -> bool {
+    std::env::var_os("HALOKEY_DEBUG").is_some()
+}
+
 fn forward(app: &AppHandle, event: Event) {
     let ui = match event {
         Event::Connected => UiEvent::Connected,
         Event::Disconnected => UiEvent::Disconnected,
         Event::Key(e, at) => {
-            eprintln!(
-                "[halokey] 按键事件：{} pressed={} at={at:.3}",
-                e.control.name(),
-                e.pressed
-            );
+            if debug_log() {
+                eprintln!(
+                    "[halokey] 按键事件：{} pressed={} at={at:.3}",
+                    e.control.name(),
+                    e.pressed
+                );
+            }
             UiEvent::Key {
                 control: e.control.index(),
                 name: e.control.name().to_string(),
@@ -131,7 +138,9 @@ fn forward(app: &AppHandle, event: Event) {
             }
         }
         Event::Transitions(ts) => {
-            eprintln!("[halokey] 手势过渡：{ts:?}");
+            if debug_log() {
+                eprintln!("[halokey] 手势过渡：{ts:?}");
+            }
             return;
         }
         Event::Battery(b) => UiEvent::Battery {
