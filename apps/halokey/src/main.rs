@@ -50,6 +50,9 @@ enum UiEvent {
     Paused,
     Resumed,
     Stopped,
+    Layers {
+        active: Vec<u8>,
+    },
 }
 
 #[derive(Serialize, Clone)]
@@ -69,6 +72,7 @@ struct UiSnapshot {
     idle_minutes: u64,
     /// 当前按住的 MO 层，从底到顶。
     active_layers: Vec<u8>,
+    effective_lighting: Option<halokey_host::LayerLighting>,
 }
 
 impl UiSnapshot {
@@ -87,6 +91,7 @@ impl UiSnapshot {
             link: s.link,
             idle_minutes: 0,
             active_layers: s.active_layers,
+            effective_lighting: s.effective_lighting,
         }
     }
 }
@@ -186,6 +191,7 @@ fn forward(app: &AppHandle, event: Event) {
             UiEvent::Resumed
         }
         Event::Stopped => UiEvent::Stopped,
+        Event::Layers(active) => UiEvent::Layers { active },
     };
     let _ = app.emit("halokey", ui);
 }

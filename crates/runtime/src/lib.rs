@@ -8,7 +8,6 @@
 
 #![forbid(unsafe_code)]
 
-#[allow(dead_code)] // Task 4 接线后删除
 mod lighting;
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::sync::{Arc, Mutex};
@@ -18,13 +17,14 @@ use std::time::{Duration, Instant};
 use halokey_hid::{HidApi, InputWatch, Transport};
 use halokey_host::runner::KEYBOARD_OWNER;
 use halokey_host::{
-    ActionRunner, GestureRouter, Halo, HostAction, HostKeymap, KeyEntry, Launcher, MacroKeys,
-    Transition,
+    ActionRunner, GestureRouter, Halo, HostAction, HostKeymap, KeyEntry, Launcher, LayerLighting,
+    MacroKeys, Transition,
 };
 use halokey_input::{Injector, KeyBridge, RecordingInjector};
 use halokey_proto::frame::Plaintext;
 use halokey_proto::settings::NoiseReductionSetting;
 use halokey_proto::{settings, status, Battery, Control, KeyConfigReply, Lighting, VendorKeyEvent};
+use lighting::LightingScheduler;
 
 /// 心跳间隔。
 pub const HEARTBEAT_INTERVAL: Duration = Duration::from_millis(800);
@@ -80,6 +80,8 @@ pub struct Snapshot {
     pub link: Option<bool>,
     /// 当前按住的 MO 层，从底到顶；空表示只有基础层。
     pub active_layers: Vec<u8>,
+    /// 当前活动层集合对应的有效背光；`None` = 不管灯。
+    pub effective_lighting: Option<LayerLighting>,
 }
 
 /// 推送给外部的事件。
@@ -109,6 +111,8 @@ pub enum Event {
     Error(String),
     /// 服务已停止。
     Stopped,
+    /// 活动层集合变化（从底到顶）。
+    Layers(Vec<u8>),
 }
 
 /// 发给设备线程的命令。
@@ -276,6 +280,7 @@ struct Worker {
     idle_timeout: Option<Duration>,
     last_activity: Instant,
     paused: bool,
+    lighting: LightingScheduler,
 }
 
 struct HaloState {
@@ -315,6 +320,7 @@ impl Worker {
             idle_timeout,
             last_activity: Instant::now(),
             paused: false,
+            lighting: LightingScheduler::new(),
         }
     }
 
@@ -469,6 +475,26 @@ impl Worker {
             }
         }
         self.update(|s| s.keymap = Some(map));
+        self.refresh_layers();
+    }
+
+    /// 活动层集合刷新：快照、事件、背光调度。
+    fn refresh_layers(&mut self) {
+        let layers = self.router.active_layers();
+        let snapshot = self.snapshot();
+        let changed = snapshot.active_layers != layers;
+        let desired = snapshot
+            .keymap
+            .as_ref()
+            .and_then(|m| m.effective_lighting(&layers).copied());
+        self.lighting.note(desired, Instant::now());
+        self.update(|s| {
+            s.active_layers = layers.clone();
+            s.effective_lighting = desired;
+        });
+        if changed {
+            (self.on_event)(Event::Layers(layers));
+        }
     }
 
     fn session(&mut self, transport: &mut Transport, mut watch: Option<InputWatch>) -> Flow {
@@ -502,6 +528,9 @@ impl Worker {
             s.heartbeats += 1;
         });
         (self.on_event)(Event::Connected);
+        // 重连后设备灯光状态未知：忘掉上次写入，让 Layer 0 背光重新写一次。
+        self.lighting.failed();
+        self.refresh_layers();
         match transport.query_online(REPLY_TIMEOUT) {
             Ok(online) => self.update(|s| s.online = Some(online)),
             Err(e) => self.fail(format!("在线查询失败：{e}")),
@@ -616,6 +645,18 @@ impl Worker {
             let transitions = self.router.advance(now);
             self.apply(transitions);
             self.pump_runner(now);
+            if !self.paused {
+                if let Some(desired) = self.lighting.due(Instant::now()) {
+                    match write_layer_lighting(transport, &desired) {
+                        Ok(()) => self.lighting.written(desired),
+                        Err(e) => {
+                            self.lighting.failed();
+                            self.fail(format!("背光写入失败：{e}"));
+                        }
+                    }
+                    self.drain_stray();
+                }
+            }
             if self
                 .halo
                 .as_ref()
@@ -627,7 +668,14 @@ impl Worker {
             if last_online_check.elapsed() >= ONLINE_RECHECK {
                 last_online_check = Instant::now();
                 match transport.query_online(REPLY_TIMEOUT) {
-                    Ok(online) => self.update(|s| s.online = Some(online)),
+                    Ok(online) => {
+                        let was_online = self.snapshot().online == Some(true);
+                        self.update(|s| s.online = Some(online));
+                        if online && !was_online {
+                            // 本体刚上线：之前失败的背光写入在这里补一次。
+                            self.refresh_layers();
+                        }
+                    }
                     Err(e) => self.fail(format!("在线查询失败：{e}")),
                 }
                 self.drain_stray();
@@ -848,8 +896,7 @@ impl Worker {
             return;
         }
         (self.on_event)(Event::Transitions(transitions.clone()));
-        let layers = self.router.active_layers();
-        self.update(|s| s.active_layers = layers);
+        self.refresh_layers();
         let Some(mut injector) = self.injector.take() else {
             return;
         };
@@ -994,6 +1041,21 @@ fn read_lighting(transport: &mut Transport) -> Result<Lighting, String> {
         })
         .map_err(|e| e.to_string())?;
     settings::parse_lighting(&frame).map_err(|e| e.to_string())
+}
+
+/// 把一层的背光套到设备现值上写入：只改四盏灯的 kind 与亮度，每条写等确认（不读回核对，省两次往返）。
+fn write_layer_lighting(transport: &mut Transport, desired: &LayerLighting) -> Result<(), String> {
+    let current = read_lighting(transport)?;
+    let target = desired.device_lighting(&current);
+    let writes = settings::lighting_writes(&target, &current).map_err(|e| e.to_string())?;
+    for request in &writes {
+        transport
+            .transact(request, REPLY_TIMEOUT, |f| {
+                settings::matches_lighting_write_reply(f, request)
+            })
+            .map_err(|e| format!("指示灯写入未确认：{e}"))?;
+    }
+    Ok(())
 }
 
 /// 先读回当前值，只写有差异的字段，每条等确认，最后再读回核对。
