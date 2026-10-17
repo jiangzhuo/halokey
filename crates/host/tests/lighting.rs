@@ -48,8 +48,15 @@ fn brightness_above_20_is_rejected() {
     assert!(matches!(map.validate(), Err(Error::InvalidLighting)));
     let json = br#"{"version":6,"controls":[],"lighting":{"lights":[{"mode":"solid","brightness":3}]},"doublePressWindow":0.25,"longPressThreshold":0.5}"#;
     assert!(
-        HostKeymap::from_json(json).is_err(),
-        "三盏灯的记录必须被拒绝"
+        matches!(
+            HostKeymap::from_json(json),
+            Err(Error::InvalidLightingCount)
+        ),
+        "三盏灯的记录必须被拒绝，并给中文错误"
+    );
+    assert_eq!(
+        Error::InvalidLightingCount.to_string(),
+        "背光记录必须有四盏灯。"
     );
 }
 
@@ -138,8 +145,8 @@ fn device_mapping_sets_work_time_255_for_lit_lights_and_keeps_breathe_level() {
     };
     assert_eq!(
         all_off.device_lighting(&dark).mode,
-        1,
-        "全关的记录不动全局模式"
+        2,
+        "全关的记录也切到工作模式，四盏 kind=0 才真的灭"
     );
 }
 

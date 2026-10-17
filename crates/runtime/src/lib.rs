@@ -572,6 +572,8 @@ impl Worker {
                 }
                 Ok(Command::SetLighting(desired, reply)) => {
                     let _ = reply.send(set_lighting(transport, &desired));
+                    // 设置页直接改了设备记录：运行时的缓存作废，下次按层变化重写。
+                    self.lighting.failed();
                     self.drain_stray();
                 }
                 Ok(Command::SetIdleTimeout(timeout)) => {
@@ -650,7 +652,7 @@ impl Worker {
                     match write_layer_lighting(transport, &desired) {
                         Ok(()) => self.lighting.written(desired),
                         Err(e) => {
-                            self.lighting.failed();
+                            self.lighting.failed_now(Instant::now());
                             self.fail(format!("背光写入失败：{e}"));
                         }
                     }

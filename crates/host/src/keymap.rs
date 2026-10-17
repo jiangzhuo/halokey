@@ -532,6 +532,27 @@ impl HostKeymap {
         if !(1..=u64::from(Self::MAX_VERSION)).contains(&version) {
             return Err(Error::UnsupportedVersion);
         }
+        // 背光记录的灯数先在原始 JSON 上检查，这样错误是中文的 InvalidLightingCount 而不是 serde 的英文。
+        let lighting_records = std::iter::once(value.get("lighting")).chain(
+            value
+                .get("layers")
+                .and_then(serde_json::Value::as_array)
+                .into_iter()
+                .flatten()
+                .map(|l| l.get("lighting")),
+        );
+        for record in lighting_records.flatten() {
+            if record.is_null() {
+                continue;
+            }
+            let n = record
+                .get("lights")
+                .and_then(serde_json::Value::as_array)
+                .map_or(0, Vec::len);
+            if n != 4 {
+                return Err(Error::InvalidLightingCount);
+            }
+        }
         let wire: Wire = serde_json::from_value(value)?;
         let mut map = HostKeymap {
             version: wire.version,

@@ -12,6 +12,8 @@ pub enum Error {
     InvalidPressTapCount,
     /// 背光亮度越界。
     InvalidLighting,
+    /// 背光记录不是四盏灯。
+    InvalidLightingCount,
     InvalidDoublePressBehavior,
     InvalidInheritedGestures,
     UnsupportedGesture,
@@ -45,6 +47,7 @@ impl fmt::Display for Error {
             Error::InvalidInheritedGestures => f.write_str("基础层不能继承其他层的动作。"),
             Error::InvalidPressTapCount => f.write_str("单击和双击的连按次数应为 2–20 次。"),
             Error::InvalidLighting => f.write_str("背光亮度必须在 0–20 之间。"),
+            Error::InvalidLightingCount => f.write_str("背光记录必须有四盏灯。"),
             Error::InvalidDoublePressBehavior => f.write_str("双击动作不能保持按住，请选择按一次或连按。"),
             Error::InvalidLongPressTapCount => f.write_str("长按连按次数应为 2–20 次。"),
             Error::UnsupportedGesture => f.write_str("旋钮转动不支持双击或长按动作。"),

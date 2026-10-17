@@ -32,9 +32,36 @@ pub struct LightEffect {
 }
 
 /// 一层的四盏灯：键 1、键 2、键 3、旋钮。
+///
+/// 反序列化时先收任意长度的数组，长度在 [`LayerLighting::validate`] 里检查，这样错误是中文而不是 serde 的英文。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "LayerLightingWire", into = "LayerLightingWire")]
 pub struct LayerLighting {
     pub lights: [LightEffect; 4],
+}
+
+#[derive(Serialize, Deserialize)]
+struct LayerLightingWire {
+    lights: Vec<LightEffect>,
+}
+
+impl TryFrom<LayerLightingWire> for LayerLighting {
+    type Error = Error;
+    fn try_from(w: LayerLightingWire) -> Result<LayerLighting, Error> {
+        let lights: [LightEffect; 4] = w
+            .lights
+            .try_into()
+            .map_err(|_| Error::InvalidLightingCount)?;
+        Ok(LayerLighting { lights })
+    }
+}
+
+impl From<LayerLighting> for LayerLightingWire {
+    fn from(l: LayerLighting) -> LayerLightingWire {
+        LayerLightingWire {
+            lights: l.lights.to_vec(),
+        }
+    }
 }
 
 impl LayerLighting {
@@ -55,7 +82,7 @@ impl LayerLighting {
     pub const PERSISTENT_WORK_TIME: u8 = 255;
 
     /// 套到设备当前记录上：改 `kind`、两个亮度字段和工作时长（亮的灯写 255 使其常显），
-    /// 全亮亮度与呼吸参数保持现值；只要有亮的灯，全局模式切到 2（工作），否则单灯设置不显示。
+    /// 全亮亮度与呼吸参数保持现值；全局模式切到 2（工作），否则单灯设置不显示。
     pub fn device_lighting(&self, current: &Lighting) -> Lighting {
         let mut out = current.clone();
         for (slot, effect) in out.lights.iter_mut().zip(self.lights.iter()) {
@@ -72,9 +99,8 @@ impl LayerLighting {
                 always_on_brightness: effect.brightness,
             };
         }
-        if self.lights.iter().any(|l| l.mode != LightMode::Off) {
-            out.mode = 2;
-        }
+        // 有记录就切到工作模式：模式 0 / 1 都会忽略单灯设置，四盏全关也要靠 kind=0 才真的灭。
+        out.mode = 2;
         out
     }
 }

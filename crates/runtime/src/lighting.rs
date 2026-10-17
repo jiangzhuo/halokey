@@ -5,6 +5,8 @@ use halokey_host::LayerLighting;
 
 // 接线在运行时主循环里（见 lib.rs 的 refresh_layers / 连接循环）。
 pub(crate) const DEBOUNCE: Duration = Duration::from_millis(100);
+/// 写入失败后，同一个值再试之前至少等这么久（层真的变了不受此限制）。
+pub(crate) const RETRY_BACKOFF: Duration = Duration::from_secs(10);
 
 /// 把"活动层变化"变成"该写什么、什么时候写"。
 pub(crate) struct LightingScheduler {
@@ -14,6 +16,8 @@ pub(crate) struct LightingScheduler {
     changed_at: Option<Instant>,
     /// 最近一次成功写入的值；失败后清空。
     last_written: Option<LayerLighting>,
+    /// 最近一次失败的时刻；同值重试要等过退避期。
+    failed_at: Option<Instant>,
 }
 
 impl LightingScheduler {
@@ -22,16 +26,23 @@ impl LightingScheduler {
             desired: None,
             changed_at: None,
             last_written: None,
+            failed_at: None,
         }
     }
 
-    /// 记录"现在应该是什么"。值变了就重新起算防抖；值没变但还没成功写上（例如上次失败），
-    /// 也重新起算——这样失败后的重试跟着下一次手势过渡走，而不是空转重试。
+    /// 记录"现在应该是什么"。值变了就重新起算防抖；值没变但还没成功写上（例如上次失败）
+    /// 且退避期已过，也重新起算——失败后的重试跟着之后的按键走，但不会每个按键都撞一次超时。
     pub(crate) fn note(&mut self, desired: Option<LayerLighting>, now: Instant) {
         if desired != self.desired {
             self.desired = desired;
             self.changed_at = Some(now);
-        } else if desired.is_some() && desired != self.last_written && self.changed_at.is_none() {
+        } else if desired.is_some()
+            && desired != self.last_written
+            && self.changed_at.is_none()
+            && self
+                .failed_at
+                .is_none_or(|t| now.duration_since(t) >= RETRY_BACKOFF)
+        {
             self.changed_at = Some(now);
         }
     }
@@ -51,10 +62,18 @@ impl LightingScheduler {
 
     pub(crate) fn written(&mut self, value: LayerLighting) {
         self.last_written = Some(value);
+        self.failed_at = None;
     }
 
+    /// 写入失败，或设备记录被别处改动（设置页直接写灯）：忘掉缓存，下次按层变化重写。
     pub(crate) fn failed(&mut self) {
         self.last_written = None;
+    }
+
+    /// 记录一次失败的时刻，开启同值重试的退避期。
+    pub(crate) fn failed_now(&mut self, now: Instant) {
+        self.failed();
+        self.failed_at = Some(now);
     }
 }
 
@@ -127,7 +146,7 @@ mod tests {
         let mut s = LightingScheduler::new();
         s.note(Some(l(3)), t0);
         assert_eq!(s.due(t0 + DEBOUNCE), Some(l(3)));
-        s.failed();
+        s.failed_now(t0 + DEBOUNCE);
         assert_eq!(
             s.due(t0 + Duration::from_secs(1)),
             None,
@@ -136,8 +155,29 @@ mod tests {
         s.note(Some(l(3)), t0 + Duration::from_secs(2));
         assert_eq!(
             s.due(t0 + Duration::from_secs(2) + DEBOUNCE),
+            None,
+            "退避期内同值不重试，哪怕又来了按键"
+        );
+        s.note(Some(l(3)), t0 + RETRY_BACKOFF + Duration::from_secs(1));
+        assert_eq!(
+            s.due(t0 + RETRY_BACKOFF + Duration::from_secs(1) + DEBOUNCE),
             Some(l(3)),
-            "下一次变化再试"
+            "退避期过后再试"
+        );
+    }
+
+    #[test]
+    fn a_changed_value_is_written_even_inside_the_backoff() {
+        let t0 = Instant::now();
+        let mut s = LightingScheduler::new();
+        s.note(Some(l(3)), t0);
+        assert_eq!(s.due(t0 + DEBOUNCE), Some(l(3)));
+        s.failed_now(t0 + DEBOUNCE);
+        s.note(Some(l(4)), t0 + Duration::from_secs(1));
+        assert_eq!(
+            s.due(t0 + Duration::from_secs(1) + DEBOUNCE),
+            Some(l(4)),
+            "层真的变了就立刻写"
         );
     }
 }
