@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { initialDraft, loadSaved, select, assignEntries, assignAction, clearGesture, setTransparent, setBehavior, setTapCount, revert, markSaved, controlAt, resolvedControl, effectiveLighting, hasOwnLighting, setLightEffect, setFollowBase, clearBaseLighting } from "../draft";
+import { initialDraft, loadSaved, select, assignEntries, assignAction, clearGesture, setTransparent, setBehavior, setTapCount, revert, markSaved, controlAt, resolvedControl, effectiveLighting, hasOwnLighting, setLightEffect, setFollowBase, clearBaseLighting, newHaloId, upsertHalo, deleteHalo, haloReferences, haloActionAllowed } from "../draft";
 import type { HostKeymap } from "../keymap";
 
 const load = (): HostKeymap => JSON.parse(readFileSync(resolve(__dirname, "../../../../docs/examples/halo-menu.json"), "utf8"));
@@ -118,5 +118,46 @@ describe("draft lighting", () => {
     expect(d.map!.lighting!.lights[0]!.brightness).toBe(20);
     d = setLightEffect(d, 0, { brightness: -4 });
     expect(d.map!.lighting!.lights[0]!.brightness).toBe(0);
+  });
+});
+
+describe("draft halos", () => {
+  const loadHalo = (): HostKeymap => JSON.parse(readFileSync(resolve(__dirname, "../../../../docs/examples/halo-menu.json"), "utf8"));
+  it("allocates ids and upserts", () => {
+    let d = loadSaved(initialDraft(), loadHalo());
+    expect(newHaloId(d.map!)).toBe("halo-1");
+    d = upsertHalo(d, { id: "halo-1", name: "新建", options: [{ label: "A", action: { keyboard: { _0: [{ type: 2, code: 4 }] } } }] });
+    expect(d.dirty).toBe(true);
+    expect(d.map!.halos!.map((h) => h.id)).toEqual(["main", "more", "halo-1"]);
+    expect(newHaloId(d.map!)).toBe("halo-2");
+    d = upsertHalo(d, { id: "main", name: "改名", options: d.map!.halos![0]!.options });
+    expect(d.map!.halos![0]!.name).toBe("改名");
+    expect(d.map!.halos).toHaveLength(3);
+  });
+  it("lists references and refuses to delete a referenced halo", () => {
+    const m = loadHalo();
+    expect(haloReferences(m, "main")).toEqual(["旋钮按下 › 单击", "光环「更多」槽位 2"]); // 示例里"更多"有一项回到主菜单
+    expect(haloReferences(m, "more")).toEqual(["光环「主菜单」槽位 7"]);
+    let d = loadSaved(initialDraft(), m);
+    const r = deleteHalo(d, "more");
+    expect(r.blockedBy).toEqual(["光环「主菜单」槽位 7"]);
+    expect(r.draft.map!.halos).toHaveLength(2);
+    expect(r.draft.dirty).toBe(false);
+    d = upsertHalo(d, { id: "halo-1", name: "孤儿", options: [{ label: "x", action: { keyboard: { _0: [{ type: 2, code: 4 }] } } }] });
+    const r2 = deleteHalo(d, "halo-1");
+    expect(r2.blockedBy).toEqual([]);
+    expect(r2.draft.map!.halos!.map((h) => h.id)).toEqual(["main", "more"]);
+  });
+  it("finds references inside layers", () => {
+    let d = loadSaved(initialDraft(), loadHalo());
+    d = assignAction(select(d, { layer: 2, index: 1, gesture: "long" }), { halo: { _0: "more" } });
+    expect(haloReferences(d.map!, "more")).toEqual(["光环「主菜单」槽位 7", "Layer 2 · 中间按键 › 长按"]);
+  });
+  it("blocks self-reference, library and layer actions in halo options", () => {
+    expect(haloActionAllowed({ halo: { _0: "x" } }, "x")).toBe(false);
+    expect(haloActionAllowed({ halo: { _0: "y" } }, "x")).toBe(true);
+    expect(haloActionAllowed({ library: { _0: "a" } }, null)).toBe(false);
+    expect(haloActionAllowed({ momentaryLayer: { _0: 1 } }, null)).toBe(false);
+    expect(haloActionAllowed({ pointerMove: { _0: { dx: 1, dy: 0 } } }, null)).toBe(true);
   });
 });

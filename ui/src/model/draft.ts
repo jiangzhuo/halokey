@@ -1,4 +1,5 @@
-import type { Behavior, ControlActionMap, Gesture, HostAction, HostKeymap, KeyEntry, LayerLighting, LightEffect } from "./keymap";
+import type { Behavior, ControlActionMap, Gesture, Halo, HostAction, HostKeymap, KeyEntry, LayerLighting, LightEffect } from "./keymap";
+import { CONTROL_NAMES } from "./labels";
 import { isRotation } from "./keymap";
 
 export type Selection = { layer: number; index: number; gesture: Gesture };
@@ -144,4 +145,57 @@ function writeLighting(map: HostKeymap, layer: number, record: LayerLighting) {
   let l = map.layers.find((x) => x.id === layer);
   if (!l) { l = { id: layer, controls: [] }; map.layers.push(l); map.layers.sort((a, b) => a.id - b.id); }
   l.lighting = record;
+}
+
+// ---- 光环 ----
+
+export function newHaloId(map: HostKeymap): string {
+  const used = new Set((map.halos ?? []).map((h) => h.id));
+  for (let i = 1; ; i++) if (!used.has(`halo-${i}`)) return `halo-${i}`;
+}
+
+export function upsertHalo(d: Draft, halo: Halo): Draft {
+  if (!d.map) return d;
+  const map = clone(d.map);
+  map.halos ??= [];
+  const i = map.halos.findIndex((h) => h.id === halo.id);
+  if (i >= 0) map.halos[i] = clone(halo); else map.halos.push(clone(halo));
+  return { ...d, map, dirty: true };
+}
+
+const GESTURE_NAME = { press: "单击", double: "双击", long: "长按" } as const;
+
+/** 谁在用这个光环：基础层的手势动作、其它光环的槽位、各层的手势动作。 */
+export function haloReferences(map: HostKeymap, id: string): string[] {
+  const refs: string[] = [];
+  const isRef = (a: HostAction | null | undefined) => !!a && "halo" in a && (a as { halo: { _0: string } }).halo._0 === id;
+  const scan = (controls: ControlActionMap[], prefix: string) => {
+    for (const c of controls) {
+      const name = CONTROL_NAMES[c.index] ?? `控件 ${c.index}`;
+      if (isRef(c.pressAction)) refs.push(`${prefix}${name} › ${GESTURE_NAME.press}`);
+      if (isRef(c.doublePressAction)) refs.push(`${prefix}${name} › ${GESTURE_NAME.double}`);
+      if (isRef(c.longPressAction)) refs.push(`${prefix}${name} › ${GESTURE_NAME.long}`);
+    }
+  };
+  scan(map.controls, "");
+  for (const h of map.halos ?? []) h.options.forEach((o, i) => { if (isRef(o.action)) refs.push(`光环「${h.name}」槽位 ${i + 1}`); });
+  for (const l of map.layers ?? []) scan(l.controls, `Layer ${l.id} · `);
+  return refs;
+}
+
+export function deleteHalo(d: Draft, id: string): { draft: Draft; blockedBy: string[] } {
+  if (!d.map) return { draft: d, blockedBy: [] };
+  const blockedBy = haloReferences(d.map, id);
+  if (blockedBy.length) return { draft: d, blockedBy };
+  const map = clone(d.map);
+  map.halos = (map.halos ?? []).filter((h) => h.id !== id);
+  if (!map.halos.length) delete map.halos;
+  return { draft: { ...d, map, dirty: true }, blockedBy: [] };
+}
+
+/** 光环选项允许的动作：不能引用功能库、不能切层、不能套自己（与 Rust Halo::validate 一致）。 */
+export function haloActionAllowed(action: HostAction, editingId: string | null): boolean {
+  if ("library" in action || "momentaryLayer" in action) return false;
+  if ("halo" in action && (action as { halo: { _0: string } }).halo._0 === editingId) return false;
+  return true;
 }
