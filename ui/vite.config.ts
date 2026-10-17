@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 export default defineConfig({
   plugins: [svelte()],
   clearScreen: false,
-  server: { port: 5173, strictPort: true, fs: { allow: [".."] } }, // lib/tauri.ts 的 mock 会 import ../docs/examples
+  server: { port: 5177, strictPort: true, fs: { allow: [".."] } }, // lib/tauri.ts 的 mock 会 import ../docs/examples
   build: {
     outDir: "dist",
     emptyOutDir: true,

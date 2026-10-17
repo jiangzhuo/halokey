@@ -19,7 +19,7 @@
 - 配置里 `options` 只含有效项，顺序即槽位顺序；空槽位不写进文件。
 - 界面文字中文经 `t()`，英文表同步；每个任务结束 `npm test`、`npm run check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace`、`python3 tools/check_docs.py` 全绿；提交英文，末尾 `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`。
 - 不新增依赖。
-- 调试：`cd ui && npm run dev` + `cargo run -p halokey-app`；发布：`npm run build` 后 `cargo build --release -p halokey-app`（`build.rs` 跟踪 `ui/dist`）。转盘窗口在浏览器里可用 `http://localhost:5173/halo.html` 看（mock 每 6 秒推一次假的 `haloShow`）。
+- 调试：`cd ui && npm run dev` + `cargo run -p halokey-app`；发布：`npm run build` 后 `cargo build --release -p halokey-app`（`build.rs` 跟踪 `ui/dist`）。转盘窗口在浏览器里可用 `http://localhost:5177/halo.html` 看（mock 每 6 秒推一次假的 `haloShow`）。
 
 ## Review Focus
 
@@ -584,7 +584,7 @@ subscribe((e: UiEvent) => {
 
 删除 `HaloBubbles.svelte`。
 
-- [ ] **Step 4: 运行** `npm test && npm run check && npm run build`；浏览器打开 `http://localhost:5173/halo.html` 看扇形环（mock 每 6 秒出现一次）。
+- [ ] **Step 4: 运行** `npm test && npm run check && npm run build`；浏览器打开 `http://localhost:5177/halo.html` 看扇形环（mock 每 6 秒出现一次）。
 - [ ] **Step 5: 提交** `git add -A ui && git commit -m "feat(ui): Surface-Dial style halo wheel"`。
 
 ---
