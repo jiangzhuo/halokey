@@ -3,10 +3,22 @@
   import TopBar from "./components/TopBar.svelte";
   import Keymap from "./pages/Keymap.svelte";
   import Settings from "./pages/Settings.svelte";
+  import HaloEditor from "./pages/HaloEditor.svelte";
   import { api, subscribe, type UiSnapshot } from "./lib/tauri";
-  import { initialDraft, loadSaved, type Draft } from "./model/draft";
+  import { initialDraft, loadSaved, assignAction, select, type Draft, type Selection } from "./model/draft";
 
-  let page = $state<"keymap" | "settings">("keymap");
+  let page = $state<"keymap" | "settings" | "halo">("keymap");
+  // 光环编辑器：记住从哪个手势进来的，新建成功后把新光环分配回去。
+  let editing = $state<{ id: string | null; wasNew: boolean; returnTo: Selection } | null>(null);
+  function openHalo(id: string | null) {
+    editing = { id, wasNew: id === null, returnTo: draft.selection };
+    page = "halo";
+  }
+  function closeHalo(savedId: string | null) {
+    if (editing?.wasNew && savedId) draft = assignAction(select(draft, editing.returnTo), { halo: { _0: savedId } });
+    editing = null;
+    page = "keymap";
+  }
   let snapshot = $state<UiSnapshot | null>(null);
   let draft = $state<Draft>(initialDraft());
   let langTick = $state(0);
@@ -32,9 +44,11 @@
 </script>
 
 {#key langTick}
-  <TopBar {page} {snapshot} dirty={draft.dirty} onNavigate={(p) => (page = p)} />
+  <TopBar page={page === "halo" ? "keymap" : page} {snapshot} dirty={draft.dirty} onNavigate={(p) => { editing = null; page = p; }} />
   {#if page === "keymap"}
-    <Keymap bind:draft {snapshot} {activeLayers} />
+    <Keymap bind:draft {snapshot} {activeLayers} onEditHalo={openHalo} />
+  {:else if page === "halo"}
+    <HaloEditor bind:draft haloId={editing?.id ?? null} onClose={closeHalo} />
   {:else}
     <Settings {snapshot} />
   {/if}

@@ -21,6 +21,8 @@ export const EN: Record<string, string> = {
   "拧旋钮选择 · 按下确认 · 按任意键取消": "Turn to choose · press to confirm · any key cancels",
   "未设置（不管灯）": "Not set (lights untouched)", "亮度": "Brightness", "收起": "Collapse", "关": "Off", "常亮": "Solid", "呼吸": "Breathe",
   "不管灯（删除本层背光）": "Leave lights alone (remove this layer's backlight)", "键 1": "Key 1", "键 2": "Key 2", "键 3": "Key 3", "旋钮": "Knob", "设备当前按住的层": "Layer the device is holding", "编辑光环": "Edit halo", "新建光环": "New halo",
+  "光环名称": "Halo name", "返回": "Back", "名称": "Name", "（空）": "(empty)", "槽位": "Slot", "删除光环": "Delete halo", "取消": "Cancel", "保存光环": "Save halo",
+  "被以下位置引用，无法删除": "Cannot delete, referenced by", "光环选项不能引用功能库、切层或自己": "A halo option cannot use the library, a layer switch or this halo itself", "（未命名）": "(unnamed)",
 };
 let current: "zh" | "en" = "zh";
 try { current = (localStorage.getItem("halokey.lang") as "zh" | "en") || (navigator.language.startsWith("zh") ? "zh" : "en"); } catch { /* jsdom 或隐私模式 */ }
