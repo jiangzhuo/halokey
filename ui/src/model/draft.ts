@@ -1,4 +1,4 @@
-import type { Behavior, ControlActionMap, Gesture, HostAction, HostKeymap, KeyEntry } from "./keymap";
+import type { Behavior, ControlActionMap, Gesture, HostAction, HostKeymap, KeyEntry, LayerLighting, LightEffect } from "./keymap";
 import { isRotation } from "./keymap";
 
 export type Selection = { layer: number; index: number; gesture: Gesture };
@@ -87,3 +87,61 @@ export const setBehavior = (d: Draft, b: Behavior) => mutate(d, (_m, c, g) => {
 export const setTapCount = (d: Draft, n: number) => mutate(d, (_m, c, g) => {
   (c as any)[CKEY[g]] = Math.min(20, Math.max(2, Math.round(n))); return true;
 });
+
+// ---- 分层背光 ----
+
+export const DEFAULT_LIGHTING: LayerLighting = { lights: Array.from({ length: 4 }, () => ({ mode: "off" as const, brightness: 0 })) };
+
+/** 该层自己的记录，否则 Layer 0 的记录，否则 null（不管灯）。 */
+export function effectiveLighting(map: HostKeymap, layer: number): LayerLighting | null {
+  const own = layer === 0 ? map.lighting : map.layers?.find((l) => l.id === layer)?.lighting;
+  return own ?? map.lighting ?? null;
+}
+export const hasOwnLighting = (map: HostKeymap, layer: number): boolean =>
+  !!(layer === 0 ? map.lighting : map.layers?.find((l) => l.id === layer)?.lighting);
+
+/** 修改当前层某盏灯；层没有记录时先用有效背光（或全关）建一条。 */
+export function setLightEffect(d: Draft, light: number, patch: Partial<LightEffect>): Draft {
+  if (!d.map || light < 0 || light > 3) return d;
+  const map = clone(d.map);
+  const layer = d.selection.layer;
+  const record: LayerLighting = clone(effectiveLighting(map, layer) ?? DEFAULT_LIGHTING);
+  const cur = record.lights[light]!;
+  record.lights[light] = { mode: patch.mode ?? cur.mode, brightness: Math.min(20, Math.max(0, Math.round(patch.brightness ?? cur.brightness))) };
+  writeLighting(map, layer, record);
+  return { ...d, map, dirty: true };
+}
+
+/** 非基础层：跟随 Layer 0 = 删除本层记录；不跟随 = 以有效背光建一条。 */
+export function setFollowBase(d: Draft, follow: boolean): Draft {
+  if (!d.map || d.selection.layer === 0) return d;
+  const map = clone(d.map);
+  const layer = d.selection.layer;
+  if (follow) {
+    const l = map.layers?.find((x) => x.id === layer);
+    if (!l?.lighting) return d;
+    delete l.lighting;
+    if (!l.controls.length) map.layers = map.layers!.filter((x) => x.id !== layer);
+    if (map.layers && !map.layers.length) delete map.layers;
+  } else {
+    if (hasOwnLighting(map, layer)) return d;
+    writeLighting(map, layer, clone(effectiveLighting(map, layer) ?? DEFAULT_LIGHTING));
+  }
+  return { ...d, map, dirty: true };
+}
+
+/** 基础层：删除记录 = 不管灯。 */
+export function clearBaseLighting(d: Draft): Draft {
+  if (!d.map || d.selection.layer !== 0 || !d.map.lighting) return d;
+  const map = clone(d.map);
+  delete map.lighting;
+  return { ...d, map, dirty: true };
+}
+
+function writeLighting(map: HostKeymap, layer: number, record: LayerLighting) {
+  if (layer === 0) { map.lighting = record; return; }
+  map.layers ??= [];
+  let l = map.layers.find((x) => x.id === layer);
+  if (!l) { l = { id: layer, controls: [] }; map.layers.push(l); map.layers.sort((a, b) => a.id - b.id); }
+  l.lighting = record;
+}

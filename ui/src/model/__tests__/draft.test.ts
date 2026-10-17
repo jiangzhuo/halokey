@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { initialDraft, loadSaved, select, assignEntries, assignAction, clearGesture, setTransparent, setBehavior, setTapCount, revert, markSaved, controlAt, resolvedControl } from "../draft";
+import { initialDraft, loadSaved, select, assignEntries, assignAction, clearGesture, setTransparent, setBehavior, setTapCount, revert, markSaved, controlAt, resolvedControl, effectiveLighting, hasOwnLighting, setLightEffect, setFollowBase, clearBaseLighting } from "../draft";
 import type { HostKeymap } from "../keymap";
 
 const load = (): HostKeymap => JSON.parse(readFileSync(resolve(__dirname, "../../../../docs/examples/halo-menu.json"), "utf8"));
@@ -71,5 +71,52 @@ describe("draft reducer", () => {
     expect(d.dirty).toBe(false);
     d = assignAction(select(d, { layer: 0, index: 0, gesture: "long" }), { momentaryLayer: { _0: 2 } });
     expect(controlAt(d.map!, 0, 0)!.longPressAction).toEqual({ momentaryLayer: { _0: 2 } });
+  });
+});
+
+describe("draft lighting", () => {
+  const loadLit = (): HostKeymap => JSON.parse(readFileSync(resolve(__dirname, "../../../../docs/examples/layer-backlight.json"), "utf8"));
+  it("resolves effective lighting per layer", () => {
+    const m = loadLit();
+    expect(effectiveLighting(m, 0)!.lights[0]!.mode).toBe("solid");
+    expect(effectiveLighting(m, 1)!.lights[0]!.mode).toBe("breathe");
+    expect(effectiveLighting(m, 2)!.lights[0]!.mode).toBe("solid");
+    expect(hasOwnLighting(m, 2)).toBe(false);
+    expect(effectiveLighting(load(), 0)).toBeNull();
+  });
+  it("edits create a record for the selected layer and mark dirty", () => {
+    let d = loadSaved(initialDraft(), loadLit());
+    d = setLightEffect(select(d, { layer: 2, index: 0, gesture: "press" }), 3, { mode: "breathe", brightness: 7 });
+    expect(d.dirty).toBe(true);
+    const l2 = d.map!.layers!.find((l) => l.id === 2)!;
+    expect(l2.lighting!.lights[3]).toEqual({ mode: "breathe", brightness: 7 });
+    expect(l2.lighting!.lights[0]).toEqual({ mode: "solid", brightness: 10 }); // 其余灯复制自有效背光
+    expect(l2.controls).toEqual([]);
+  });
+  it("follow toggles create and delete the record cleanly", () => {
+    let d = loadSaved(initialDraft(), loadLit());
+    d = select(d, { layer: 1, index: 0, gesture: "press" });
+    d = setFollowBase(d, true);
+    expect(d.map!.layers!.find((l) => l.id === 1)!.lighting).toBeUndefined();
+    d = setFollowBase(d, false);
+    expect(d.map!.layers!.find((l) => l.id === 1)!.lighting!.lights[0]).toEqual({ mode: "solid", brightness: 10 });
+    const before = JSON.stringify(d.map);
+    d = setFollowBase(select(d, { layer: 0, index: 0, gesture: "press" }), true);
+    expect(JSON.stringify(d.map)).toBe(before);
+  });
+  it("base layer can drop its record and edits start from all-off when nothing exists", () => {
+    let d = loadSaved(initialDraft(), loadLit());
+    d = clearBaseLighting(select(d, { layer: 0, index: 0, gesture: "press" }));
+    expect(d.map!.lighting).toBeUndefined();
+    d = setLightEffect(d, 0, { brightness: 12 });
+    expect(d.map!.lighting!.lights[0]).toEqual({ mode: "off", brightness: 12 });
+    expect(d.map!.lighting!.lights[1]).toEqual({ mode: "off", brightness: 0 });
+  });
+  it("clamps brightness to 0–20", () => {
+    let d = loadSaved(initialDraft(), loadLit());
+    d = setLightEffect(d, 0, { brightness: 99 });
+    expect(d.map!.lighting!.lights[0]!.brightness).toBe(20);
+    d = setLightEffect(d, 0, { brightness: -4 });
+    expect(d.map!.lighting!.lights[0]!.brightness).toBe(0);
   });
 });
