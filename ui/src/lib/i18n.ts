@@ -1,0 +1,27 @@
+export const EN: Record<string, string> = {
+  "键位": "Keymap", "设置": "Settings", "已连接": "Connected", "未连接": "Disconnected", "空闲中，已交还控制": "Idle, control handed back",
+  "接收器在，本体关机": "Receiver present, key unit asleep", "电量": "Battery", "固件": "Firmware", "未保存": "Unsaved",
+  "顶部按键": "Top key", "中间按键": "Middle key", "底部按键": "Bottom key", "旋钮按下": "Knob press", "右旋": "Turn right", "左旋": "Turn left",
+  "单击": "Press", "双击": "Double", "长按": "Long press", "保持按住": "Hold", "短按一次": "Tap once", "连按": "Burst", "次": "×",
+  "常用": "Common", "字母": "Letters", "功能键": "F keys", "数字键盘": "Keypad", "鼠标": "Mouse", "组合键": "Combo", "APP": "APP", "宏": "Macro", "光环": "Halo", "指针": "Pointer",
+  "撤销更改": "Discard changes", "保存到本机": "Save locally", "已保存": "Saved", "透明继承": "Transparent", "不执行动作": "No action", "关闭手势": "Disable gesture",
+  "本层背光": "Layer backlight", "编辑…": "Edit…", "跟随 Layer 0": "Follow Layer 0",
+  "Vibe Key": "Vibe Key", "灯光": "Lighting", "麦克风": "Microphone", "电源": "Power", "光环转盘": "Halo wheel", "键位配置": "Keymap file", "通用": "General",
+  "状态": "Status", "本体在线": "Key unit online", "本体离线": "Key unit offline", "空闲后交还控制": "Hand back when idle", "永不": "Never", "分钟": "min",
+  "登录时启动": "Launch at login", "界面语言": "Language", "刷新状态": "Refresh", "灯光模式": "Light mode", "全灭": "Off", "全亮": "All on", "工作": "Work",
+  "全亮亮度": "All-on brightness", "休眠 / 自动关机": "Sleep / auto power-off", "待机延时": "Standby delay", "收音": "Capture", "硬件降噪": "Noise reduction",
+  "各灯效果在键位页按 Layer 设置": "Per-light effects are set per layer on the Keymap page", "当前文件": "Current file", "关于": "About",
+  "第 1 期：设置页只读；写入项在后续计划中": "Phase 1: settings are read-only; writes come in later phases",
+  "点击上方的手势，再从下面选一个键码": "Pick a gesture above, then a keycode below", "指针步长": "Pointer step", "像素": "px",
+  "在本机构建里还没有的功能": "Not available in this build yet", "复杂动作": "Complex action", "无": "None",
+  "宏（": "Macro (", "切换到": "Switch to", "动作库": "Library", "心跳": "heartbeats", "回显": "echoes",
+};
+let current: "zh" | "en" = "zh";
+try { current = (localStorage.getItem("halokey.lang") as "zh" | "en") || (navigator.language.startsWith("zh") ? "zh" : "en"); } catch { /* jsdom 或隐私模式 */ }
+export const lang = () => current;
+export const t = (zh: string) => (current === "en" ? EN[zh] ?? zh : zh);
+export function setLang(l: "zh" | "en") {
+  current = l;
+  try { localStorage.setItem("halokey.lang", l); } catch { /* 忽略 */ }
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("halokey-lang"));
+}
