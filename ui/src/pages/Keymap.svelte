@@ -39,13 +39,13 @@
   <LayerBar layer={sel.layer} onSelect={(l) => { draft = select(draft, { ...sel, layer: l }); }} />
   <section class="stage">
     <div class="side left">
+      <div class="knobs"><KnobLabel index={5} label={actionLabel(effectivePress(ctl(5)), null, halos)} selected={sel.index === 5} onPick={() => pick(5, "press")} /></div>
       <div class="name">⟳ {t(CONTROL_NAMES[3])}</div>
       <GestureCard index={3} control={ctl(3)} selected={sel.index === 3 ? sel.gesture : null} {halos} layer={sel.layer} override={controlAt(map, sel.layer, 3)} onPick={(g) => pick(3, g)} />
-      <div class="knobs"><KnobLabel index={5} label={actionLabel(effectivePress(ctl(5)), null, halos)} selected={sel.index === 5} onPick={() => pick(5, "press")} /></div>
     </div>
     <DeviceView {lights} selectedIndex={sel.index < 4 ? sel.index : null} onPick={(i) => pick(i, "press")} />
     <div class="side right">
-      <div class="knobs end"><KnobLabel index={4} label={actionLabel(effectivePress(ctl(4)), null, halos)} selected={sel.index === 4} onPick={() => pick(4, "press")} /></div>
+      <div class="knobs"><KnobLabel index={4} label={actionLabel(effectivePress(ctl(4)), null, halos)} selected={sel.index === 4} onPick={() => pick(4, "press")} /></div>
       {#each [0, 1, 2] as i}
         <GestureCard index={i} control={ctl(i)} selected={sel.index === i ? sel.gesture : null} {halos} layer={sel.layer} override={controlAt(map, sel.layer, i)} onPick={(g) => pick(i, g)} />
       {/each}
@@ -57,8 +57,12 @@
 
 <style>
   .empty { padding: 40px; color: var(--muted); text-align: center; }
-  .stage { display: grid; grid-template-columns: 1fr 150px 1fr; gap: 18px; padding: 4px 40px 18px; align-items: center; }
-  .side { display: flex; flex-direction: column; gap: 12px; justify-content: center; }
-  .name { color: var(--muted); font-size: 14px; }
-  .knobs { display: flex; } .knobs.end { justify-content: flex-end; }
+  .stage { display: grid; grid-template-columns: 1fr 150px 1fr; gap: 18px; padding: 4px 40px 18px; align-items: start; }
+  .side { display: flex; flex-direction: column; gap: 12px; }
+  /* 两个旋转标签在同一水平线上，对齐到图片里旋钮的高度（图高 377px，旋钮中心在 28.4%）。 */
+  .knobs { display: flex; margin-top: 85px; }
+  .left .knobs { justify-content: flex-end; }
+  .right .knobs { justify-content: flex-start; }
+  .name { color: var(--muted); font-size: 14px; margin-top: 14px; }
+  .right > :global(.card:first-of-type) { margin-top: 14px; }
 </style>
