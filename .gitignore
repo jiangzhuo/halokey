@@ -24,3 +24,6 @@ apps/halokey/gen/
 
 # evidence logs are documentation, not build output
 !docs/evidence/*.log
+
+# brainstorming mockups
+.superpowers/

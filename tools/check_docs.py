@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__", "evidence"}
+SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__", "evidence", "superpowers", ".superpowers"}
 
 LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 H1_RE = re.compile(r"^#\s+(.*)$")
