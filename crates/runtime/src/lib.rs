@@ -8,6 +8,8 @@
 
 #![forbid(unsafe_code)]
 
+#[allow(dead_code)] // Task 4 接线后删除
+mod lighting;
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
