@@ -87,6 +87,8 @@ Actions use olanzi's tagged form `{ "<kind>": { "_0": <value> } }`:
 
 One to eight options; labels and ids 1–80 characters; option actions may be anything except `library` and `momentaryLayer`. While a halo is open the knob rotates the selection, knob press confirms, any key cancels, and four idle seconds close it.
 
+The settings window's halo editor writes only slots that have an action, in slot order. The on-screen wheel's position, timeout and size live in `settings.json` (`halo` section), not in the keymap.
+
 ## 5. Examples
 
 - [`examples/knob-moves-pointer.json`](examples/knob-moves-pointer.json): knob moves the pointer.

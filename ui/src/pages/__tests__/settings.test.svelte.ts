@@ -3,6 +3,7 @@ import { mount, unmount, flushSync } from "svelte";
 import Settings from "../Settings.svelte";
 import { setLang } from "../../lib/i18n";
 import type { UiSnapshot } from "../../lib/tauri";
+import { api } from "../../lib/tauri";
 
 let app: ReturnType<typeof mount> | undefined;
 afterEach(() => { if (app) unmount(app); app = undefined; document.body.innerHTML = ""; });
@@ -25,5 +26,19 @@ describe("Settings page", () => {
     expect(text).toContain("/tmp/keymap.json");
     const idle = document.querySelector("select[data-role=idle]") as HTMLSelectElement;
     expect(idle.value).toBe("5");
+  });
+  it("writes halo settings through the bridge", async () => {
+    setLang("zh");
+    app = mount(Settings, { target: document.body, props: { snapshot } });
+    await tick(); await tick();
+    flushSync();
+    expect(document.body.textContent).toContain("光环转盘");
+    ([...document.querySelectorAll("button")].find((b) => b.textContent?.trim() === "大") as HTMLButtonElement).click();
+    await tick(); await tick();
+    expect((await api.getSettings()).halo.size).toBe("large");
+    const sel = document.querySelector("select[data-role=halo-timeout]") as HTMLSelectElement;
+    sel.value = "10"; sel.dispatchEvent(new Event("change", { bubbles: true }));
+    await tick(); await tick();
+    expect((await api.getSettings()).halo.timeoutSeconds).toBe(10);
   });
 });

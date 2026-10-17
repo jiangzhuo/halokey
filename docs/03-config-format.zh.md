@@ -87,6 +87,8 @@ halokey 只保存一个 JSON 文件，Linux 上在 `~/.config/halokey/keymap.jso
 
 一到八个选项；文字与 id 为 1–80 字；选项动作可以是除 `library` 和 `momentaryLayer` 之外的任何动作。光环打开时，旋钮旋转选择、旋钮按下确认、任意按键取消、空闲 4 秒自动关闭。
 
+设置窗口里的光环编辑器只写有动作的槽位，顺序即槽位顺序。屏幕上转盘的出现位置、超时与大小放在 `settings.json`（`halo` 段），不在键位文件里。
+
 ## 5. 示例
 
 - [`examples/knob-moves-pointer.json`](examples/knob-moves-pointer.json)：旋钮移动指针。

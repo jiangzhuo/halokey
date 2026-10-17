@@ -13,7 +13,9 @@ export type UiLight = { kind: number; workTime: number; breatheLevel: number; br
 export type UiLighting = { mode: number; brightness: number; lights: UiLight[] };
 export type UiDeviceInfo = { firmware: string | null; dongleFirmware: string | null; noiseReduction: number[] | null; lighting: UiLighting | null; errors: string[] };
 export type UiPower = { standby: boolean | null; standbyDelay: number | null; sleepDelay: number | null; micEnabled: boolean | null; noiseReduction: number | null; errors: string[] };
-export type AppSettings = { idleMinutes: number };
+export type HaloSettings = { position: "pointer" | "center"; timeoutSeconds: number; size: "small" | "medium" | "large" };
+export type AppSettings = { idleMinutes: number; halo: HaloSettings };
+let mockSettings: AppSettings = { idleMinutes: 5, halo: { position: "pointer", timeoutSeconds: 4, size: "medium" } };
 
 export const isTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -43,7 +45,12 @@ export const api = {
   saveKeymap: async (keymap: HostKeymap): Promise<void> => { if (isTauri()) return invoke("save_keymap", { keymap }); mockValidate(keymap); memory = JSON.parse(JSON.stringify(keymap)); },
   deviceInfo: (): Promise<UiDeviceInfo> => isTauri() ? invoke("device_info") : Promise.resolve({ firmware: "4.4.2", dongleFirmware: "4.4.2", noiseReduction: [1, 64, 6, 232], lighting: { mode: 2, brightness: 14, lights: [] }, errors: [] }),
   powerInfo: (): Promise<UiPower> => isTauri() ? invoke("power_info") : Promise.resolve({ standby: false, standbyDelay: 300, sleepDelay: 3600, micEnabled: true, noiseReduction: 1, errors: [] }),
-  getSettings: (): Promise<AppSettings> => isTauri() ? invoke("get_settings") : Promise.resolve({ idleMinutes: 5 }),
+  getSettings: (): Promise<AppSettings> => isTauri() ? invoke("get_settings") : Promise.resolve(JSON.parse(JSON.stringify(mockSettings))),
+  setSettings: (patch: { idleMinutes?: number; halo?: Partial<HaloSettings> }): Promise<AppSettings> => {
+    if (isTauri()) return invoke("set_settings", { patch });
+    mockSettings = { ...mockSettings, ...patch, halo: { ...mockSettings.halo, ...(patch.halo ?? {}) } };
+    return Promise.resolve(JSON.parse(JSON.stringify(mockSettings)));
+  },
   setIdleMinutes: (minutes: number): Promise<void> => isTauri() ? invoke("set_idle_minutes", { minutes }) : Promise.resolve(),
   getAutostart: (): Promise<boolean> => isTauri() ? invoke("get_autostart") : Promise.resolve(false),
   setAutostart: (enabled: boolean): Promise<boolean> => isTauri() ? invoke("set_autostart", { enabled }) : Promise.resolve(enabled),

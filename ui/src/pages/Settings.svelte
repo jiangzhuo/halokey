@@ -1,24 +1,30 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { t, lang, setLang } from "../lib/i18n";
-  import { api, type UiSnapshot, type UiDeviceInfo, type UiPower } from "../lib/tauri";
+  import { api, type UiSnapshot, type UiDeviceInfo, type UiPower, type HaloSettings } from "../lib/tauri";
   let { snapshot }: { snapshot: UiSnapshot | null } = $props();
   let info = $state<UiDeviceInfo | null>(null);
   let power = $state<UiPower | null>(null);
   let idle = $state(5);
   let autostart = $state(false);
   let note = $state("");
+  let halo = $state<HaloSettings>({ position: "pointer", timeoutSeconds: 4, size: "medium" });
+  let haloError = $state("");
+  const SIZES: [HaloSettings["size"], string][] = [["small", "小"], ["medium", "中"], ["large", "大"]];
   const IDLE = [0, 1, 5, 10, 15, 30, 60];
   const modeName = ["全灭", "全亮", "工作"];
   async function load() {
     try { [info, power] = await Promise.all([api.deviceInfo(), api.powerInfo()]); } catch (e) { note = String(e); }
-    try { idle = (await api.getSettings()).idleMinutes; autostart = await api.getAutostart(); } catch { /* mock */ }
+    try { const s = await api.getSettings(); idle = s.idleMinutes; halo = s.halo; autostart = await api.getAutostart(); } catch { /* mock */ }
   }
   onMount(load);
   const sleepText = (s: number | null) => s == null ? "—" : s === 0 ? t("永不") : `${s / 3600} h`;
   async function changeIdle(e: Event) {
     idle = Number((e.target as HTMLSelectElement).value);
     try { await api.setIdleMinutes(idle); } catch (err) { note = String(err); }
+  }
+  async function setHalo(patch: Partial<HaloSettings>) {
+    try { halo = (await api.setSettings({ halo: patch })).halo; haloError = ""; } catch (e) { haloError = String(e); }
   }
   async function changeAutostart() {
     try { autostart = await api.setAutostart(autostart); } catch (e) { note = String(e); }
@@ -27,7 +33,7 @@
 
 <div class="page">
   <div class="ph"><h2>{t("设置")}</h2><label class="lang">🌐 {t("界面语言")} <select value={lang()} onchange={(e) => setLang((e.target as HTMLSelectElement).value as "zh" | "en")}><option value="zh">简体中文</option><!-- i18n-ignore: 语言自称 --><option value="en">English</option></select></label></div>
-  <p class="muted">{t("第 1 期：设置页只读；写入项在后续计划中")}</p>
+  <p class="muted">{t("其余写入项在后续计划中补全")}</p>
 
   <section class="card">
     <h3>{t("Vibe Key")} <span class="r"><button onclick={load}>{t("刷新状态")}</button></span></h3>
@@ -57,6 +63,16 @@
       <div class="row"><span class="k">{t("待机延时")}</span><span class="v mono">{power?.standbyDelay ?? "—"} s</span></div>
     </section>
     <section class="card">
+      <h3>{t("光环转盘")}</h3>
+      <div class="row"><span class="k">{t("出现位置")}</span><span class="v"><span class="seg">
+        <button class:on={halo.position === "pointer"} onclick={() => setHalo({ position: "pointer" })}>{t("指针周围")}</button>
+        <button class:on={halo.position === "center"} onclick={() => setHalo({ position: "center" })}>{t("屏幕中央")}</button></span></span></div>
+      <div class="row"><span class="k">{t("自动关闭")}</span><span class="v"><select data-role="halo-timeout" value={String(halo.timeoutSeconds)} onchange={(e) => setHalo({ timeoutSeconds: Number((e.target as HTMLSelectElement).value) })}>{#each [2, 4, 6, 10] as s}<option value={String(s)}>{s} {t("秒")}</option>{/each}</select></span></div>
+      <div class="row"><span class="k">{t("大小")}</span><span class="v"><span class="seg">
+        {#each SIZES as [v, name]}<button class:on={halo.size === v} onclick={() => setHalo({ size: v })}>{t(name)}</button>{/each}</span></span></div>
+      {#if haloError}<p class="bad">{haloError}</p>{/if}
+    </section>
+    <section class="card">
       <h3>{t("通用")}</h3>
       <div class="row"><span class="k">{t("登录时启动")}</span><span class="v"><input type="checkbox" bind:checked={autostart} onchange={changeAutostart}></span></div>
       <div class="row"><span class="k">{t("当前文件")}</span><span class="v mono">{snapshot?.configPath ?? "—"}</span></div>
@@ -77,4 +93,7 @@
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .mono { font-family: var(--mono); font-size: 12.5px; }
   .muted { color: var(--muted); font-size: 13px; } .bad { color: var(--bad); }
+  .seg { display: inline-flex; background: var(--card); border-radius: 8px; padding: 3px; gap: 2px; }
+  .seg button { background: none; padding: 5px 12px; font-size: 13px; }
+  .seg button.on { background: var(--accent); color: var(--accent-text); }
 </style>
