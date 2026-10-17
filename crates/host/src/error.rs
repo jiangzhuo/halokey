@@ -10,6 +10,8 @@ pub enum Error {
     InvalidTiming,
     InvalidLongPressTapCount,
     InvalidPressTapCount,
+    /// 背光亮度越界。
+    InvalidLighting,
     InvalidDoublePressBehavior,
     InvalidInheritedGestures,
     UnsupportedGesture,
@@ -42,6 +44,7 @@ impl fmt::Display for Error {
             Error::InvalidTiming => f.write_str("双击间隔应为 0.15–0.5 秒，长按阈值应为 0.3–2 秒，且长按阈值必须大于双击间隔。"),
             Error::InvalidInheritedGestures => f.write_str("基础层不能继承其他层的动作。"),
             Error::InvalidPressTapCount => f.write_str("单击和双击的连按次数应为 2–20 次。"),
+            Error::InvalidLighting => f.write_str("背光亮度必须在 0–20 之间。"),
             Error::InvalidDoublePressBehavior => f.write_str("双击动作不能保持按住，请选择按一次或连按。"),
             Error::InvalidLongPressTapCount => f.write_str("长按连按次数应为 2–20 次。"),
             Error::UnsupportedGesture => f.write_str("旋钮转动不支持双击或长按动作。"),

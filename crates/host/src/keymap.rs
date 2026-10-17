@@ -10,6 +10,7 @@ use serde::de::Error as _;
 use serde::{Deserialize, Serialize};
 
 use crate::action::{validate_entries, Halo, HostAction, KeyEntry, NamedHostAction};
+use crate::lighting::LayerLighting;
 use crate::Error;
 
 /// 键盘动作的输出方式。
@@ -144,6 +145,9 @@ pub struct HostLayer {
     pub id: u8,
     #[serde(default)]
     pub controls: Vec<ControlActionMap>,
+    /// 本层背光；缺省 = 跟随 Layer 0。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lighting: Option<LayerLighting>,
 }
 
 /// 主机键位表。
@@ -156,6 +160,8 @@ pub struct HostKeymap {
     pub layers: Vec<HostLayer>,
     /// 光环菜单（halokey 扩展）。
     pub halos: Vec<Halo>,
+    /// Layer 0 背光；缺省 = 不管灯。
+    pub lighting: Option<LayerLighting>,
     /// 双击判定窗口，秒。
     pub double_press_window: f64,
     /// 长按阈值，秒。
@@ -174,6 +180,7 @@ impl HostKeymap {
             action_library: Vec::new(),
             layers: Vec::new(),
             halos: Vec::new(),
+            lighting: None,
             double_press_window: 0.25,
             long_press_threshold: 0.5,
         };
@@ -212,8 +219,25 @@ impl HostKeymap {
             .chain(self.layers.iter().flat_map(|l| l.controls.iter()))
     }
 
+    /// 活动层集合（从底到顶）→ 有效背光：编号最高且带记录的活动层，否则 Layer 0 的记录。
+    pub fn effective_lighting(&self, active: &[u8]) -> Option<&LayerLighting> {
+        active
+            .iter()
+            .rev()
+            .find_map(|id| {
+                self.layers
+                    .iter()
+                    .find(|l| l.id == *id)
+                    .and_then(|l| l.lighting.as_ref())
+            })
+            .or(self.lighting.as_ref())
+    }
+
     /// 内容所需的最低版本。
     pub fn required_version(&self) -> u32 {
+        if self.lighting.is_some() || self.layers.iter().any(|l| l.lighting.is_some()) {
+            return 6;
+        }
         let extended = self.all_controls().any(|c| {
             c.press
                 .iter()
@@ -282,6 +306,14 @@ impl HostKeymap {
             || self.version < self.required_version()
         {
             return Err(Error::UnsupportedVersion);
+        }
+        if let Some(l) = &self.lighting {
+            l.validate()?;
+        }
+        for layer in &self.layers {
+            if let Some(l) = &layer.lighting {
+                l.validate()?;
+            }
         }
         let indices: HashSet<u8> = self.controls.iter().map(|c| c.index).collect();
         if self.controls.len() != 6 || indices != (0..6).collect() {
@@ -507,6 +539,7 @@ impl HostKeymap {
             action_library: wire.action_library,
             layers: wire.layers,
             halos: wire.halos,
+            lighting: wire.lighting,
             double_press_window: wire.double_press_window,
             long_press_threshold: wire.long_press_threshold,
         };
@@ -536,6 +569,8 @@ struct Wire {
     action_library: Vec<NamedHostAction>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     halos: Vec<Halo>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    lighting: Option<LayerLighting>,
     double_press_window: f64,
     long_press_threshold: f64,
 }
@@ -548,6 +583,7 @@ impl From<HostKeymap> for Wire {
             layers: m.layers,
             action_library: m.action_library,
             halos: m.halos,
+            lighting: m.lighting,
             double_press_window: m.double_press_window,
             long_press_threshold: m.long_press_threshold,
         }

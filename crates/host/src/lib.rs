@@ -11,6 +11,7 @@ pub mod action;
 pub mod error;
 pub mod gesture;
 pub mod keymap;
+pub mod lighting;
 pub mod profile;
 pub mod runner;
 
@@ -21,5 +22,6 @@ pub use action::{
 pub use error::Error;
 pub use gesture::{GestureRouter, Transition};
 pub use keymap::{ControlActionMap, ControlGesture, HostKeymap, HostLayer, LongPressBehavior};
+pub use lighting::{LayerLighting, LightEffect, LightMode};
 pub use profile::HostProfile;
 pub use runner::{ActionRunner, Activation, ActivationState, Launcher, MacroKeys, RunError};

@@ -196,6 +196,7 @@ fn version_selection_follows_content() {
     map.layers.push(HostLayer {
         id: 2,
         controls: vec![],
+        lighting: None,
     });
     map.normalize_version();
     assert_eq!(map.version, 4);

@@ -332,6 +332,7 @@ fn momentary_layer_is_immediate_and_release_restores_base() {
     m.layers.push(HostLayer {
         id: 1,
         controls: vec![ControlActionMap::new(1, double())],
+        lighting: None,
     });
     m.normalize_version();
     assert!(m.validate().is_ok());
@@ -350,6 +351,7 @@ fn momentary_layer_is_immediate_and_release_restores_base() {
     m2.layers.push(HostLayer {
         id: 2,
         controls: vec![ControlActionMap::new(4, long())],
+        lighting: None,
     });
     r.configure(Some(m2));
     r.receive(down(0), 1.0);
