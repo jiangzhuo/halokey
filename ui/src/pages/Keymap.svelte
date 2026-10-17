@@ -57,12 +57,13 @@
 
 <style>
   .empty { padding: 40px; color: var(--muted); text-align: center; }
-  .stage { display: grid; grid-template-columns: 1fr 150px 1fr; gap: 18px; padding: 4px 40px 18px; align-items: start; }
-  .side { display: flex; flex-direction: column; gap: 12px; }
-  /* 两个旋转标签在同一水平线上，对齐到图片里旋钮的高度（图高 377px，旋钮中心在 28.4%）。 */
-  .knobs { display: flex; margin-top: 85px; }
+  /* 渲染图 160×472：两侧的块全部落在这个高度之内，并对齐到图上的控件位置
+     （旋钮中心 28.4% ≈ 134px，三个键中心 51.9% / 68.2% / 84.5% ≈ 245 / 322 / 399px）。 */
+  .stage { display: grid; grid-template-columns: 1fr 170px 1fr; gap: 18px; padding: 4px 40px 18px; align-items: start; }
+  .side { display: flex; flex-direction: column; gap: 6px; max-height: 472px; }
+  .knobs { display: flex; margin-top: 112px; }
   .left .knobs { justify-content: flex-end; }
   .right .knobs { justify-content: flex-start; }
   .name { color: var(--muted); font-size: 14px; margin-top: 14px; }
-  .right > :global(.card:first-of-type) { margin-top: 14px; }
+  .right > :global(.card:first-of-type) { margin-top: 90px; }
 </style>

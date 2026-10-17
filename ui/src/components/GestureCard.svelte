@@ -25,9 +25,9 @@
 </div>
 
 <style>
-  .card { background: var(--card); border-radius: var(--radius); padding: 10px 12px; display: flex; gap: 6px; border: 1px solid transparent; }
+  .card { background: var(--card); border-radius: var(--radius); padding: 8px 10px; display: flex; gap: 6px; border: 1px solid transparent; height: 72px; }
   .card.sel { border-color: #8a8a90; }
-  .g { flex: 1; background: none; padding: 8px 4px; border-radius: 8px; display: flex; flex-direction: column; gap: 4px; align-items: center; }
+  .g { flex: 1; background: none; padding: 6px 4px; border-radius: 8px; display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center; }
   .g.on { background: var(--card-on); }
   .g small { color: var(--muted); font-size: 12px; }
   .g span { font-size: 13px; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
