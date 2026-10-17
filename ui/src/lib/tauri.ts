@@ -24,7 +24,8 @@ async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T
 
 // 浏览器里（npm run dev / vitest）没有 Tauri，用内存数据让界面能跑。
 let memory: HostKeymap = JSON.parse(JSON.stringify(example));
-const mockSnapshot = (): UiSnapshot => ({ connected: true, online: true, battery: [60, 3791, false], heartbeats: 1024, echoes: 1024, injected: 58, lastError: null, configPath: "~/.config/halokey/keymap.json", paused: false, standby: false, link: true, activeLayers: [], effectiveLighting: null });
+let mockActive: number[] = [];
+const mockSnapshot = (): UiSnapshot => ({ connected: true, online: true, battery: [60, 3791, false], heartbeats: 1024, echoes: 1024, injected: 58, lastError: null, configPath: "~/.config/halokey/keymap.json", paused: false, standby: false, link: true, activeLayers: mockActive, effectiveLighting: null });
 function mockValidate(map: HostKeymap): void {
   const idx = new Set(map.controls.map((c) => c.index));
   if (map.controls.length !== 6 || idx.size !== 6) throw "配置必须包含且仅包含六个控件，每个控件只能出现一次。";
@@ -50,7 +51,14 @@ export const api = {
 
 export async function subscribe(handler: (e: UiEvent) => void): Promise<() => void> {
   if (!isTauri()) {
-    const timer = setInterval(() => handler({ kind: "key", control: 4, name: "右旋", pressed: true, at: performance.now() / 1000 }), 3000);
+    // 假事件：每 3 秒一下右旋；每 6 秒按住 / 松开 Layer 1，让 Layer 条的绿点和灯圈预览能在浏览器里看到。
+    let tick = 0;
+    const timer = setInterval(() => {
+      tick += 1;
+      handler({ kind: "key", control: 4, name: "右旋", pressed: true, at: performance.now() / 1000 });
+      mockActive = tick % 2 === 1 ? [1] : [];
+      handler({ kind: "layers", active: mockActive });
+    }, 3000);
     return () => clearInterval(timer);
   }
   const { listen } = await import("@tauri-apps/api/event");

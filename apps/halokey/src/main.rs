@@ -191,7 +191,12 @@ fn forward(app: &AppHandle, event: Event) {
             UiEvent::Resumed
         }
         Event::Stopped => UiEvent::Stopped,
-        Event::Layers(active) => UiEvent::Layers { active },
+        Event::Layers(active) => {
+            if debug_log() {
+                eprintln!("[halokey] 活动层：{active:?}");
+            }
+            UiEvent::Layers { active }
+        }
     };
     let _ = app.emit("halokey", ui);
 }
