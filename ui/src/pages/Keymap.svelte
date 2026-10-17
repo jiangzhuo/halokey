@@ -83,7 +83,7 @@
   .left .name { color: var(--muted); font-size: 14px; margin-top: 12px; }
   .left > :global(.card:last-of-type) { margin-top: 6px; }
   /* 右侧两张卡片与左侧两张同高（顶 91 / 175 px），左右对称。 */
-  .right > :global(.card:first-of-type) { margin-top: 39px; }
+  .right > :global(.card:nth-of-type(2)) { margin-top: 39px; } /* 第一个 div 是旋转标签行，卡片从第二个起 */
   .leader { display: block; overflow: visible; }
   .leader path { fill: none; stroke: #55555d; stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; transition: stroke 120ms; }
   .leader circle { fill: #55555d; transition: fill 120ms; }
