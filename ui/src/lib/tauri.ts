@@ -1,9 +1,52 @@
-// Task 1 的最小版本，Task 5 会替换为类型化的完整桥。
-export type UiEvent = { kind: string } & Record<string, any>;
+import type { HostKeymap, Halo } from "../model/keymap";
+import example from "../../../docs/examples/halo-menu.json";
+
+export type UiSnapshot = { connected: boolean; online: boolean | null; battery: [number | null, number, boolean | null] | null; heartbeats: number; echoes: number; injected: number; lastError: string | null; configPath: string; paused: boolean; standby: boolean | null; link: boolean | null; activeLayers: number[] };
+export type UiEvent =
+  | { kind: "connected" } | { kind: "disconnected" }
+  | { kind: "key"; control: number; name: string; pressed: boolean; at: number }
+  | { kind: "battery"; percent: number | null; millivolts: number; charging: boolean | null }
+  | { kind: "haloShow"; halo: Halo; selected: number } | { kind: "haloSelect"; selected: number } | { kind: "haloHide" }
+  | { kind: "error"; text: string } | { kind: "paused" } | { kind: "resumed" } | { kind: "stopped" };
+export type UiLight = { kind: number; workTime: number; breatheLevel: number; breatheBrightness: number; alwaysOnBrightness: number };
+export type UiLighting = { mode: number; brightness: number; lights: UiLight[] };
+export type UiDeviceInfo = { firmware: string | null; dongleFirmware: string | null; noiseReduction: number[] | null; lighting: UiLighting | null; errors: string[] };
+export type UiPower = { standby: boolean | null; standbyDelay: number | null; sleepDelay: number | null; micEnabled: boolean | null; noiseReduction: number | null; errors: string[] };
+export type AppSettings = { idleMinutes: number };
+
+export const isTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<T>(cmd, args);
+}
+
+// 浏览器里（npm run dev / vitest）没有 Tauri，用内存数据让界面能跑。
+let memory: HostKeymap = JSON.parse(JSON.stringify(example));
+const mockSnapshot = (): UiSnapshot => ({ connected: true, online: true, battery: [60, 3791, false], heartbeats: 1024, echoes: 1024, injected: 58, lastError: null, configPath: "~/.config/halokey/keymap.json", paused: false, standby: false, link: true, activeLayers: [] });
+function mockValidate(map: HostKeymap): void {
+  const idx = new Set(map.controls.map((c) => c.index));
+  if (map.controls.length !== 6 || idx.size !== 6) throw "配置必须包含且仅包含六个控件，每个控件只能出现一次。";
+}
+
+export const api = {
+  snapshot: (): Promise<UiSnapshot> => isTauri() ? invoke("snapshot") : Promise.resolve(mockSnapshot()),
+  getKeymap: (): Promise<HostKeymap> => isTauri() ? invoke("get_keymap") : Promise.resolve(JSON.parse(JSON.stringify(memory))),
+  validateKeymap: async (keymap: HostKeymap): Promise<void> => { if (isTauri()) return invoke("validate_keymap", { keymap }); mockValidate(keymap); },
+  saveKeymap: async (keymap: HostKeymap): Promise<void> => { if (isTauri()) return invoke("save_keymap", { keymap }); mockValidate(keymap); memory = JSON.parse(JSON.stringify(keymap)); },
+  deviceInfo: (): Promise<UiDeviceInfo> => isTauri() ? invoke("device_info") : Promise.resolve({ firmware: "4.4.2", dongleFirmware: "4.4.2", noiseReduction: [1, 64, 6, 232], lighting: { mode: 2, brightness: 14, lights: [] }, errors: [] }),
+  powerInfo: (): Promise<UiPower> => isTauri() ? invoke("power_info") : Promise.resolve({ standby: false, standbyDelay: 300, sleepDelay: 3600, micEnabled: true, noiseReduction: 1, errors: [] }),
+  getSettings: (): Promise<AppSettings> => isTauri() ? invoke("get_settings") : Promise.resolve({ idleMinutes: 5 }),
+  setIdleMinutes: (minutes: number): Promise<void> => isTauri() ? invoke("set_idle_minutes", { minutes }) : Promise.resolve(),
+  getAutostart: (): Promise<boolean> => isTauri() ? invoke("get_autostart") : Promise.resolve(false),
+  setAutostart: (enabled: boolean): Promise<boolean> => isTauri() ? invoke("set_autostart", { enabled }) : Promise.resolve(enabled),
+};
+
 export async function subscribe(handler: (e: UiEvent) => void): Promise<() => void> {
-  const w = window as any;
-  if (!w.__TAURI_INTERNALS__) return () => {};
+  if (!isTauri()) {
+    const timer = setInterval(() => handler({ kind: "key", control: 4, name: "右旋", pressed: true, at: performance.now() / 1000 }), 3000);
+    return () => clearInterval(timer);
+  }
   const { listen } = await import("@tauri-apps/api/event");
-  const un = await listen<UiEvent>("halokey", (ev) => handler(ev.payload));
-  return un;
+  return listen<UiEvent>("halokey", (ev) => handler(ev.payload));
 }
