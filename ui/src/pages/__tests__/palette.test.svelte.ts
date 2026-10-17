@@ -3,6 +3,8 @@ import { mount, unmount, flushSync } from "svelte";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import Keymap from "../Keymap.svelte";
+import Palette from "../../components/Palette.svelte";
+import type { HostAction } from "../../model/keymap";
 import { initialDraft, loadSaved, controlAt, type Draft } from "../../model/draft";
 import type { HostKeymap } from "../../model/keymap";
 import { setLang } from "../../lib/i18n";
@@ -54,5 +56,46 @@ describe("Keymap palette", () => {
     flushSync();
     expect(byText("MO(1)")).toBeUndefined();
     expect(byText("Enter")).toBeTruthy();
+  });
+});
+
+describe("Palette action mode", () => {
+  it("emits actions instead of writing the draft, hides Layer and the halo being edited", () => {
+    setLang("zh");
+    const draft = $state<{ v: Draft }>({ v: loadSaved(initialDraft(), load()) });
+    const got: HostAction[] = [];
+    app = mount(Palette, { target: document.body, props: { get draft() { return draft.v; }, set draft(d: Draft) { draft.v = d; }, halos: draft.v.map!.halos!, apps: [], macros: [], mode: "action", onAction: (a: HostAction) => got.push(a), excludeHalo: "main", crumb: "槽位 1" } });
+    flushSync();
+    expect(byText("Layer")).toBeUndefined();
+    expect(byText("保持按住")).toBeUndefined();
+    expect(document.body.textContent).toContain("槽位 1");
+    byText("Enter")!.click();
+    flushSync();
+    expect(got).toEqual([{ keyboard: { _0: [{ type: 2, code: 0x28 }] } }]);
+    expect(draft.v.dirty).toBe(false);
+    byText("光环")!.click();
+    flushSync();
+    expect(document.body.textContent).not.toContain("主菜单");
+    expect(document.body.textContent).toContain("更多");
+    byText("指针")!.click();
+    flushSync();
+    byText("↑")!.click();
+    flushSync();
+    expect(got[1]).toEqual({ pointerMove: { _0: { dx: 0, dy: -20 } } });
+  });
+  it("offers new / edit halo entries in gesture mode", () => {
+    setLang("zh");
+    const draft = $state<{ v: Draft }>({ v: loadSaved(initialDraft(), load()) });
+    const edits: (string | null)[] = [];
+    app = mount(Keymap, { target: document.body, props: { get draft() { return draft.v; }, set draft(d: Draft) { draft.v = d; }, snapshot: null, onEditHalo: (id: string | null) => edits.push(id) } });
+    flushSync();
+    byText("光环")!.click();
+    flushSync();
+    byText("＋ 新建光环")!.click();
+    flushSync();
+    expect(edits).toEqual([null]);
+    ([...document.querySelectorAll("button[data-edit-halo]")][0] as HTMLButtonElement).click();
+    flushSync();
+    expect(edits).toEqual([null, "main"]);
   });
 });

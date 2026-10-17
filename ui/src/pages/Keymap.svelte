@@ -15,7 +15,7 @@
   import { effectivePress, type Gesture } from "../model/keymap";
   import { controlAt, resolvedControl, select, type Draft } from "../model/draft";
 
-  let { draft = $bindable(), snapshot, activeLayers = [] }: { draft: Draft; snapshot: UiSnapshot | null; activeLayers?: number[] } = $props();
+  let { draft = $bindable(), snapshot, activeLayers = [], onEditHalo }: { draft: Draft; snapshot: UiSnapshot | null; activeLayers?: number[]; onEditHalo?: (id: string | null) => void } = $props();
   const map = $derived(draft.map);
   const sel = $derived(draft.selection);
   const halos = $derived(map?.halos ?? []);
@@ -78,7 +78,7 @@
       <GestureCard index={2} control={ctl(2)} selected={sel.index === 2 ? sel.gesture : null} {halos} layer={sel.layer} override={controlAt(map, sel.layer, 2)} onPick={(g) => pick(2, g)} />
     </div>
   </section>
-  <Palette bind:draft {halos} apps={(map.actionLibrary ?? []).filter((a) => "application" in a.action)} macros={(map.actionLibrary ?? []).filter((a) => "macro" in a.action)} />
+  <Palette bind:draft {halos} apps={(map.actionLibrary ?? []).filter((a) => "application" in a.action)} macros={(map.actionLibrary ?? []).filter((a) => "macro" in a.action)} {onEditHalo} />
   <BottomBar dirty={draft.dirty} {saving} {message} {error} onSave={save} onRevert={() => { draft = revert(draft); message = ""; }} />
 {/if}
 
