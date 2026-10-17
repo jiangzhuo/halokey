@@ -82,7 +82,7 @@ pub fn parse_lighting(frame: &[u8]) -> Result<Lighting, Error> {
 /// 生成把 `expected` 改成 `desired` 所需的写命令序列（每条命令只改一个字段，但携带完整记录）。
 ///
 /// [CONFIRMED] 掩码 1 模式、2 全亮亮度、4 灯效、0x20 呼吸亮度、0x40 常亮亮度；偏移 5 为灯序号。
-/// 工作时长与呼吸参数不允许修改。
+/// [INFERRED] 掩码 0x08 工作时长（vibed 实测）。呼吸参数不允许修改。
 pub fn lighting_writes(desired: &Lighting, expected: &Lighting) -> Result<Vec<Vec<u8>>, Error> {
     let frame = |mask: u8, focus: u8| -> Vec<u8> {
         let mut f = vec![
@@ -119,8 +119,13 @@ pub fn lighting_writes(desired: &Lighting, expected: &Lighting) -> Result<Vec<Ve
         .zip(expected.lights.iter())
         .enumerate()
     {
-        if old.work_time != new.work_time || old.breathe_level != new.breathe_level {
+        if old.breathe_level != new.breathe_level {
             return Err(Error::InvalidFrame);
+        }
+        if new.work_time != old.work_time {
+            // [INFERRED] 掩码 0x08 = 工作时长（字段位序 0x04 << 1），vibed 在 4.4.2 固件上实测可写；
+            // 工作模式下灯效显示这么久后熄灭，255 约等于常显。
+            writes.push(frame(0x08, i as u8));
         }
         if new.breathe_brightness != old.breathe_brightness {
             if new.breathe_brightness > 20 {
@@ -163,6 +168,7 @@ pub fn matches_lighting_write_reply(frame: &[u8], request: &[u8]) -> bool {
         1 => 6,
         2 => 7,
         4 => base,
+        0x08 => base + 1,
         0x20 => base + 3,
         0x40 => base + 4,
         _ => return false,
@@ -280,8 +286,18 @@ mod tests {
         let mut breathe = lighting.clone();
         breathe.lights[2].kind = 2;
         assert_eq!(lighting_writes(&breathe, &lighting).unwrap().len(), 1);
+        // 工作时长可写（掩码 0x08，vibed 实测）；呼吸参数仍不允许改。
+        let mut longer = lighting.clone();
+        longer.lights[0].work_time = 255;
+        let w = lighting_writes(&longer, &lighting).unwrap();
+        assert_eq!(w.len(), 1);
+        assert_eq!(&w[0][..6], &[1, 0x0B, 0x88, 4, 0x08, 0]);
+        let mut ack = w[0].clone();
+        ack[0] = 0x81;
+        ack[3] = 0x14;
+        assert!(matches_lighting_write_reply(&ack, &w[0]));
         bad = lighting.clone();
-        bad.lights[0].work_time = 9;
+        bad.lights[0].breathe_level = 9;
         assert_eq!(lighting_writes(&bad, &lighting), Err(Error::InvalidFrame));
         assert_eq!(parse_lighting(&frame[..27]), Err(Error::InvalidFrame));
     }

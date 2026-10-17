@@ -774,6 +774,8 @@ impl Worker {
             }
             let transitions = self.router.receive(event, now);
             self.apply(transitions);
+            // MO 层的按下 / 松开本身不产生过渡，活动层集合却变了：这里再刷一次。
+            self.refresh_layers();
             return false;
         }
         if let Some((kind, value)) = settings::parse_state_notice(frame) {
@@ -1048,6 +1050,9 @@ fn write_layer_lighting(transport: &mut Transport, desired: &LayerLighting) -> R
     let current = read_lighting(transport)?;
     let target = desired.device_lighting(&current);
     let writes = settings::lighting_writes(&target, &current).map_err(|e| e.to_string())?;
+    if std::env::var_os("HALOKEY_DEBUG").is_some() {
+        eprintln!("[halokey] 背光：现值 {current:?}\n[halokey] 背光：目标 {target:?}\n[halokey] 背光：{} 条写入", writes.len());
+    }
     for request in &writes {
         transport
             .transact(request, REPLY_TIMEOUT, |f| {

@@ -52,6 +52,33 @@ enum Command {
         #[arg(long, default_value_t = 30)]
         seconds: u64,
     },
+    /// 读 / 写指示灯记录（不带参数只读；带参数写入后读回核对）。
+    Lighting {
+        /// 全局模式：0 全灭、1 全亮、2 工作。
+        #[arg(long)]
+        mode: Option<u8>,
+        /// 全亮亮度 0–20。
+        #[arg(long)]
+        brightness: Option<u8>,
+        /// 要改的灯：0 键 1、1 键 2、2 键 3、3 旋钮。
+        #[arg(long)]
+        light: Option<u8>,
+        /// 该灯的灯效：0 关、1 常亮、2 呼吸。
+        #[arg(long)]
+        kind: Option<u8>,
+        /// 该灯的亮度 0–20（同时写常亮与呼吸亮度）。
+        #[arg(long)]
+        light_brightness: Option<u8>,
+        /// 该灯的工作时长（工作模式下灯效显示多久；255 约等于常显）。
+        #[arg(long)]
+        work_time: Option<u8>,
+    },
+    /// 读 / 写麦克风收音开关。
+    Mic {
+        /// 写入：true 开、false 关；不带则只读。
+        #[arg(long)]
+        enable: Option<bool>,
+    },
     /// 把设备里的六格表导出为主机键位 JSON（可编辑后用 `run --config` 加载）。
     ExportKeymap,
     /// 无界面守护进程：心跳 + 厂商事件 → 手势 → 注入（Linux uinput）。
@@ -165,6 +192,80 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     Err(e) => return Err(e.into()),
                 };
                 println!("{:<6} {:<10} {}", control.index(), control.name(), line);
+            }
+        }
+        Command::Lighting {
+            mode,
+            brightness,
+            light,
+            kind,
+            light_brightness,
+            work_time,
+        } => {
+            use halokey_proto::settings;
+            let read =
+                |t: &mut Transport| -> Result<settings::Lighting, Box<dyn std::error::Error>> {
+                    let f = t.transact(&settings::LIGHTING_REQUEST, REPLY_TIMEOUT, |f| {
+                        settings::is_lighting_reply(f)
+                    })?;
+                    Ok(settings::parse_lighting(&f)?)
+                };
+            let current = read(&mut transport)?;
+            println!("当前：{current:?}");
+            let mut desired = current.clone();
+            if let Some(m) = mode {
+                desired.mode = m;
+            }
+            if let Some(b) = brightness {
+                desired.brightness = b;
+            }
+            if let Some(i) = light {
+                let slot = desired.lights.get_mut(usize::from(i)).ok_or("灯序号 0–3")?;
+                if let Some(k) = kind {
+                    slot.kind = k;
+                }
+                if let Some(b) = light_brightness {
+                    slot.always_on_brightness = b;
+                    slot.breathe_brightness = b;
+                }
+                if let Some(w) = work_time {
+                    slot.work_time = w;
+                }
+            }
+            if desired == current {
+                println!("没有改动。");
+            } else {
+                let writes = settings::lighting_writes(&desired, &current)?;
+                for request in &writes {
+                    transport.transact(request, REPLY_TIMEOUT, |f| {
+                        settings::matches_lighting_write_reply(f, request)
+                    })?;
+                }
+                let after = read(&mut transport)?;
+                println!(
+                    "写入 {} 条，读回：{after:?}  {}",
+                    writes.len(),
+                    if after == desired {
+                        "✓ 一致"
+                    } else {
+                        "✗ 与期望不一致"
+                    }
+                );
+            }
+        }
+        Command::Mic { enable } => {
+            use halokey_proto::settings;
+            let read = |t: &mut Transport| -> Result<bool, Box<dyn std::error::Error>> {
+                let f = t.transact(&settings::MIC_ENABLE_REQUEST, REPLY_TIMEOUT, |f| {
+                    settings::is_mic_enable_reply(f)
+                })?;
+                Ok(settings::parse_bool_reply(&f)?)
+            };
+            println!("当前收音：{}", read(&mut transport)?);
+            if let Some(on) = enable {
+                transport.send(&settings::mic_enable_write(on))?;
+                std::thread::sleep(std::time::Duration::from_millis(150));
+                println!("写入后收音：{}", read(&mut transport)?);
             }
         }
         Command::SetKey { index, kind, code } => {

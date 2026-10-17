@@ -91,7 +91,7 @@ fn effective_lighting_picks_highest_active_layer_with_a_record() {
 }
 
 #[test]
-fn device_mapping_keeps_work_time_and_breathe_level() {
+fn device_mapping_sets_work_time_255_for_lit_lights_and_keeps_breathe_level() {
     let current = Lighting {
         mode: 2,
         brightness: 14,
@@ -115,14 +115,32 @@ fn device_mapping_keeps_work_time_and_breathe_level() {
         out.lights[0],
         IndicatorLight {
             kind: 2,
-            work_time: 7,
+            work_time: 255,
             breathe_level: 3,
             breathe_brightness: 20,
             always_on_brightness: 20
         }
     );
     assert_eq!(out.lights[3].kind, 0);
+    assert_eq!(out.lights[3].work_time, 7, "关着的灯不改工作时长");
     assert_eq!(out.lights[3].always_on_brightness, 0);
+    // 全局模式 0（全灭）或 1（全亮）都会压住单灯设置：有亮的灯就切到 2（工作）。
+    let dark = Lighting {
+        mode: 1,
+        ..current.clone()
+    };
+    assert_eq!(want.device_lighting(&dark).mode, 2);
+    let all_off = LayerLighting {
+        lights: [LightEffect {
+            mode: LightMode::Off,
+            brightness: 0,
+        }; 4],
+    };
+    assert_eq!(
+        all_off.device_lighting(&dark).mode,
+        1,
+        "全关的记录不动全局模式"
+    );
 }
 
 #[test]
