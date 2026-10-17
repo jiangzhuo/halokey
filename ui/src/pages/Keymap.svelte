@@ -15,7 +15,7 @@
   import { effectivePress, type Gesture } from "../model/keymap";
   import { controlAt, resolvedControl, select, type Draft } from "../model/draft";
 
-  let { draft = $bindable(), snapshot }: { draft: Draft; snapshot: UiSnapshot | null } = $props();
+  let { draft = $bindable(), snapshot, activeLayers = [] }: { draft: Draft; snapshot: UiSnapshot | null; activeLayers?: number[] } = $props();
   const map = $derived(draft.map);
   const sel = $derived(draft.selection);
   const halos = $derived(map?.halos ?? []);
@@ -44,7 +44,7 @@
 {#if !map}
   <p class="empty">{t("未连接")}</p>
 {:else}
-  <LayerBar layer={sel.layer} onSelect={(l) => { draft = select(draft, { ...sel, layer: l }); }}>
+  <LayerBar layer={sel.layer} active={activeLayers} onSelect={(l) => { draft = select(draft, { ...sel, layer: l }); }}>
     {#snippet right()}
       <BacklightStrip layer={sel.layer} {lighting} own={hasOwnLighting(map, sel.layer)}
         onEffect={(i, p) => (draft = setLightEffect(draft, i, p))}

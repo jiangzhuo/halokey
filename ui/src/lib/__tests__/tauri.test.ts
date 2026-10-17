@@ -21,4 +21,9 @@ describe("tauri bridge (mock mode in jsdom)", () => {
     const snap = await api.snapshot();
     expect("effectiveLighting" in snap).toBe(true);
   });
+  it("mock validation rejects bad lighting like Rust does", async () => {
+    const map = await api.getKeymap();
+    await expect(api.validateKeymap({ ...map, lighting: { lights: [{ mode: "solid", brightness: 21 }, { mode: "off", brightness: 0 }, { mode: "off", brightness: 0 }, { mode: "off", brightness: 0 }] } })).rejects.toMatch(/0–20/);
+    await expect(api.validateKeymap({ ...map, lighting: { lights: [{ mode: "solid", brightness: 1 }] } })).rejects.toMatch(/四盏/);
+  });
 });

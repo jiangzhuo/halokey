@@ -20,7 +20,7 @@ export const EN: Record<string, string> = {
   "右 Control": "Right Control", "右 Shift": "Right Shift", "右 Alt": "Right Alt", "右 Super": "Right Super",
   "拧旋钮选择 · 按下确认 · 按任意键取消": "Turn to choose · press to confirm · any key cancels",
   "未设置（不管灯）": "Not set (lights untouched)", "亮度": "Brightness", "收起": "Collapse", "关": "Off", "常亮": "Solid", "呼吸": "Breathe",
-  "不管灯（删除本层背光）": "Leave lights alone (remove this layer's backlight)", "键 1": "Key 1", "键 2": "Key 2", "键 3": "Key 3", "旋钮": "Knob",
+  "不管灯（删除本层背光）": "Leave lights alone (remove this layer's backlight)", "键 1": "Key 1", "键 2": "Key 2", "键 3": "Key 3", "旋钮": "Knob", "设备当前按住的层": "Layer the device is holding",
 };
 let current: "zh" | "en" = "zh";
 try { current = (localStorage.getItem("halokey.lang") as "zh" | "en") || (navigator.language.startsWith("zh") ? "zh" : "en"); } catch { /* jsdom 或隐私模式 */ }

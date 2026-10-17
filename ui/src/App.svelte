@@ -10,9 +10,10 @@
   let snapshot = $state<UiSnapshot | null>(null);
   let draft = $state<Draft>(initialDraft());
   let langTick = $state(0);
+  let activeLayers = $state<number[]>([]);
 
   async function refresh() {
-    try { snapshot = await api.snapshot(); } catch (e) { console.error(e); }
+    try { snapshot = await api.snapshot(); activeLayers = snapshot.activeLayers ?? []; } catch (e) { console.error(e); }
     // 键位来自配置文件，与接收器是否在线无关：离线也要能编辑。
     if (!draft.map) try { draft = loadSaved(draft, await api.getKeymap()); } catch { /* 还没有键位（等待接收器），下次再试 */ }
   }
@@ -22,7 +23,10 @@
     const relang = () => { langTick++; };
     window.addEventListener("halokey-lang", relang);
     let un: (() => void) | undefined;
-    subscribe((e) => { if (e.kind === "connected") api.getKeymap().then((m) => { draft = loadSaved(draft, m); }); }).then((u) => { un = u; });
+    subscribe((e) => {
+      if (e.kind === "connected") api.getKeymap().then((m) => { draft = loadSaved(draft, m); });
+      if (e.kind === "layers") activeLayers = e.active;
+    }).then((u) => { un = u; });
     return () => { clearInterval(timer); window.removeEventListener("halokey-lang", relang); un?.(); };
   });
 </script>
@@ -30,7 +34,7 @@
 {#key langTick}
   <TopBar {page} {snapshot} dirty={draft.dirty} onNavigate={(p) => (page = p)} />
   {#if page === "keymap"}
-    <Keymap bind:draft {snapshot} />
+    <Keymap bind:draft {snapshot} {activeLayers} />
   {:else}
     <Settings {snapshot} />
   {/if}

@@ -28,6 +28,11 @@ const mockSnapshot = (): UiSnapshot => ({ connected: true, online: true, battery
 function mockValidate(map: HostKeymap): void {
   const idx = new Set(map.controls.map((c) => c.index));
   if (map.controls.length !== 6 || idx.size !== 6) throw "配置必须包含且仅包含六个控件，每个控件只能出现一次。";
+  for (const rec of [map.lighting, ...(map.layers ?? []).map((l) => l.lighting)]) {
+    if (!rec) continue;
+    if (rec.lights.length !== 4) throw "背光记录必须有四盏灯。";
+    if (rec.lights.some((l) => l.brightness < 0 || l.brightness > 20)) throw "背光亮度必须在 0–20 之间。";
+  }
 }
 
 export const api = {

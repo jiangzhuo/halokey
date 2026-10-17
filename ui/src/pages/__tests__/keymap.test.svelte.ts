@@ -34,4 +34,12 @@ describe("Keymap page stage", () => {
     expect(draft.v.selection.layer).toBe(2);
     expect(document.body.textContent).toContain("▽");
   });
+  it("marks active layers on the layer bar", () => {
+    setLang("zh");
+    const draft = $state<{ v: Draft }>({ v: loadSaved(initialDraft(), load()) });
+    app = mount(Keymap, { target: document.body, props: { get draft() { return draft.v; }, set draft(d: Draft) { draft.v = d; }, snapshot: null, activeLayers: [2] } });
+    flushSync();
+    const two = [...document.querySelectorAll(".seg button")].find((b) => b.textContent?.trim() === "2")!;
+    expect(two.querySelector(".live")).toBeTruthy();
+  });
 });
