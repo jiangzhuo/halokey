@@ -1,13 +1,14 @@
-import type { HostKeymap, Halo } from "../model/keymap";
+import type { HostKeymap, Halo, LayerLighting } from "../model/keymap";
 import example from "../../../docs/examples/halo-menu.json";
 
-export type UiSnapshot = { connected: boolean; online: boolean | null; battery: [number | null, number, boolean | null] | null; heartbeats: number; echoes: number; injected: number; lastError: string | null; configPath: string; paused: boolean; standby: boolean | null; link: boolean | null; activeLayers: number[] };
+export type UiSnapshot = { connected: boolean; online: boolean | null; battery: [number | null, number, boolean | null] | null; heartbeats: number; echoes: number; injected: number; lastError: string | null; configPath: string; paused: boolean; standby: boolean | null; link: boolean | null; activeLayers: number[]; effectiveLighting: LayerLighting | null };
 export type UiEvent =
   | { kind: "connected" } | { kind: "disconnected" }
   | { kind: "key"; control: number; name: string; pressed: boolean; at: number }
   | { kind: "battery"; percent: number | null; millivolts: number; charging: boolean | null }
   | { kind: "haloShow"; halo: Halo; selected: number } | { kind: "haloSelect"; selected: number } | { kind: "haloHide" }
-  | { kind: "error"; text: string } | { kind: "paused" } | { kind: "resumed" } | { kind: "stopped" };
+  | { kind: "error"; text: string } | { kind: "paused" } | { kind: "resumed" } | { kind: "stopped" }
+  | { kind: "layers"; active: number[] };
 export type UiLight = { kind: number; workTime: number; breatheLevel: number; breatheBrightness: number; alwaysOnBrightness: number };
 export type UiLighting = { mode: number; brightness: number; lights: UiLight[] };
 export type UiDeviceInfo = { firmware: string | null; dongleFirmware: string | null; noiseReduction: number[] | null; lighting: UiLighting | null; errors: string[] };
@@ -23,7 +24,7 @@ async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T
 
 // 浏览器里（npm run dev / vitest）没有 Tauri，用内存数据让界面能跑。
 let memory: HostKeymap = JSON.parse(JSON.stringify(example));
-const mockSnapshot = (): UiSnapshot => ({ connected: true, online: true, battery: [60, 3791, false], heartbeats: 1024, echoes: 1024, injected: 58, lastError: null, configPath: "~/.config/halokey/keymap.json", paused: false, standby: false, link: true, activeLayers: [] });
+const mockSnapshot = (): UiSnapshot => ({ connected: true, online: true, battery: [60, 3791, false], heartbeats: 1024, echoes: 1024, injected: 58, lastError: null, configPath: "~/.config/halokey/keymap.json", paused: false, standby: false, link: true, activeLayers: [], effectiveLighting: null });
 function mockValidate(map: HostKeymap): void {
   const idx = new Set(map.controls.map((c) => c.index));
   if (map.controls.length !== 6 || idx.size !== 6) throw "配置必须包含且仅包含六个控件，每个控件只能出现一次。";

@@ -35,7 +35,11 @@ export type ControlActionMap = {
   longPressTapCount?: number;
   inheritedGestures?: ("press" | "doublePress" | "longPress")[];
 };
-export type HostLayer = { id: number; controls: ControlActionMap[] };
+export type LightMode = "off" | "solid" | "breathe";
+export type LightEffect = { mode: LightMode; brightness: number };
+/** 四盏灯：键 1、键 2、键 3、旋钮（键 1 的灯在 AU05 上不可见）。 */
+export type LayerLighting = { lights: LightEffect[] };
+export type HostLayer = { id: number; controls: ControlActionMap[]; lighting?: LayerLighting | null };
 export type NamedHostAction = { id: string; name: string; slot: number; action: HostAction };
 export type HaloOption = { label: string; action: HostAction };
 export type Halo = { id: string; name: string; options: HaloOption[] };
@@ -45,6 +49,7 @@ export type HostKeymap = {
   layers?: HostLayer[];
   actionLibrary?: NamedHostAction[];
   halos?: Halo[];
+  lighting?: LayerLighting | null;
   doublePressWindow: number;
   longPressThreshold: number;
 };

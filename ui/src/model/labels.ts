@@ -4,6 +4,7 @@ import { t, lang } from "../lib/i18n";
 // 本文件的中文片段都经 t() 查表；英文表见 lib/i18n.ts。
 
 export const CONTROL_NAMES = ["顶部按键", "中间按键", "底部按键", "旋钮按下", "右旋", "左旋"] as const;
+export const LIGHT_NAMES = ["键 1", "键 2", "键 3", "旋钮"] as const;
 const SPECIAL: Record<number, string> = {
   0x00: "无", 0x01: "无效码", 0x28: "Enter", 0x29: "Esc", 0x2a: "⌫", 0x2b: "Tab", 0x2c: "Space", 0x2d: "−", 0x2e: "=", 0x2f: "[", 0x30: "]",
   0x31: "\\", 0x32: "Non-US #", 0x33: ";", 0x34: "'", 0x35: "`", 0x36: ",", 0x37: ".", 0x38: "/", 0x39: "Caps Lock",

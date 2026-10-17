@@ -8,7 +8,7 @@ const example = (name: string): HostKeymap =>
 
 describe("keymap types", () => {
   it("round-trips every example without losing fields", () => {
-    for (const f of ["knob-moves-pointer.json", "switch-apps-and-macro.json", "halo-menu.json"]) {
+    for (const f of ["knob-moves-pointer.json", "switch-apps-and-macro.json", "halo-menu.json", "layer-backlight.json"]) {
       const raw = readFileSync(resolve(__dirname, "../../../../docs/examples", f), "utf8");
       const map: HostKeymap = JSON.parse(raw);
       expect(JSON.parse(JSON.stringify(map))).toEqual(JSON.parse(raw));
@@ -22,5 +22,10 @@ describe("keymap types", () => {
     expect(effectiveDouble(knob)).toBeNull();
     const weird = { futureAction: { _0: 1 } } as any;
     expect(actionKind(weird)).toBe("futureAction");
+  });
+  it("exposes lighting records", () => {
+    const map = example("layer-backlight.json");
+    expect(map.lighting?.lights).toHaveLength(4);
+    expect(map.layers?.[0]?.lighting?.lights[0]?.mode).toBe("breathe");
   });
 });

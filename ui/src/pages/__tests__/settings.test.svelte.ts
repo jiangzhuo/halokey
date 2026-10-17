@@ -7,7 +7,7 @@ import type { UiSnapshot } from "../../lib/tauri";
 let app: ReturnType<typeof mount> | undefined;
 afterEach(() => { if (app) unmount(app); app = undefined; document.body.innerHTML = ""; });
 const tick = () => new Promise((r) => setTimeout(r, 0));
-const snapshot: UiSnapshot = { connected: true, online: true, battery: [60, 3791, false], heartbeats: 12, echoes: 11, injected: 0, lastError: null, configPath: "/tmp/keymap.json", paused: false, standby: false, link: true, activeLayers: [] };
+const snapshot: UiSnapshot = { connected: true, online: true, battery: [60, 3791, false], heartbeats: 12, echoes: 11, injected: 0, lastError: null, configPath: "/tmp/keymap.json", paused: false, standby: false, link: true, activeLayers: [], effectiveLighting: null };
 
 describe("Settings page", () => {
   it("shows firmware, lighting, power and general cards from the bridge", async () => {

@@ -17,4 +17,8 @@ describe("tauri bridge (mock mode in jsdom)", () => {
     await api.saveKeymap(map);
     expect((await api.getKeymap()).doublePressWindow).toBe(0.3);
   });
+  it("mock snapshot carries effectiveLighting", async () => {
+    const snap = await api.snapshot();
+    expect("effectiveLighting" in snap).toBe(true);
+  });
 });
