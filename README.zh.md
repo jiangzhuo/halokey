@@ -28,6 +28,8 @@ cargo run -p halokey-app                         # 托盘应用：设置窗口 +
 
 Debian/Ubuntu 安装：在 `apps/halokey` 里 `cargo tauri build --bundles deb`，然后 `sudo dpkg -i target/release/bundle/deb/halokey_*.deb`，重新插拔接收器让自带的 udev 规则生效。
 
+设置窗口里的设备渲染图（`ui/public/device.png`）来自 [Open VibeKey](https://github.com/palaemonboy/OpenVibeKey) 仓库（MIT）。
+
 `set-key` 改的是设备自己的表。先挑一个改坏也没关系的格子，并记下它打印的旧值。
 
 ## 为什么再做一个

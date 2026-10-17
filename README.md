@@ -28,6 +28,8 @@ cargo run -p halokey-app                         # tray app: settings window + h
 
 To install on Debian/Ubuntu: `cargo tauri build --bundles deb` in `apps/halokey`, then `sudo dpkg -i target/release/bundle/deb/halokey_*.deb` and replug the receiver so the bundled udev rule applies.
 
+The device render in the settings window (`ui/public/device.png`) comes from the [Open VibeKey](https://github.com/palaemonboy/OpenVibeKey) repository (MIT).
+
 `set-key` writes the device's own table. Pick a slot you can afford to break first, and note the old value it prints.
 
 ## Why another one

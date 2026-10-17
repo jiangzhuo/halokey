@@ -1664,4 +1664,5 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>" && git push origin mai
 
 - 规格覆盖：§2 技术栈（Task 1）、§3 信息架构与顶栏（Task 6）、§4.1 Layer 条（Task 7；背光条留第 2 期）、§4.2 设备图（Task 7）、§4.3 卡片（Task 7）、§4.4 面板（Task 8；组合键录制 / APP / 宏 / 光环的新建编辑器属第 3–4 期，本期只做"选已有项"）、§4.5 保存撤销（Task 9）、§6 设置页只读（Task 10）、§8 `validate_keymap` 与 `activeLayers`（Task 9）、§11 清理（Task 11）。
 - 类型一致性：`Draft` / `Selection` / `Gesture` / `Behavior` 在 Task 2、4、7、8 中同名；`api.validateKeymap` / `saveKeymap` 在 Task 5、9 中同名；`UiSnapshot.activeLayers` 在 Task 5、9 对应 Rust 的 `active_layers`。
+- 执行后回填（2026-10-17）：本计划三处缺陷已在实施中纠正，后续各期不要沿用——(1) Task 11 的 README 行写错：调试版 `cargo run` 加载 Vite 开发服务器，要先 `npm run dev`，只有 `cargo tauri build` 会自己跑 Vite；(2) Task 2 的 `labels.ts` 模板没有经 `t()`，英文界面卡片内容全是中文；(3) `devCsp: null` 在 Tauri 2.12 里是空操作。另外两条实施中才暴露的事实：等设备回复的 Tauri 命令必须是 `async fn` 且等待时不持服务锁，否则主线程冻结；只改前端时 cargo 不会重编，`build.rs` 已加 `rerun-if-changed=../../ui/dist`。
 - Review Focus 五项分别落在 Task 2（未知动作往返）、Task 4（dirty 不覆盖）、Task 4 + 8（旋转限制）、Task 9（断开时保存）、Task 6（i18n 扫描）。
