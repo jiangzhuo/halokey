@@ -28,6 +28,7 @@ halokey keeps one JSON file, `~/.config/halokey/keymap.json` on Linux. The setti
 | `layers` | Optional sparse overlays 1–3, activated by `momentaryLayer` actions. |
 | `actionLibrary` | Optional reusable application or macro actions referenced by `library` actions. |
 | `halos` | Optional radial menus, see §4. |
+| `lighting` | Optional per-layer backlight: `{ "lights": [ { "mode": "off|solid|breathe", "brightness": 0–20 } ×4 ] }` in the order key 1, key 2, key 3, knob. Also allowed inside each `layers[]` entry. The runtime writes the highest active layer's record (falling back to the top level) to the device's four indicator lights, keeping `work_time` / `breathe_level` and the global mode / brightness untouched. Omitted everywhere = never touch the lights. Requires version 6. |
 | `doublePressWindow` | 0.15–0.5 s. |
 | `longPressThreshold` | 0.3–2 s, must exceed the double-press window. |
 
@@ -91,3 +92,4 @@ One to eight options; labels and ids 1–80 characters; option actions may be an
 - [`examples/knob-moves-pointer.json`](examples/knob-moves-pointer.json): knob moves the pointer.
 - [`examples/switch-apps-and-macro.json`](examples/switch-apps-and-macro.json): keys switch apps, knob press runs a macro.
 - [`examples/halo-menu.json`](examples/halo-menu.json): a two-level halo on knob press.
+- [`examples/layer-backlight.json`](examples/layer-backlight.json): hold key 1 to breathe all keys (per-layer backlight).

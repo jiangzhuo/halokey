@@ -28,6 +28,7 @@ halokey 只保存一个 JSON 文件，Linux 上在 `~/.config/halokey/keymap.jso
 | `layers` | 可选的稀疏覆盖层 1–3，由 `momentaryLayer` 动作激活。 |
 | `actionLibrary` | 可选的可复用应用或宏动作，由 `library` 动作引用。 |
 | `halos` | 可选的环形菜单，见 §4。 |
+| `lighting` | 可选的分层背光：`{ "lights": [ { "mode": "off|solid|breathe", "brightness": 0–20 } ×4 ] }`，顺序为键 1、键 2、键 3、旋钮。`layers[]` 里的每一层也可以带。运行时把编号最高的活动层的记录（没有则用顶层的）写进设备四盏指示灯，`work_time` / `breathe_level` 与全局模式 / 亮度保持不动。全部缺省 = 从不碰灯。需要版本 6。 |
 | `doublePressWindow` | 0.15–0.5 秒。 |
 | `longPressThreshold` | 0.3–2 秒，必须大于双击窗口。 |
 
@@ -91,3 +92,4 @@ halokey 只保存一个 JSON 文件，Linux 上在 `~/.config/halokey/keymap.jso
 - [`examples/knob-moves-pointer.json`](examples/knob-moves-pointer.json)：旋钮移动指针。
 - [`examples/switch-apps-and-macro.json`](examples/switch-apps-and-macro.json)：按键切换应用，旋钮按下跑宏。
 - [`examples/halo-menu.json`](examples/halo-menu.json)：旋钮按下上的两级光环。
+- [`examples/layer-backlight.json`](examples/layer-backlight.json)：按住键 1 让三个键呼吸（分层背光）。

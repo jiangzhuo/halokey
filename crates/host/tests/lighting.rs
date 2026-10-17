@@ -124,3 +124,18 @@ fn device_mapping_keeps_work_time_and_breathe_level() {
     assert_eq!(out.lights[3].kind, 0);
     assert_eq!(out.lights[3].always_on_brightness, 0);
 }
+
+#[test]
+fn example_layer_backlight_parses() {
+    let bytes = include_bytes!("../../../docs/examples/layer-backlight.json");
+    let map = HostKeymap::from_json(bytes).unwrap();
+    assert_eq!(map.version, 6);
+    assert_eq!(
+        map.effective_lighting(&[1]).unwrap().lights[0].mode,
+        LightMode::Breathe
+    );
+    assert_eq!(
+        map.effective_lighting(&[]).unwrap().lights[0].mode,
+        LightMode::Solid
+    );
+}
