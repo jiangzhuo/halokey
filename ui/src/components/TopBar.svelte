@@ -7,7 +7,11 @@
 </script>
 
 <header>
-  <div class="logo">☰ HALOKEY</div>
+  <div class="logo">
+    <!-- 光环标志：一个环加中心点，不是菜单按钮。 -->
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="6.5" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="9" cy="9" r="2" fill="var(--accent)"/></svg>
+    HALOKEY
+  </div>
   <nav>
     <button class:on={page === "keymap"} onclick={() => onNavigate("keymap")}>⌨ {t("键位")}{#if dirty}<i class="dot" title={t("未保存")}></i>{/if}</button>
     <button class:on={page === "settings"} onclick={() => onNavigate("settings")}>⚙ {t("设置")}</button>
@@ -20,7 +24,7 @@
 
 <style>
   header { display: flex; align-items: center; padding: 12px 22px; border-bottom: 1px solid var(--line); }
-  .logo { font-weight: 700; letter-spacing: .12em; }
+  .logo { font-weight: 700; letter-spacing: .12em; display: flex; align-items: center; gap: 8px; user-select: none; }
   nav { margin: 0 auto; display: flex; gap: 24px; }
   nav button { background: none; padding: 6px 2px; color: var(--muted); border-radius: 0; border-bottom: 2px solid transparent; position: relative; }
   nav button.on { color: var(--text); border-bottom-color: var(--accent); }
