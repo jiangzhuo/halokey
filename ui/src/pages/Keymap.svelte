@@ -3,6 +3,7 @@
   import DeviceView from "../components/DeviceView.svelte";
   import GestureCard from "../components/GestureCard.svelte";
   import KnobLabel from "../components/KnobLabel.svelte";
+  import Palette from "../components/Palette.svelte";
   import { t } from "../lib/i18n";
   import type { UiSnapshot } from "../lib/tauri";
   import { actionLabel, CONTROL_NAMES } from "../model/labels";
@@ -37,6 +38,7 @@
       {/each}
     </div>
   </section>
+  <Palette bind:draft {halos} apps={(map.actionLibrary ?? []).filter((a) => "application" in a.action)} macros={(map.actionLibrary ?? []).filter((a) => "macro" in a.action)} />
 {/if}
 
 <style>
