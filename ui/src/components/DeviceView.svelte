@@ -15,7 +15,7 @@
 </div>
 
 <style>
-  .device { position: relative; width: 160px; margin: 0 auto; } /* 高 472px；两侧布局按这个高度对齐 */
+  .device { position: relative; width: 100px; margin: 0 auto; } /* 高 295px；舞台布局按这个高度算 */
   .device img { display: block; width: 100%; height: auto; user-select: none; }
   .spot { position: absolute; padding: 0; background: transparent; border-radius: 50%; border: 3px solid transparent; cursor: pointer; }
   .spot:hover { border-color: rgba(242, 201, 181, .45); filter: none; }
