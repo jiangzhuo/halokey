@@ -6,7 +6,7 @@ export type UiEvent =
   | { kind: "connected" } | { kind: "disconnected" }
   | { kind: "key"; control: number; name: string; pressed: boolean; at: number }
   | { kind: "battery"; percent: number | null; millivolts: number; charging: boolean | null }
-  | { kind: "haloShow"; halo: Halo; selected: number } | { kind: "haloSelect"; selected: number } | { kind: "haloHide" }
+  | { kind: "haloShow"; halo: Halo; selected: number; size?: number } | { kind: "haloSelect"; selected: number } | { kind: "haloHide" }
   | { kind: "error"; text: string } | { kind: "paused" } | { kind: "resumed" } | { kind: "stopped" }
   | { kind: "layers"; active: number[] };
 export type UiLight = { kind: number; workTime: number; breatheLevel: number; breatheBrightness: number; alwaysOnBrightness: number };
@@ -58,6 +58,9 @@ export async function subscribe(handler: (e: UiEvent) => void): Promise<() => vo
       handler({ kind: "key", control: 4, name: "右旋", pressed: true, at: performance.now() / 1000 });
       mockActive = tick % 2 === 1 ? [1] : [];
       handler({ kind: "layers", active: mockActive });
+      // 转盘：显示 6 秒（选中项会变）、隐藏 3 秒，让 halo.html 在浏览器里能看。
+      if (tick % 3 !== 0 && example.halos?.[0]) handler({ kind: "haloShow", halo: example.halos[0] as Halo, selected: tick % 7, size: 360 });
+      else handler({ kind: "haloHide" });
     }, 3000);
     return () => clearInterval(timer);
   }
