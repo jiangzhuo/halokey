@@ -159,16 +159,19 @@ fn forward(app: &AppHandle, event: Event) {
             let settings = load_settings(&app.state::<App>().config_path);
             let size = settings.halo.size_px();
             if let Some(w) = app.get_webview_window("halo") {
-                let _ = w.set_size(tauri::PhysicalSize::new(size, size + HALO_HINT_HEIGHT));
+                // 尺寸是网页里的 CSS 像素 = 逻辑像素；指针位置是物理像素，按缩放换算。
+                let _ = w.set_size(tauri::LogicalSize::new(
+                    f64::from(size),
+                    f64::from(size + HALO_HINT_HEIGHT),
+                ));
+                let scale = w.scale_factor().unwrap_or(1.0);
                 // 按设置围着鼠标指针出现；拿不到指针位置或设置为居中时放屏幕中央。
                 let placed = settings.halo.position == HaloPosition::Pointer
                     && match app.cursor_position() {
-                        Ok(pos) => w
-                            .set_position(tauri::PhysicalPosition::new(
-                                (pos.x - f64::from(size) / 2.0).max(0.0),
-                                (pos.y - f64::from(size) / 2.0).max(0.0),
-                            ))
-                            .is_ok(),
+                        Ok(pos) => {
+                            let (x, y) = halo_window_origin(pos.x, pos.y, size, scale);
+                            w.set_position(tauri::PhysicalPosition::new(x, y)).is_ok()
+                        }
                         Err(_) => false,
                     };
                 if !placed {
@@ -429,6 +432,12 @@ impl HaloSettings {
 
 /// 转盘窗口在环下面还有一行提示。
 const HALO_HINT_HEIGHT: u32 = 28;
+
+/// 转盘窗口的物理坐标左上角：指针（物理像素）减去窗口逻辑尺寸 × 缩放的一半，不出屏幕左上角。
+fn halo_window_origin(cursor_x: f64, cursor_y: f64, size: u32, scale: f64) -> (f64, f64) {
+    let half = f64::from(size) * scale / 2.0;
+    ((cursor_x - half).max(0.0), (cursor_y - half).max(0.0))
+}
 
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase", default)]
@@ -821,6 +830,17 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn halo_window_origin_uses_physical_pixels_for_logical_size() {
+        // 2× 缩放：逻辑 360 px 的窗口在物理坐标里是 720 px 宽，围着指针居中。
+        assert_eq!(halo_window_origin(1000.0, 800.0, 360, 2.0), (640.0, 440.0));
+        assert_eq!(
+            halo_window_origin(100.0, 50.0, 360, 1.0),
+            (0.0, 0.0),
+            "左上角夹取到 0"
+        );
+    }
 
     #[test]
     fn settings_merge_keeps_unknown_and_defaults() {

@@ -2,12 +2,12 @@
   import type { Keycap } from "../model/codes";
   import type { KeyEntry } from "../model/keymap";
   import { t } from "../lib/i18n";
-  let { keycaps, current, showTransparent, onPick, onClear, onTransparent }: { keycaps: Keycap[]; current: KeyEntry[] | null; showTransparent: boolean; onPick: (entries: KeyEntry[]) => void; onClear: () => void; onTransparent: () => void } = $props();
+  let { keycaps, current, showTransparent, showClear = true, onPick, onClear, onTransparent }: { keycaps: Keycap[]; current: KeyEntry[] | null; showTransparent: boolean; showClear?: boolean; onPick: (entries: KeyEntry[]) => void; onClear: () => void; onTransparent: () => void } = $props();
   const isOn = (k: Keycap) => !!current && current.length === 1 && current[0]!.type === k.entry.type && current[0]!.code === k.entry.code;
 </script>
 <div class="grid">
   {#if showTransparent}<button class="special" title={t("透明继承")} onclick={onTransparent}>▽</button>{/if}
-  <button class="special" title={`${t("不执行动作")} / ${t("关闭手势")}`} onclick={onClear}>⊠</button>
+  {#if showClear}<button class="special" title={`${t("不执行动作")} / ${t("关闭手势")}`} onclick={onClear}>⊠</button>{/if}
   {#each keycaps as k}<button class:on={isOn(k)} onclick={() => onPick([k.entry])}>{k.label}</button>{/each}
 </div>
 <style>

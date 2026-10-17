@@ -49,7 +49,7 @@
       {#if !actionMode}<div class="mode"><OutputModeSegment {behavior} {count} allowHold={!rotation && sel.gesture !== "double"} onBehavior={(b) => (draft = setBehavior(draft, b))} onCount={(n) => (draft = setTapCount(draft, n))} /></div>{/if}
     </div>
     {#if cat.keycaps}
-      <KeyGrid keycaps={cat.keycaps} current={actionMode ? null : current} showTransparent={!actionMode && sel.layer !== 0} onPick={emitEntries} onClear={() => (actionMode ? onAction?.({ keyboard: { _0: [{ type: 2, code: 0 }] } }) : (draft = clearGesture(draft)))} onTransparent={() => (draft = setTransparent(draft))} />
+      <KeyGrid keycaps={cat.keycaps} current={actionMode ? null : current} showTransparent={!actionMode && sel.layer !== 0} showClear={!actionMode} onPick={emitEntries} onClear={() => (draft = clearGesture(draft))} onTransparent={() => (draft = setTransparent(draft))} />
     {:else if category === "layer"}
       <div class="cards">
         {#if sel.layer !== 0}<button class="special" onclick={() => (draft = setTransparent(draft))}>▽</button>{/if}

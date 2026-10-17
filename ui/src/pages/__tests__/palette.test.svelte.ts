@@ -68,6 +68,7 @@ describe("Palette action mode", () => {
     flushSync();
     expect(byText("Layer")).toBeUndefined();
     expect(byText("保持按住")).toBeUndefined();
+    expect(byText("⊠")).toBeUndefined(); // 动作模式没有"不执行"键帽，清空走槽位的 ✕
     expect(document.body.textContent).toContain("槽位 1");
     byText("Enter")!.click();
     flushSync();
