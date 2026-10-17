@@ -250,16 +250,8 @@ fn save_keymap(state: State<'_, App>, keymap: serde_json::Value) -> Result<(), S
 type DeviceKeys = Vec<(u8, Vec<(u8, u8)>)>;
 
 #[tauri::command]
-fn read_device_keys(state: State<'_, App>) -> Result<DeviceKeys, String> {
-    let guard = state.service.lock().map_err(|e| e.to_string())?;
-    let service = guard.as_ref().ok_or("服务未运行")?;
-    let (tx, rx) = std::sync::mpsc::channel();
-    if !service.send(Command::ReadKeys(tx)) {
-        return Err("设备线程已退出".into());
-    }
-    let replies = rx
-        .recv_timeout(std::time::Duration::from_secs(12))
-        .map_err(|_| "读取超时")??;
+async fn read_device_keys(state: State<'_, App>) -> Result<DeviceKeys, String> {
+    let replies = ask(&state, Command::ReadKeys, 12)??;
     Ok(replies
         .into_iter()
         .map(|r| {
@@ -358,31 +350,14 @@ impl From<DeviceInfo> for UiDeviceInfo {
 }
 
 #[tauri::command]
-fn device_info(state: State<'_, App>) -> Result<UiDeviceInfo, String> {
-    let guard = state.service.lock().map_err(|e| e.to_string())?;
-    let service = guard.as_ref().ok_or("服务未运行")?;
-    let (tx, rx) = std::sync::mpsc::channel();
-    if !service.send(Command::QueryInfo(tx)) {
-        return Err("设备线程已退出".into());
-    }
-    let info = rx
-        .recv_timeout(std::time::Duration::from_secs(12))
-        .map_err(|_| "读取超时")?;
-    Ok(info.into())
+async fn device_info(state: State<'_, App>) -> Result<UiDeviceInfo, String> {
+    ask(&state, Command::QueryInfo, 12).map(UiDeviceInfo::from)
 }
 
 #[tauri::command]
-fn set_lighting(state: State<'_, App>, lighting: UiLighting) -> Result<UiLighting, String> {
+async fn set_lighting(state: State<'_, App>, lighting: UiLighting) -> Result<UiLighting, String> {
     let desired = Lighting::try_from(lighting)?;
-    let guard = state.service.lock().map_err(|e| e.to_string())?;
-    let service = guard.as_ref().ok_or("服务未运行")?;
-    let (tx, rx) = std::sync::mpsc::channel();
-    if !service.send(Command::SetLighting(desired, tx)) {
-        return Err("设备线程已退出".into());
-    }
-    let result = rx
-        .recv_timeout(std::time::Duration::from_secs(20))
-        .map_err(|_| "写入超时")??;
+    let result = ask(&state, |tx| Command::SetLighting(desired, tx), 20)??;
     Ok(result.into())
 }
 
@@ -465,43 +440,50 @@ impl From<PowerInfo> for UiPower {
     }
 }
 
+/// 只在发送命令时持锁；等待回复不占锁，免得 `snapshot` 等快命令被设备超时拖住。
+fn send_command(state: &State<'_, App>, command: Command) -> Result<(), String> {
+    let guard = state.service.lock().map_err(|e| e.to_string())?;
+    let service = guard.as_ref().ok_or("服务未运行")?;
+    if !service.send(command) {
+        return Err("设备线程已退出".into());
+    }
+    Ok(())
+}
+
+/// 发一条带回复通道的命令并等待；调用方必须是 async 命令，这样等待发生在工作线程而不是主线程。
 fn ask<T: Send + 'static>(
     state: &State<'_, App>,
     make: impl FnOnce(std::sync::mpsc::Sender<T>) -> Command,
     secs: u64,
 ) -> Result<T, String> {
-    let guard = state.service.lock().map_err(|e| e.to_string())?;
-    let service = guard.as_ref().ok_or("服务未运行")?;
     let (tx, rx) = std::sync::mpsc::channel();
-    if !service.send(make(tx)) {
-        return Err("设备线程已退出".into());
-    }
+    send_command(state, make(tx))?;
     rx.recv_timeout(std::time::Duration::from_secs(secs))
         .map_err(|_| "设备没有在限定时间内回复".to_string())
 }
 
 #[tauri::command]
-fn power_info(state: State<'_, App>) -> Result<UiPower, String> {
+async fn power_info(state: State<'_, App>) -> Result<UiPower, String> {
     ask(&state, Command::QueryPower, 15).map(UiPower::from)
 }
 
 #[tauri::command]
-fn set_sleep_delay(state: State<'_, App>, seconds: u32) -> Result<u32, String> {
+async fn set_sleep_delay(state: State<'_, App>, seconds: u32) -> Result<u32, String> {
     ask(&state, |tx| Command::SetSleepDelay(seconds, tx), 15)?
 }
 
 #[tauri::command]
-fn set_standby_delay(state: State<'_, App>, seconds: u32) -> Result<u32, String> {
+async fn set_standby_delay(state: State<'_, App>, seconds: u32) -> Result<u32, String> {
     ask(&state, |tx| Command::SetStandbyDelay(seconds, tx), 15)?
 }
 
 #[tauri::command]
-fn set_mic_enabled(state: State<'_, App>, enabled: bool) -> Result<bool, String> {
+async fn set_mic_enabled(state: State<'_, App>, enabled: bool) -> Result<bool, String> {
     ask(&state, |tx| Command::SetMicEnabled(enabled, tx), 15)?
 }
 
 #[tauri::command]
-fn set_noise_reduction(state: State<'_, App>, level: u8) -> Result<u8, String> {
+async fn set_noise_reduction(state: State<'_, App>, level: u8) -> Result<u8, String> {
     ask(&state, |tx| Command::SetNoiseReduction(level, tx), 15)?.map(|n| n.level)
 }
 
@@ -544,10 +526,12 @@ fn set_autostart(enabled: bool) -> Result<bool, String> {
 /// 把基础层六个控件的单击条目写进设备自己的表，应用不运行时设备照此直出。
 /// 只写纯键盘 / 鼠标页条目；其他动作（应用、宏、光环、指针）对应的控件保持设备现值不变。
 #[tauri::command]
-fn write_device_keys(state: State<'_, App>) -> Result<Vec<String>, String> {
-    let guard = state.service.lock().map_err(|e| e.to_string())?;
-    let service = guard.as_ref().ok_or("服务未运行")?;
-    let map = service.snapshot().keymap.ok_or("还没有键位")?;
+async fn write_device_keys(state: State<'_, App>) -> Result<Vec<String>, String> {
+    let map = {
+        let guard = state.service.lock().map_err(|e| e.to_string())?;
+        let service = guard.as_ref().ok_or("服务未运行")?;
+        service.snapshot().keymap.ok_or("还没有键位")?
+    };
     let mut report = Vec::new();
     for control in &map.controls {
         let Some(HostAction::Keyboard(entries)) = Some(control.effective_press()) else {
@@ -575,14 +559,11 @@ fn write_device_keys(state: State<'_, App>) -> Result<Vec<String>, String> {
             ));
             continue;
         }
-        let (tx, rx) = std::sync::mpsc::channel();
-        if !service.send(Command::WriteKey(control.index, entries, tx)) {
-            return Err("设备线程已退出".into());
-        }
-        match rx
-            .recv_timeout(std::time::Duration::from_secs(12))
-            .map_err(|_| "写入超时")?
-        {
+        match ask(
+            &state,
+            |tx| Command::WriteKey(control.index, entries, tx),
+            12,
+        )? {
             Ok(reply) => report.push(format!(
                 "控件 {}：已写入 {} 个条目并读回核对",
                 reply.index,
