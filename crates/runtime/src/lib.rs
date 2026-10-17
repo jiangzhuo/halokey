@@ -51,6 +51,8 @@ pub struct Config {
     pub serial: Option<String>,
     /// 设备无操作多久后交还控制、停止心跳，让固件自己待机；`None` 永不。
     pub idle_timeout: Option<Duration>,
+    /// 光环转盘无操作多久自动关闭。
+    pub halo_timeout: Duration,
 }
 
 /// 外部可读的状态快照。
@@ -135,6 +137,8 @@ pub enum Command {
     SetLighting(Lighting, Sender<Result<Lighting, String>>),
     /// 改空闲超时；`None` 永不暂停。
     SetIdleTimeout(Option<Duration>),
+    /// 改光环转盘的自动关闭时间。
+    SetHaloTimeout(Duration),
     /// 读电源与麦克风设置。
     QueryPower(Sender<PowerInfo>),
     /// 写休眠延时（秒，0 永不），读回核对。
@@ -278,6 +282,7 @@ struct Worker {
     halo: Option<HaloState>,
     halo_swallowed: std::collections::BTreeSet<u8>,
     idle_timeout: Option<Duration>,
+    halo_timeout: Duration,
     last_activity: Instant,
     paused: bool,
     lighting: LightingScheduler,
@@ -303,6 +308,7 @@ impl Worker {
         on_event: Box<dyn Fn(Event) + Send>,
     ) -> Worker {
         let idle_timeout = config.idle_timeout;
+        let halo_timeout = config.halo_timeout;
         Worker {
             config,
             backends: Some(backends),
@@ -318,6 +324,7 @@ impl Worker {
             halo: None,
             halo_swallowed: std::collections::BTreeSet::new(),
             idle_timeout,
+            halo_timeout,
             last_activity: Instant::now(),
             paused: false,
             lighting: LightingScheduler::new(),
@@ -441,6 +448,7 @@ impl Worker {
                     let _ = reply.send(Err("接收器未连接".into()));
                 }
                 Ok(Command::SetIdleTimeout(timeout)) => self.idle_timeout = timeout,
+                Ok(Command::SetHaloTimeout(t)) => self.halo_timeout = t,
                 Ok(Command::QueryPower(reply)) => {
                     let _ = reply.send(PowerInfo {
                         errors: vec!["接收器未连接".into()],
@@ -580,6 +588,7 @@ impl Worker {
                     self.idle_timeout = timeout;
                     self.last_activity = Instant::now();
                 }
+                Ok(Command::SetHaloTimeout(t)) => self.halo_timeout = t,
                 Ok(Command::QueryPower(reply)) => {
                     let _ = reply.send(query_power(transport));
                     self.drain_stray();
@@ -662,7 +671,7 @@ impl Worker {
             if self
                 .halo
                 .as_ref()
-                .is_some_and(|h| h.last_input.elapsed() > HALO_TIMEOUT)
+                .is_some_and(|h| h.last_input.elapsed() > self.halo_timeout)
             {
                 self.close_halo();
             }

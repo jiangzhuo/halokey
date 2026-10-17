@@ -39,6 +39,8 @@ enum UiEvent {
     HaloShow {
         halo: halokey_host::Halo,
         selected: usize,
+        /// 转盘外径像素。
+        size: u32,
     },
     HaloSelect {
         selected: usize,
@@ -154,22 +156,31 @@ fn forward(app: &AppHandle, event: Event) {
             charging: b.charging,
         },
         Event::HaloShow(halo, selected) => {
+            let settings = load_settings(&app.state::<App>().config_path);
+            let size = settings.halo.size_px();
             if let Some(w) = app.get_webview_window("halo") {
-                // 光环围着鼠标指针出现；拿不到指针位置就居中。
-                match (app.cursor_position(), w.outer_size()) {
-                    (Ok(pos), Ok(size)) => {
-                        let x = pos.x - f64::from(size.width) / 2.0;
-                        let y = pos.y - f64::from(size.height) / 2.0;
-                        let _ =
-                            w.set_position(tauri::PhysicalPosition::new(x.max(0.0), y.max(0.0)));
-                    }
-                    _ => {
-                        let _ = w.center();
-                    }
+                let _ = w.set_size(tauri::PhysicalSize::new(size, size + HALO_HINT_HEIGHT));
+                // 按设置围着鼠标指针出现；拿不到指针位置或设置为居中时放屏幕中央。
+                let placed = settings.halo.position == HaloPosition::Pointer
+                    && match app.cursor_position() {
+                        Ok(pos) => w
+                            .set_position(tauri::PhysicalPosition::new(
+                                (pos.x - f64::from(size) / 2.0).max(0.0),
+                                (pos.y - f64::from(size) / 2.0).max(0.0),
+                            ))
+                            .is_ok(),
+                        Err(_) => false,
+                    };
+                if !placed {
+                    let _ = w.center();
                 }
                 let _ = w.show();
             }
-            UiEvent::HaloShow { halo, selected }
+            UiEvent::HaloShow {
+                halo,
+                selected,
+                size,
+            }
         }
         Event::HaloSelect(selected) => UiEvent::HaloSelect { selected },
         Event::HaloHide => {
@@ -372,37 +383,130 @@ async fn set_lighting(state: State<'_, App>, lighting: UiLighting) -> Result<UiL
     Ok(result.into())
 }
 
-#[derive(Serialize, serde::Deserialize, Clone)]
+#[derive(Serialize, serde::Deserialize, Clone, Copy, PartialEq, Debug)]
+#[serde(rename_all = "lowercase")]
+enum HaloPosition {
+    Pointer,
+    Center,
+}
+
+#[derive(Serialize, serde::Deserialize, Clone, Copy, PartialEq, Debug)]
+#[serde(rename_all = "lowercase")]
+enum HaloSize {
+    Small,
+    Medium,
+    Large,
+}
+
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase", default)]
+struct HaloSettings {
+    position: HaloPosition,
+    timeout_seconds: u64,
+    size: HaloSize,
+}
+
+impl Default for HaloSettings {
+    fn default() -> Self {
+        HaloSettings {
+            position: HaloPosition::Pointer,
+            timeout_seconds: 4,
+            size: HaloSize::Medium,
+        }
+    }
+}
+
+impl HaloSettings {
+    /// 转盘外径像素：小 / 中 / 大。
+    fn size_px(&self) -> u32 {
+        match self.size {
+            HaloSize::Small => 280,
+            HaloSize::Medium => 360,
+            HaloSize::Large => 440,
+        }
+    }
+}
+
+/// 转盘窗口在环下面还有一行提示。
+const HALO_HINT_HEIGHT: u32 = 28;
+
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase", default)]
 struct AppSettings {
     idle_minutes: u64,
+    halo: HaloSettings,
 }
 
 impl Default for AppSettings {
     fn default() -> Self {
-        AppSettings { idle_minutes: 5 }
+        AppSettings {
+            idle_minutes: 5,
+            halo: HaloSettings::default(),
+        }
     }
+}
+
+/// 深合并：patch 里出现的键覆盖，其余保留（包括本版本不认识的键）。
+fn deep_merge(base: &mut serde_json::Value, patch: &serde_json::Value) {
+    match (base, patch) {
+        (serde_json::Value::Object(b), serde_json::Value::Object(p)) => {
+            for (k, v) in p {
+                deep_merge(b.entry(k.clone()).or_insert(serde_json::Value::Null), v);
+            }
+        }
+        (b, p) => *b = p.clone(),
+    }
+}
+
+fn merge_settings(
+    mut current: serde_json::Value,
+    patch: &serde_json::Value,
+) -> Result<AppSettings, String> {
+    if !current.is_object() {
+        current = serde_json::json!({});
+    }
+    deep_merge(&mut current, patch);
+    let settings: AppSettings =
+        serde_json::from_value(current).map_err(|e| format!("设置格式无效：{e}"))?;
+    if !(1..=60).contains(&settings.halo.timeout_seconds) {
+        return Err("转盘自动关闭时间应为 1–60 秒".into());
+    }
+    if settings.idle_minutes > 1440 {
+        return Err("空闲时间最多 1440 分钟".into());
+    }
+    Ok(settings)
 }
 
 fn settings_path(config_path: &std::path::Path) -> PathBuf {
     config_path.with_file_name("settings.json")
 }
 
-fn load_settings(config_path: &std::path::Path) -> AppSettings {
+/// 原始 JSON（保留本版本不认识的键）；读不到就是空对象。
+fn load_settings_value(config_path: &std::path::Path) -> serde_json::Value {
     std::fs::read(settings_path(config_path))
         .ok()
         .and_then(|b| serde_json::from_slice(&b).ok())
-        .unwrap_or_default()
+        .unwrap_or_else(|| serde_json::json!({}))
 }
 
+fn load_settings(config_path: &std::path::Path) -> AppSettings {
+    merge_settings(load_settings_value(config_path), &serde_json::json!({})).unwrap_or_default()
+}
+
+/// 把设置写回文件：先合并进原始 JSON，未知键不丢。
 fn save_settings(config_path: &std::path::Path, settings: &AppSettings) -> Result<(), String> {
     let path = settings_path(config_path);
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
+    let mut raw = load_settings_value(config_path);
+    deep_merge(
+        &mut raw,
+        &serde_json::to_value(settings).map_err(|e| e.to_string())?,
+    );
     std::fs::write(
         &path,
-        serde_json::to_vec_pretty(settings).map_err(|e| e.to_string())?,
+        serde_json::to_vec_pretty(&raw).map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())
 }
@@ -412,19 +516,28 @@ fn get_settings(state: State<'_, App>) -> AppSettings {
     load_settings(&state.config_path)
 }
 
+/// 合并一段设置（只覆盖给出的键），写文件并即时生效。
 #[tauri::command]
-fn set_idle_minutes(state: State<'_, App>, minutes: u64) -> Result<(), String> {
-    let settings = AppSettings {
-        idle_minutes: minutes,
-    };
+fn set_settings(state: State<'_, App>, patch: serde_json::Value) -> Result<AppSettings, String> {
+    let settings = merge_settings(load_settings_value(&state.config_path), &patch)?;
     save_settings(&state.config_path, &settings)?;
     let guard = state.service.lock().map_err(|e| e.to_string())?;
     let service = guard.as_ref().ok_or("服务未运行")?;
-    let timeout = (minutes > 0).then(|| std::time::Duration::from_secs(minutes * 60));
-    if !service.send(Command::SetIdleTimeout(timeout)) {
+    let idle = (settings.idle_minutes > 0)
+        .then(|| std::time::Duration::from_secs(settings.idle_minutes * 60));
+    if !service.send(Command::SetIdleTimeout(idle))
+        || !service.send(Command::SetHaloTimeout(std::time::Duration::from_secs(
+            settings.halo.timeout_seconds,
+        )))
+    {
         return Err("设备线程已退出".into());
     }
-    Ok(())
+    Ok(settings)
+}
+
+#[tauri::command]
+fn set_idle_minutes(state: State<'_, App>, minutes: u64) -> Result<(), String> {
+    set_settings(state, serde_json::json!({ "idleMinutes": minutes })).map(|_| ())
 }
 
 #[derive(Serialize, Clone)]
@@ -600,7 +713,9 @@ fn main() {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     }
     let path = config_path();
-    let idle_minutes = load_settings(&path).idle_minutes;
+    let settings = load_settings(&path);
+    let idle_minutes = settings.idle_minutes;
+    let halo_timeout = std::time::Duration::from_secs(settings.halo.timeout_seconds);
     let initial = match load_keymap(&path) {
         Ok(map) => map,
         Err(e) => {
@@ -626,6 +741,7 @@ fn main() {
             write_device_keys,
             get_settings,
             set_idle_minutes,
+            set_settings,
             power_info,
             set_sleep_delay,
             set_standby_delay,
@@ -645,6 +761,7 @@ fn main() {
                     serial: None,
                     idle_timeout: (idle_minutes > 0)
                         .then(|| std::time::Duration::from_secs(idle_minutes * 60)),
+                    halo_timeout,
                 },
                 Backends::platform(),
                 Box::new(move |event| forward(&handle, event)),
@@ -704,6 +821,26 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn settings_merge_keeps_unknown_and_defaults() {
+        let old: serde_json::Value = serde_json::json!({ "idleMinutes": 10, "future": true });
+        let patch = serde_json::json!({ "halo": { "size": "large" } });
+        let merged = merge_settings(old, &patch).unwrap();
+        assert_eq!(merged.idle_minutes, 10);
+        assert_eq!(merged.halo.size, HaloSize::Large);
+        assert_eq!(merged.halo.timeout_seconds, 4, "缺省段用默认值");
+        assert_eq!(merged.halo.position, HaloPosition::Pointer);
+        let json = serde_json::to_value(&merged).unwrap();
+        assert_eq!(json["halo"]["size"], "large");
+        assert_eq!(json["halo"]["timeoutSeconds"], 4);
+        assert!(merge_settings(
+            serde_json::json!({}),
+            &serde_json::json!({ "halo": { "timeoutSeconds": 0 } })
+        )
+        .is_err());
+        assert_eq!(HaloSettings::default().size_px(), 360);
+    }
 
     #[test]
     fn validate_keymap_accepts_examples_and_rejects_bad_shapes() {
