@@ -1,0 +1,52 @@
+import { describe, it, expect, afterEach } from "vitest";
+import { mount, unmount, flushSync } from "svelte";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import Keymap from "../Keymap.svelte";
+import { initialDraft, loadSaved, type Draft } from "../../model/draft";
+import type { HostKeymap } from "../../model/keymap";
+import { setLang } from "../../lib/i18n";
+
+const load = (): HostKeymap => JSON.parse(readFileSync(resolve(__dirname, "../../../../docs/examples/layer-backlight.json"), "utf8"));
+let app: ReturnType<typeof mount> | undefined;
+afterEach(() => { if (app) unmount(app); app = undefined; document.body.innerHTML = ""; });
+const buttons = () => [...document.querySelectorAll("button")] as HTMLButtonElement[];
+const byText = (t: string) => buttons().find((b) => b.textContent?.trim() === t);
+
+describe("backlight strip", () => {
+  it("shows the effective lighting, expands an editor and writes the draft", () => {
+    setLang("zh");
+    const draft = $state<{ v: Draft }>({ v: loadSaved(initialDraft(), load()) });
+    app = mount(Keymap, { target: document.body, props: { get draft() { return draft.v; }, set draft(d: Draft) { draft.v = d; }, snapshot: null } });
+    flushSync();
+    expect(document.body.textContent).toContain("本层背光");
+    expect(document.querySelectorAll(".strip .dot[data-mode=solid]")).toHaveLength(3);
+    expect(document.querySelectorAll(".device .spot[data-mode=solid]")).toHaveLength(3);
+    byText("编辑…")!.click();
+    flushSync();
+    const rows = document.querySelectorAll(".editor .light");
+    expect(rows).toHaveLength(4);
+    (rows[3]!.querySelector("button[data-mode=breathe]") as HTMLButtonElement).click();
+    flushSync();
+    expect(draft.v.map!.lighting!.lights[3]!.mode).toBe("breathe");
+    expect(draft.v.dirty).toBe(true);
+    expect(document.querySelectorAll(".device .spot[data-mode=breathe]")).toHaveLength(1);
+  });
+  it("layer 1 follows layer 0 when its record is removed", () => {
+    setLang("zh");
+    const draft = $state<{ v: Draft }>({ v: loadSaved(initialDraft(), load()) });
+    app = mount(Keymap, { target: document.body, props: { get draft() { return draft.v; }, set draft(d: Draft) { draft.v = d; }, snapshot: null } });
+    flushSync();
+    ([...document.querySelectorAll(".seg button")].find((b) => b.textContent?.trim() === "1") as HTMLButtonElement).click();
+    flushSync();
+    expect(document.querySelectorAll(".strip .dot[data-mode=breathe]")).toHaveLength(3);
+    byText("编辑…")!.click();
+    flushSync();
+    const follow = document.querySelector(".editor input[data-role=follow]") as HTMLInputElement;
+    expect(follow.checked).toBe(false);
+    follow.click();
+    flushSync();
+    expect(draft.v.map!.layers!.find((l) => l.id === 1)!.lighting).toBeUndefined();
+    expect(document.querySelectorAll(".strip .dot[data-mode=solid]")).toHaveLength(3);
+  });
+});

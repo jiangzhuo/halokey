@@ -5,6 +5,8 @@
   import KnobLabel from "../components/KnobLabel.svelte";
   import Palette from "../components/Palette.svelte";
   import BottomBar from "../components/BottomBar.svelte";
+  import BacklightStrip from "../components/BacklightStrip.svelte";
+  import { effectiveLighting, hasOwnLighting, setLightEffect, setFollowBase, clearBaseLighting } from "../model/draft";
   import { api } from "../lib/tauri";
   import { markSaved, revert } from "../model/draft";
   import { t } from "../lib/i18n";
@@ -24,7 +26,8 @@
     side === "left" ? `M40 ${from} H30 L10 ${to} H0` : `M0 ${from} H10 L30 ${to} H40`;
   const LEFT: [number, number, number][] = [[5, 84, 30], [3, 84, 127], [1, 201, 211]];
   const RIGHT: [number, number, number][] = [[4, 84, 30], [0, 153, 127], [2, 249, 211]];
-  const lights = $derived(["off", "off", "off", "off"] as ("off" | "solid" | "breathe")[]); // 第 2 期接本层背光
+  const lighting = $derived(map ? effectiveLighting(map, sel.layer) : null);
+  const lights = $derived(lighting?.lights ?? null);
   const _snapshot = $derived(snapshot); // 第 2 期接本层背光时使用
   let saving = $state(false);
   let message = $state("");
@@ -41,7 +44,14 @@
 {#if !map}
   <p class="empty">{t("未连接")}</p>
 {:else}
-  <LayerBar layer={sel.layer} onSelect={(l) => { draft = select(draft, { ...sel, layer: l }); }} />
+  <LayerBar layer={sel.layer} onSelect={(l) => { draft = select(draft, { ...sel, layer: l }); }}>
+    {#snippet right()}
+      <BacklightStrip layer={sel.layer} {lighting} own={hasOwnLighting(map, sel.layer)}
+        onEffect={(i, p) => (draft = setLightEffect(draft, i, p))}
+        onFollow={(f) => (draft = setFollowBase(draft, f))}
+        onClearBase={() => (draft = clearBaseLighting(draft))} />
+    {/snippet}
+  </LayerBar>
   <section class="stage">
     <div class="side left">
       <div class="knobs end"><KnobLabel index={5} label={actionLabel(effectivePress(ctl(5)), null, halos)} selected={sel.index === 5} onPick={() => pick(5, "press")} /></div>

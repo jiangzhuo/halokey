@@ -8,7 +8,8 @@
   <div class="right">{@render right?.()}</div>
 </div>
 <style>
-  .bar { display: flex; align-items: center; gap: 14px; padding: 12px 22px; }
+  .bar { display: flex; align-items: flex-start; gap: 14px; padding: 12px 22px; }
+  .bar > .muted, .bar > .seg { margin-top: 4px; }
   .muted { color: var(--muted); font-size: 13px; }
   .seg { display: inline-flex; background: var(--card); border-radius: 8px; padding: 3px; gap: 2px; }
   .seg button { padding: 5px 14px; background: none; font-family: var(--mono); }
