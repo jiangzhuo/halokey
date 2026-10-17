@@ -29,7 +29,7 @@
   .card.sel { border-color: #8a8a90; }
   .g { flex: 1; background: none; padding: 6px 4px; border-radius: 8px; display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center; }
   .g.on { background: var(--card-on); }
-  .g small { color: var(--muted); font-size: 12px; }
+  .g small { color: var(--muted); font-size: 12px; white-space: nowrap; }
   .g span { font-size: 13px; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .g .mark { color: var(--muted); border: 1.5px solid var(--muted); border-radius: 4px; padding: 0 5px; font-size: 11px; }
 </style>

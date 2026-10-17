@@ -39,9 +39,13 @@
   <LayerBar layer={sel.layer} onSelect={(l) => { draft = select(draft, { ...sel, layer: l }); }} />
   <section class="stage">
     <div class="side left">
-      <div class="knobs"><KnobLabel index={5} label={actionLabel(effectivePress(ctl(5)), null, halos)} selected={sel.index === 5} onPick={() => pick(5, "press")} /></div>
-      <div class="name">⟳ {t(CONTROL_NAMES[3])}</div>
-      <GestureCard index={3} control={ctl(3)} selected={sel.index === 3 ? sel.gesture : null} {halos} layer={sel.layer} override={controlAt(map, sel.layer, 3)} onPick={(g) => pick(3, g)} />
+      <div class="knobrow">
+        <div class="press">
+          <div class="name">⟳ {t(CONTROL_NAMES[3])}</div>
+          <GestureCard index={3} control={ctl(3)} selected={sel.index === 3 ? sel.gesture : null} {halos} layer={sel.layer} override={controlAt(map, sel.layer, 3)} onPick={(g) => pick(3, g)} />
+        </div>
+        <KnobLabel index={5} label={actionLabel(effectivePress(ctl(5)), null, halos)} selected={sel.index === 5} onPick={() => pick(5, "press")} />
+      </div>
     </div>
     <DeviceView {lights} selectedIndex={sel.index < 4 ? sel.index : null} onPick={(i) => pick(i, "press")} />
     <div class="side right">
@@ -59,11 +63,16 @@
   .empty { padding: 40px; color: var(--muted); text-align: center; }
   /* 渲染图 160×472：两侧的块全部落在这个高度之内，并对齐到图上的控件位置
      （旋钮中心 28.4% ≈ 134px，三个键中心 51.9% / 68.2% / 84.5% ≈ 245 / 322 / 399px）。 */
+  /* 渲染图 160×472：两侧的块全部落在这个高度之内，并对齐到图上的控件位置
+     （旋钮中心 28.4% ≈ 134px，三个键中心 51.9% / 68.2% / 84.5% ≈ 245 / 322 / 399px）。 */
   .stage { display: grid; grid-template-columns: 1fr 170px 1fr; gap: 18px; padding: 4px 40px 18px; align-items: start; }
   .side { display: flex; flex-direction: column; gap: 6px; max-height: 472px; }
-  .knobs { display: flex; margin-top: 112px; }
-  .left .knobs { justify-content: flex-end; }
-  .right .knobs { justify-content: flex-start; }
-  .name { color: var(--muted); font-size: 14px; margin-top: 14px; }
+  /* 左侧：旋钮按下卡片 + 左旋标签在同一行，卡片中心对齐旋钮中心（卡片 72px，上方名称约 27px）。 */
+  .knobrow { display: flex; align-items: flex-end; gap: 10px; margin-top: 71px; }
+  .press { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .knobrow > :global(.knob) { margin-bottom: 14px; }
+  .name { color: var(--muted); font-size: 14px; }
+  /* 右侧：右旋标签对齐旋钮，三张卡片对齐三个键。 */
+  .right .knobs { display: flex; margin-top: 112px; justify-content: flex-start; }
   .right > :global(.card:first-of-type) { margin-top: 90px; }
 </style>
