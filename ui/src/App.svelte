@@ -13,7 +13,8 @@
 
   async function refresh() {
     try { snapshot = await api.snapshot(); } catch (e) { console.error(e); }
-    if (!draft.map && snapshot?.connected) try { draft = loadSaved(draft, await api.getKeymap()); } catch (e) { console.error(e); }
+    // 键位来自配置文件，与接收器是否在线无关：离线也要能编辑。
+    if (!draft.map) try { draft = loadSaved(draft, await api.getKeymap()); } catch { /* 还没有键位（等待接收器），下次再试 */ }
   }
   onMount(() => {
     refresh();

@@ -34,6 +34,7 @@ describe("Keymap palette", () => {
     buttons().find((b) => b.textContent?.includes("右旋"))!.click();
     flushSync();
     expect(byText("保持按住")).toBeUndefined();
+    expect(byText("短按一次")!.classList.contains("on")).toBe(true);
     expect(byText("Layer")!.disabled).toBe(true);
     byText("指针")!.click();
     flushSync();

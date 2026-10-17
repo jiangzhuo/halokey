@@ -26,7 +26,7 @@
 </script>
 
 <div class="page">
-  <div class="ph"><h2>{t("设置")}</h2><label class="lang">🌐 {t("界面语言")} <select value={lang()} onchange={(e) => setLang((e.target as HTMLSelectElement).value as "zh" | "en")}><option value="zh">简体中文</option><option value="en">English</option></select></label></div>
+  <div class="ph"><h2>{t("设置")}</h2><label class="lang">🌐 {t("界面语言")} <select value={lang()} onchange={(e) => setLang((e.target as HTMLSelectElement).value as "zh" | "en")}><option value="zh">简体中文</option><!-- i18n-ignore: 语言自称 --><option value="en">English</option></select></label></div>
   <p class="muted">{t("第 1 期：设置页只读；写入项在后续计划中")}</p>
 
   <section class="card">

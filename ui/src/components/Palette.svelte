@@ -14,7 +14,9 @@
   const control = $derived(draft.map ? resolvedControl(draft.map, sel.layer, sel.index) : null);
   const gestureName: Record<string, string> = { press: "单击", double: "双击", long: "长按" };
   const current = $derived<KeyEntry[] | null>(!control ? null : sel.gesture === "press" ? (control.pressAction ? null : control.press) : sel.gesture === "double" ? (control.doublePressAction ? null : control.doublePress ?? null) : (control.longPressAction ? null : control.longPress ?? null));
-  const behavior = $derived<Behavior>(!control ? "hold" : sel.gesture === "press" ? control.pressBehavior ?? "hold" : sel.gesture === "double" ? control.doublePressBehavior ?? "tap" : control.longPressBehavior ?? "hold");
+  const rawBehavior = $derived<Behavior>(!control ? "hold" : sel.gesture === "press" ? control.pressBehavior ?? "hold" : sel.gesture === "double" ? control.doublePressBehavior ?? "tap" : control.longPressBehavior ?? "hold");
+  // 旋转无法"保持按住"，Rust 把旧的 hold 解释为一次短按；界面照此显示。
+  const behavior = $derived<Behavior>(isRotation(sel.index) && rawBehavior === "hold" ? "tap" : rawBehavior);
   const count = $derived(!control ? 2 : sel.gesture === "press" ? control.pressTapCount ?? 2 : sel.gesture === "double" ? control.doublePressTapCount ?? 2 : control.longPressTapCount ?? 2);
   const rotation = $derived(isRotation(sel.index));
   const cat = $derived(CATEGORIES.find((c) => c.id === category)!);

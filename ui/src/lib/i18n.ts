@@ -14,7 +14,11 @@ export const EN: Record<string, string> = {
   "第 1 期：设置页只读；写入项在后续计划中": "Phase 1: settings are read-only; writes come in later phases",
   "点击上方的手势，再从下面选一个键码": "Pick a gesture above, then a keycode below", "指针步长": "Pointer step", "像素": "px",
   "在本机构建里还没有的功能": "Not available in this build yet", "复杂动作": "Complex action", "无": "None",
-  "宏（": "Macro (", "切换到": "Switch to", "动作库": "Library", "心跳": "heartbeats", "回显": "echoes",
+  "切换到": "Switch to", "动作库": "Library", "心跳": "heartbeats", "回显": "echoes",
+  "滚轮↑": "Wheel ↑", "滚轮↓": "Wheel ↓", "左键": "Left button", "右键": "Right button", "中键": "Middle button", "鼠标键 4": "Mouse 4", "鼠标键 5": "Mouse 5",
+  "类型": "type ", "无效码": "Invalid", "左 Control": "Left Control", "左 Shift": "Left Shift", "左 Alt": "Left Alt", "左 Super": "Left Super",
+  "右 Control": "Right Control", "右 Shift": "Right Shift", "右 Alt": "Right Alt", "右 Super": "Right Super",
+  "拧旋钮选择 · 按下确认 · 按任意键取消": "Turn to choose · press to confirm · any key cancels",
 };
 let current: "zh" | "en" = "zh";
 try { current = (localStorage.getItem("halokey.lang") as "zh" | "en") || (navigator.language.startsWith("zh") ? "zh" : "en"); } catch { /* jsdom 或隐私模式 */ }

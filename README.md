@@ -20,7 +20,7 @@ cargo run -p halokey-cli -- run -v               # daemon: heartbeat, gestures, 
 cargo run -p halokey-cli -- export-keymap > my.json   # the device table as editable host keymap JSON
 cargo run -p halokey-cli -- run --config docs/examples/knob-moves-pointer.json   # knob moves the mouse pointer
 cargo run -p halokey-cli -- run --config docs/examples/switch-apps-and-macro.json # keys switch apps, knob press runs a macro
-cd ui && npm install && cd ..                    # once; the Tauri build runs the Vite build itself
+cd ui && npm install && npm run dev              # once / in a second terminal: debug builds load the Vite dev server
 cargo run -p halokey-app                         # tray app: settings window + halo overlay, reads ~/.config/halokey/keymap.json
 ```
 

@@ -21,4 +21,13 @@ describe("i18n", () => {
     setLang("en"); expect(t("键位")).toBe("Keymap"); expect(t("没有这条")).toBe("没有这条");
     setLang("zh"); expect(t("键位")).toBe("键位");
   });
+  it("has no Chinese literal left in .svelte markup outside t()", () => {
+    const offenders: string[] = [];
+    for (const file of walk(join(__dirname, "../.."))) {
+      if (!file.endsWith(".svelte")) continue;
+      const markup = readFileSync(file, "utf8").split("\n").filter((l) => !l.includes("i18n-ignore")).join("\n").replace(/<script[\s\S]*?<\/script>/g, "").replace(/<style[\s\S]*?<\/style>/g, "").replace(/\bt\("[^"]+"\)/g, "").replace(/<!--[\s\S]*?-->/g, "");
+      for (const line of markup.split("\n")) if (/[\u4e00-\u9fff]/.test(line)) offenders.push(`${file.split("/src/")[1]}: ${line.trim()}`);
+    }
+    expect(offenders).toEqual([]);
+  });
 });

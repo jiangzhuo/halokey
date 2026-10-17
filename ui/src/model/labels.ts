@@ -1,4 +1,7 @@
 import { actionKind, actionValue, type HostAction, type KeyEntry, type Halo, type ApplicationTarget, type PointerDelta } from "./keymap";
+import { t, lang } from "../lib/i18n";
+
+// 本文件的中文片段都经 t() 查表；英文表见 lib/i18n.ts。
 
 export const CONTROL_NAMES = ["顶部按键", "中间按键", "底部按键", "旋钮按下", "右旋", "左旋"] as const;
 const SPECIAL: Record<number, string> = {
@@ -13,10 +16,10 @@ const MOUSE = ["左键", "右键", "中键", "鼠标键 4", "鼠标键 5", "滚�
 const MOD_SYMBOL: Record<number, string> = { 0xe0: "⌃", 0xe1: "⇧", 0xe2: "⌥", 0xe3: "⌘" };
 
 export function keyName(e: KeyEntry): string {
-  if (e.type === 7) return MOUSE[e.code] ?? `鼠标 0x${e.code.toString(16).padStart(2, "0")}`;
-  if (e.type !== 2) return `类型${e.type} 0x${e.code.toString(16).padStart(2, "0")}`;
+  if (e.type === 7) return MOUSE[e.code] ? t(MOUSE[e.code]!) : `${t("鼠标")} 0x${e.code.toString(16).padStart(2, "0")}`;
+  if (e.type !== 2) return `${t("类型")}${e.type} 0x${e.code.toString(16).padStart(2, "0")}`;
   const c = e.code;
-  if (SPECIAL[c]) return SPECIAL[c];
+  if (SPECIAL[c]) return t(SPECIAL[c]!);
   if (c >= 0x04 && c <= 0x1d) return String.fromCharCode(65 + c - 4);
   if (c >= 0x1e && c <= 0x27) return String((c - 0x1d) % 10);
   if (c >= 0x3a && c <= 0x45) return `F${c - 0x39}`;
@@ -27,26 +30,26 @@ export function keyName(e: KeyEntry): string {
 
 export function entriesLabel(entries: KeyEntry[]): string {
   const active = entries.filter((e) => !(e.type === 2 && e.code === 0));
-  if (!active.length) return "无";
+  if (!active.length) return t("无");
   const mods = active.filter((e) => e.type === 2 && MOD_SYMBOL[e.code]).map((e) => MOD_SYMBOL[e.code]).join("");
   const rest = active.filter((e) => !(e.type === 2 && MOD_SYMBOL[e.code])).map(keyName).join(" + ");
   return mods && rest ? `${mods}${rest}` : mods || rest;
 }
 
 export function actionLabel(a: HostAction | null, entries?: KeyEntry[] | null, halos?: Halo[]): string {
-  if (!a) return entries ? entriesLabel(entries) : "无";
+  if (!a) return entries ? entriesLabel(entries) : t("无");
   switch (actionKind(a)) {
     case "keyboard": return entriesLabel(actionValue<KeyEntry[]>(a));
-    case "application": return `切换到 ${actionValue<ApplicationTarget>(a).name}`;
-    case "macro": return `宏（${(actionValue<unknown[]>(a)).length} 步）`;
-    case "library": return `动作库 ${String(actionValue<string>(a)).slice(0, 8)}`;
+    case "application": return `${t("切换到")} ${actionValue<ApplicationTarget>(a).name}`;
+    case "macro": { const n = actionValue<unknown[]>(a).length; return lang() === "en" ? `Macro (${n} steps)` : `宏（${n} 步）`; }
+    case "library": return `${t("动作库")} ${String(actionValue<string>(a)).slice(0, 8)}`;
     case "momentaryLayer": return `MO(${actionValue<number>(a)})`;
     case "pointerMove": {
       const { dx, dy } = actionValue<PointerDelta>(a);
       const parts = [dx ? `${dx > 0 ? "→" : "←"}${Math.abs(dx)}` : "", dy ? `${dy > 0 ? "↓" : "↑"}${Math.abs(dy)}` : ""].filter(Boolean);
-      return `指针 ${parts.join(" ")}`;
+      return `${t("指针")} ${parts.join(" ")}`;
     }
-    case "halo": { const id = actionValue<string>(a); return `光环「${halos?.find((h) => h.id === id)?.name ?? id}」`; }
-    default: return "复杂动作";
+    case "halo": { const id = actionValue<string>(a); const name = halos?.find((h) => h.id === id)?.name ?? id; return lang() === "en" ? `Halo “${name}”` : `光环「${name}」`; }
+    default: return t("复杂动作");
   }
 }

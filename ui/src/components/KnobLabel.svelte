@@ -1,10 +1,11 @@
 <script lang="ts">
   import { t } from "../lib/i18n";
   let { index, label, selected, onPick }: { index: 4 | 5; label: string; selected: boolean; onPick: () => void } = $props();
+  const title = $derived(index === 4 ? t("右旋") : t("左旋"));
 </script>
 <button class="knob" class:on={selected} onclick={onPick}>
   {#if index === 5}<i>↺</i>{/if}
-  <span><small>{t(index === 4 ? "右旋" : "左旋")}</small>{label}</span>
+  <span><small>{title}</small>{label}</span>
   {#if index === 4}<i>↻</i>{/if}
 </button>
 <style>

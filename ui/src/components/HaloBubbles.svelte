@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { subscribe } from "../lib/tauri";
+  import { t } from "../lib/i18n";
   type Opt = { label: string };
   let name = $state("");
   let options = $state<Opt[]>([]);
@@ -25,7 +26,7 @@
     <div class="opt" class:sel={i === selected} style:left={px(C + R * Math.cos(angle(i)))} style:top={px(C + R * Math.sin(angle(i)))}>{o.label}</div>
   {/each}
 </div>
-<div class="hint">拧旋钮选择 · 按下确认 · 按任意键取消</div>
+<div class="hint">{t("拧旋钮选择 · 按下确认 · 按任意键取消")}</div>
 
 <style>
   :global(html, body) { margin: 0; background: transparent; overflow: hidden; width: 420px; height: 420px; }
