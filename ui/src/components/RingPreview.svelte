@@ -9,7 +9,7 @@
 
 <svg class="ring" width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
   {#each slots as s, i}
-    <path class="wedge" class:sel={i === selected} class:filled={!!s.action} data-index={i} d={wedgePath(slots.length, i, OUTER, INNER, C, C)} role="button" tabindex="0" onclick={() => onPick(i)} onkeydown={(e) => e.key === "Enter" && onPick(i)} />
+    <path class="wedge" class:sel={i === selected} class:filled={!!s.action} data-index={i} d={wedgePath(slots.length, i, OUTER, INNER, C, C)} role="button" tabindex="0" onmousedown={(e) => e.preventDefault()} onclick={() => onPick(i)} onkeydown={(e) => e.key === "Enter" && onPick(i)} />
   {/each}
   {#each slots as s, i}
     {@const p = wedgeCenter(slots.length, i, (OUTER + INNER) / 2, C, C)}
@@ -23,6 +23,9 @@
   .wedge { fill: var(--card); stroke: var(--bg); stroke-width: 2; cursor: pointer; }
   .wedge.filled { fill: var(--card-on); }
   .wedge.sel { fill: var(--accent); }
+  /* 鼠标点击不取焦点（见 onmousedown）；键盘焦点用描边，不画包围盒方框。 */
+  .wedge:focus { outline: none; }
+  .wedge:focus-visible { stroke: var(--accent); stroke-width: 3; }
   .name { fill: var(--text); pointer-events: none; }
   .name.empty { fill: var(--muted); font-family: var(--mono); }
   .name.sel { fill: var(--accent-text); }
