@@ -2,7 +2,8 @@
   // 实物渲染图来自 Open VibeKey（MIT）的 landing/device.png，328×968；热区与灯圈按百分比叠在图上。
   import type { LightEffect } from "../model/keymap";
   let { lights, selectedIndex, onPick }: { lights: LightEffect[] | null; selectedIndex: number | null; onPick: (index: number) => void } = $props();
-  const ring = (i: number) => lights?.[i]?.mode ?? "off";
+  // 键 1（index 0）的灯在 AU05 上不可见，渲染图上也不画它的灯圈。
+  const ring = (i: number) => (i === 0 ? "off" : lights?.[i]?.mode ?? "off");
   const glow = (i: number) => String(0.3 + 0.7 * ((lights?.[i]?.brightness ?? 0) / 20));
   // [index, 中心 x%, 中心 y%, 直径占宽度的百分比]
   const SPOTS: [number, number, number, number][] = [[3, 49.7, 28.4, 70], [0, 49.7, 51.9, 37], [1, 49.7, 68.2, 37], [2, 49.7, 84.5, 37]];

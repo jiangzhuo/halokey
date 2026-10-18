@@ -9,6 +9,8 @@
   const summary = $derived(!lighting ? (layer === 0 ? t("未设置（不管灯）") : t("跟随 Layer 0")) : "");
   // 状态条里每盏灯一个紧凑小块：短名 + 模式圆点 + 亮度（关着的不显示亮度）。
   const SHORT = ["1", "2", "3", "⟳"];
+  // AU05 的键 1（🎙）没有可见的灯（2026-10-18 实测：直接写设备也不亮）；记录里仍保留四盏以兼容格式。
+  const INVISIBLE = new Set([0]);
 </script>
 
 <div class="wrap">
@@ -16,7 +18,7 @@
     <span class="title">{t("本层背光")}</span>
     {#if lighting}
       {#each lighting.lights as l, i}
-        <span class="lamp" title={`${t(LIGHT_NAMES[i]!)} · ${t(modeName[l.mode])} · ${l.brightness}`}><b>{SHORT[i]}</b><span class="dot" data-mode={l.mode}></span>{#if l.mode !== "off"}<span class="mono">{l.brightness}</span>{/if}</span>
+        {#if !INVISIBLE.has(i)}<span class="lamp" title={`${t(LIGHT_NAMES[i]!)} · ${t(modeName[l.mode])} · ${l.brightness}`}><b>{SHORT[i]}</b><span class="dot" data-mode={l.mode}></span>{#if l.mode !== "off"}<span class="mono">{l.brightness}</span>{/if}</span>{/if}
       {/each}
     {:else}
       <span class="sum">{summary}</span>
@@ -28,13 +30,18 @@
     <div class="editor">
       {#each [0, 1, 2, 3] as i}
         {@const l = lighting?.lights[i] ?? { mode: "off", brightness: 0 }}
-        <div class="light">
+        {@const invisible = INVISIBLE.has(i)}
+        <div class="light" class:invisible>
           <span class="name">{t(LIGHT_NAMES[i]!)}</span>
           <span class="seg">
-            {#each MODES as m}<button data-mode={m} class:on={l.mode === m} onclick={() => onEffect(i, m === "off" ? { mode: m } : { mode: m, brightness: l.brightness || 20 })}>{t(modeName[m])}</button>{/each}
+            {#each MODES as m}<button data-mode={m} class:on={l.mode === m} disabled={invisible} onclick={() => onEffect(i, m === "off" ? { mode: m } : { mode: m, brightness: l.brightness || 20 })}>{t(modeName[m])}</button>{/each}
           </span>
-          <input type="range" min="0" max="20" value={l.brightness} disabled={l.mode === "off"} oninput={(e) => onEffect(i, { brightness: Number((e.target as HTMLInputElement).value) })} />
-          <span class="mono">{l.brightness}</span>
+          {#if invisible}
+            <span class="note">{t("此设备无可见灯")}</span><span></span>
+          {:else}
+            <input type="range" min="0" max="20" value={l.brightness} disabled={l.mode === "off"} oninput={(e) => onEffect(i, { brightness: Number((e.target as HTMLInputElement).value) })} />
+            <span class="mono">{l.brightness}</span>
+          {/if}
         </div>
       {/each}
       <div class="foot">
@@ -68,6 +75,8 @@
   .seg button { background: none; padding: 4px 10px; font-size: 13px; }
   .seg button.on { background: var(--accent); color: var(--accent-text); }
   .mono { font-family: var(--mono); font-size: 12.5px; text-align: right; }
+  .light.invisible { opacity: .55; }
+  .note { color: var(--muted); font-size: 12px; }
   .foot { display: flex; justify-content: flex-end; font-size: 13px; color: var(--muted); }
   @keyframes breathe { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
 </style>

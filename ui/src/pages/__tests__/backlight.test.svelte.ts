@@ -20,12 +20,15 @@ describe("backlight strip", () => {
     app = mount(Keymap, { target: document.body, props: { get draft() { return draft.v; }, set draft(d: Draft) { draft.v = d; }, snapshot: null } });
     flushSync();
     expect(document.body.textContent).toContain("本层背光");
-    expect(document.querySelectorAll(".strip .dot[data-mode=solid]")).toHaveLength(3);
-    expect(document.querySelectorAll(".device .spot[data-mode=solid]")).toHaveLength(3);
+    // 键 1 在 AU05 上没有可见的灯：状态条和渲染图都不显示它，编辑器里那一行禁用并说明。
+    expect(document.querySelectorAll(".strip .dot[data-mode=solid]")).toHaveLength(2);
+    expect(document.querySelectorAll(".device .spot[data-mode=solid]")).toHaveLength(2);
     byText("编辑…")!.click();
     flushSync();
     const rows = document.querySelectorAll(".editor .light");
     expect(rows).toHaveLength(4);
+    expect(rows[0]!.textContent).toContain("无可见灯");
+    expect((rows[0]!.querySelector("button[data-mode=breathe]") as HTMLButtonElement).disabled).toBe(true);
     (rows[3]!.querySelector("button[data-mode=breathe]") as HTMLButtonElement).click();
     flushSync();
     expect(draft.v.map!.lighting!.lights[3]!.mode).toBe("breathe");
@@ -39,7 +42,7 @@ describe("backlight strip", () => {
     flushSync();
     ([...document.querySelectorAll(".seg button")].find((b) => b.textContent?.trim() === "1") as HTMLButtonElement).click();
     flushSync();
-    expect(document.querySelectorAll(".strip .dot[data-mode=breathe]")).toHaveLength(3);
+    expect(document.querySelectorAll(".strip .dot[data-mode=breathe]")).toHaveLength(2);
     byText("编辑…")!.click();
     flushSync();
     const follow = document.querySelector(".editor input[data-role=follow]") as HTMLInputElement;
@@ -47,6 +50,6 @@ describe("backlight strip", () => {
     follow.click();
     flushSync();
     expect(draft.v.map!.layers!.find((l) => l.id === 1)!.lighting).toBeUndefined();
-    expect(document.querySelectorAll(".strip .dot[data-mode=solid]")).toHaveLength(3);
+    expect(document.querySelectorAll(".strip .dot[data-mode=solid]")).toHaveLength(2);
   });
 });
