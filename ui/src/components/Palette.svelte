@@ -3,6 +3,7 @@
   import KeyGrid from "./KeyGrid.svelte";
   import OutputModeSegment from "./OutputModeSegment.svelte";
   import ComboRecorder from "./ComboRecorder.svelte";
+  import Icon from "./Icon.svelte";
   import { CATEGORIES, type CategoryId } from "../model/codes";
   import { CONTROL_NAMES } from "../model/labels";
   import { isRotation, type Behavior, type Halo, type HostAction, type KeyEntry, type NamedHostAction } from "../model/keymap";
@@ -57,7 +58,7 @@
     {#each CATEGORIES as c, i}
       {#if i === 5}<hr>{/if}
       {#if !(c.id === "layer" && actionMode)}
-        <button class:on={category === c.id} disabled={c.id === "layer" && !layerAllowed} data-icon={c.icon} onclick={() => (category = c.id)}>{t(c.name)}</button>
+        <button class:on={category === c.id} disabled={c.id === "layer" && !layerAllowed} onclick={() => (category = c.id)}><Icon name={c.id} size={15} />{t(c.name)}</button>
       {/if}
     {/each}
   </nav>
@@ -86,7 +87,7 @@
       <div class="cards">
         {#each visibleHalos as h, i}
           <div class="item halo">
-            <button class="pick" onclick={() => emitAction({ halo: { _0: h.id } })}><small>◎ H{i}</small>{h.name}</button>
+            <button class="pick" onclick={() => emitAction({ halo: { _0: h.id } })}><small><Icon name="halo" size={11} /> H{i}</small>{h.name}</button>
             {#if onEditHalo}<button class="edit" data-edit-halo={h.id} title={t("编辑光环")} onclick={() => onEditHalo?.(h.id)}>✎</button>{/if}
           </div>
         {/each}
@@ -129,10 +130,10 @@
   .pal { overflow-y: auto; min-height: 0; flex: 1; }
   .more { position: absolute; left: 0; right: 0; bottom: 0; height: 56px; pointer-events: none; background: linear-gradient(to bottom, transparent, var(--bg) 70%); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; color: var(--muted); font-size: 12px; }
   .cats button { text-align: left; background: none; padding: 4px 8px; color: var(--text-2); border-radius: var(--r-sm); font-size: 13px; display: flex; align-items: center; gap: 8px; line-height: 1.3; }
-  /* 图标用 ::before 画，按钮文字保持纯分类名（测试与可访问名都按文字找）。 */
-  .cats button::before { content: attr(data-icon); width: 20px; text-align: center; font-size: 12px; color: var(--muted); flex: none; }
+  /* 图标是内联 SVG，不进 textContent（测试与可访问名都按文字找）。 */
+  .cats button :global(.icon) { color: var(--muted); }
   .cats button:hover { background: var(--card); }
-  .cats button.on::before { color: var(--accent); }
+  .cats button.on :global(.icon) { color: var(--accent); }
   .cats button.on { background: var(--card-on); color: var(--text); }
   .cats hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
   .pal { padding: 14px 18px; }

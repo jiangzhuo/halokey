@@ -3,6 +3,7 @@
   import { t } from "../lib/i18n";
   import { api, type WindowInfo } from "../lib/tauri";
   import ComboRecorder from "../components/ComboRecorder.svelte";
+  import Icon from "../components/Icon.svelte";
   import { stepLabel, stepKind, macroProblems, moveStep, removeStep, insertStep } from "../model/macro";
   import { newUuid, nextSlot, upsertLibraryItem, deleteLibraryItem, libraryItems, type Draft } from "../model/draft";
   import type { MacroStep, NamedHostAction, ApplicationTarget, KeyEntry } from "../model/keymap";
@@ -21,7 +22,7 @@
   let problems = $state<string[]>([]);
   let blocked = $state<string[]>([]);
   const apps = $derived(draft.map ? libraryItems(draft.map, "application") : []);
-  const ICON: Record<string, string> = { keyboard: "⌨", application: "▣", delay: "⏱" };
+  const ICON: Record<string, string> = { keyboard: "keyboard", application: "app", delay: "clock" };
   const appClass = (a: NamedHostAction) => (a.action as { application: { _0: ApplicationTarget } }).application._0.bundleIdentifier;
   onMount(async () => {
     try { const r = await api.listWindows(); windows = r.windows; listError = r.error ?? ""; }
@@ -74,7 +75,7 @@
       <ol>
         {#each steps as s, i}
           <li data-step={i} class:on={i === selected}>
-            <button class="row" onclick={() => (selected = i)}><span class="n">{i + 1}</span><span class="ic">{ICON[stepKind(s)]}</span><span class="lbl">{stepLabel(s)}</span></button>
+            <button class="row" onclick={() => (selected = i)}><span class="n">{i + 1}</span><span class="ic"><Icon name={ICON[stepKind(s)] ?? "macro"} size={14} /></span><span class="lbl">{stepLabel(s)}</span></button>
             <span class="ops">
               <button data-role="step-up" disabled={i === 0} onclick={() => { steps = moveStep(steps, i, -1); selected = i - 1; }}>↑</button>
               <button data-role="step-down" disabled={i === steps.length - 1} onclick={() => { steps = moveStep(steps, i, 1); selected = i + 1; }}>↓</button>
@@ -86,16 +87,16 @@
       {#if !steps.length}<p class="muted">{t("右边添加步骤；新步骤插在选中步骤之后")}</p>{/if}
     </div>
     <div class="adders">
-      <h4>⌨ {t("组合键")}</h4>
+      <h4><Icon name="keyboard" size={14} /> {t("组合键")}</h4>
       <p class="muted warn">{t("录制时 halokey 窗口有焦点，设备注入的按键也会被录进来")}</p>
       <ComboRecorder assignLabel={t("添加为步骤")} onAssign={addKeys} />
-      <h4>▣ APP</h4>
+      <h4><Icon name="app" size={14} /> APP</h4>
       <div class="cards">
         {#each apps as a (a.id)}<button data-add-app={a.id} onclick={() => addApp(a)}><em>A{a.slot}</em><b>{a.name}</b><small>{appClass(a)}</small></button>{/each}
         {#each windows as w (w.class)}<button data-add-window={w.class} onclick={() => addWindow(w)}><em>{t("窗口")}</em><b>{w.title || w.class}</b><small>{w.class}</small></button>{/each}
         {#if listError}<span class="muted">{listError}</span>{/if}
       </div>
-      <h4>⏱ {t("等待")}</h4>
+      <h4><Icon name="clock" size={14} /> {t("等待")}</h4>
       <div class="delay"><input type="number" data-role="delay-seconds" min="0.05" max="10" step="0.05" bind:value={delay} /> {t("秒")} <button data-role="add-delay" onclick={() => add({ delay: { _0: Number(delay) } })}>{t("添加等待")}</button></div>
     </div>
   </section>
