@@ -259,6 +259,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 let f = t.transact(&settings::MIC_ENABLE_REQUEST, REPLY_TIMEOUT, |f| {
                     settings::is_mic_enable_reply(f)
                 })?;
+                println!("  (收音读回原始帧) {}", describe(&f));
                 Ok(settings::parse_bool_reply(&f)?)
             };
             println!("当前收音：{}", read(&mut transport)?);
