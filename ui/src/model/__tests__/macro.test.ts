@@ -15,6 +15,8 @@ describe("macro model", () => {
     expect(stepLabel(dl)).toBe("等待 0.3 秒");
     setLang("en");
     expect(stepLabel(dl)).toBe("Wait 0.3 s");
+    setLang("ja");
+    expect(stepLabel(dl)).toBe("0.3 秒待つ");
     setLang("zh");
   });
   it("reports problems", () => {

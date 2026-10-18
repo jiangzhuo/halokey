@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { t, lang, setLang } from "../lib/i18n";
+  import { t, lang, setLang, type Lang } from "../lib/i18n";
   import { api, type UiSnapshot, type UiDeviceInfo, type UiPower, type HaloSettings } from "../lib/tauri";
   let { snapshot }: { snapshot: UiSnapshot | null } = $props();
   let info = $state<UiDeviceInfo | null>(null);
@@ -32,7 +32,7 @@
 </script>
 
 <div class="page">
-  <div class="ph"><h2>{t("设置")}</h2><label class="lang">🌐 {t("界面语言")} <select value={lang()} onchange={(e) => setLang((e.target as HTMLSelectElement).value as "zh" | "en")}><option value="zh">简体中文</option><!-- i18n-ignore: 语言自称 --><option value="en">English</option></select></label></div>
+  <div class="ph"><h2>{t("设置")}</h2><label class="lang">🌐 {t("界面语言")} <select value={lang()} onchange={(e) => setLang((e.target as HTMLSelectElement).value as Lang)}><option value="en">English</option><option value="zh">简体中文</option><!-- i18n-ignore: 语言自称 --><option value="ja">日本語</option></select></label></div>
   <p class="muted">{t("其余写入项在后续计划中补全")}</p>
 
   <section class="card">

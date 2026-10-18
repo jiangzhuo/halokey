@@ -1,5 +1,5 @@
 import { actionKind, actionValue, type HostAction, type KeyEntry, type Halo, type ApplicationTarget, type PointerDelta, type NamedHostAction } from "./keymap";
-import { t, lang } from "../lib/i18n";
+import { t, pick } from "../lib/i18n";
 
 // 本文件的中文片段都经 t() 查表；英文表见 lib/i18n.ts。
 
@@ -38,18 +38,21 @@ export function entriesLabel(entries: KeyEntry[]): string {
 }
 
 /** 动作的显示文字；`halos` / `library` 用来把引用解析成名字。 */
+/** "切换到 X"：日文语序是"X に切替"。 */
+export const switchTo = (name: string) => pick({ zh: `切换到 ${name}`, en: `Switch to ${name}`, ja: `${name} に切替` });
+
 export function actionLabel(a: HostAction | null, entries?: KeyEntry[] | null, halos?: Halo[], library?: NamedHostAction[]): string {
   if (!a) return entries ? entriesLabel(entries) : t("无");
   switch (actionKind(a)) {
     case "keyboard": return entriesLabel(actionValue<KeyEntry[]>(a));
-    case "application": return `${t("切换到")} ${actionValue<ApplicationTarget>(a).name}`;
-    case "macro": { const n = actionValue<unknown[]>(a).length; return lang() === "en" ? `Macro (${n} steps)` : `宏（${n} 步）`; }
+    case "application": return switchTo(actionValue<ApplicationTarget>(a).name);
+    case "macro": { const n = actionValue<unknown[]>(a).length; return pick({ zh: `宏（${n} 步）`, en: `Macro (${n} steps)`, ja: `マクロ（${n} ステップ）` }); }
     case "library": {
       const id = actionValue<string>(a);
       const item = library?.find((i) => i.id === id);
       if (!item) return `${t("动作库")} ${String(id).slice(0, 8)}`;
-      if ("application" in item.action) return `${t("切换到")} ${item.name}`;
-      return lang() === "en" ? `Macro “${item.name}”` : `宏「${item.name}」`;
+      if ("application" in item.action) return switchTo(item.name);
+      return pick({ zh: `宏「${item.name}」`, en: `Macro “${item.name}”`, ja: `マクロ「${item.name}」` });
     }
     case "momentaryLayer": return `MO(${actionValue<number>(a)})`;
     case "pointerMove": {
@@ -57,7 +60,7 @@ export function actionLabel(a: HostAction | null, entries?: KeyEntry[] | null, h
       const parts = [dx ? `${dx > 0 ? "→" : "←"}${Math.abs(dx)}` : "", dy ? `${dy > 0 ? "↓" : "↑"}${Math.abs(dy)}` : ""].filter(Boolean);
       return `${t("指针")} ${parts.join(" ")}`;
     }
-    case "halo": { const id = actionValue<string>(a); const name = halos?.find((h) => h.id === id)?.name ?? id; return lang() === "en" ? `Halo “${name}”` : `光环「${name}」`; }
+    case "halo": { const id = actionValue<string>(a); const name = halos?.find((h) => h.id === id)?.name ?? id; return pick({ zh: `光环「${name}」`, en: `Halo “${name}”`, ja: `ハロー「${name}」` }); }
     default: return t("复杂动作");
   }
 }

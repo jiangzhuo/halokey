@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { EN, t, setLang } from "../i18n";
+import { EN, JA, t, pick, setLang, resolveLang } from "../i18n";
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const f of readdirSync(dir)) { const p = join(dir, f); if (statSync(p).isDirectory()) walk(p, out); else if (/\.(ts|svelte)$/.test(f) && !p.includes("__tests__")) out.push(p); }
@@ -20,6 +20,26 @@ describe("i18n", () => {
   it("falls back to Chinese", () => {
     setLang("en"); expect(t("键位")).toBe("Keymap"); expect(t("没有这条")).toBe("没有这条");
     setLang("zh"); expect(t("键位")).toBe("键位");
+  });
+  it("has a Japanese entry for every English one, and speaks Japanese when selected", () => {
+    expect(Object.keys(JA).sort()).toEqual(Object.keys(EN).sort());
+    for (const k of Object.keys(JA)) expect(JA[k], k).not.toBe("");
+    setLang("ja");
+    try {
+      expect(t("键位")).toBe("キーマップ");
+      expect(t("设置")).toBe("設定");
+      expect(t("没有这条")).toBe("没有这条");
+      expect(pick({ zh: "宏", en: "Macro", ja: "マクロ" })).toBe("マクロ");
+    } finally { setLang("zh"); }
+    setLang("en"); try { expect(pick({ zh: "宏", en: "Macro", ja: "マクロ" })).toBe("Macro"); } finally { setLang("zh"); }
+    expect(pick({ zh: "宏", en: "Macro", ja: "マクロ" })).toBe("宏");
+  });
+  it("defaults to English unless a valid preference was saved", () => {
+    expect(resolveLang(null)).toBe("en");
+    expect(resolveLang("")).toBe("en");
+    expect(resolveLang("fr")).toBe("en");
+    expect(resolveLang("zh")).toBe("zh");
+    expect(resolveLang("ja")).toBe("ja");
   });
   it("has no Chinese literal left in .svelte markup outside t()", () => {
     const offenders: string[] = [];

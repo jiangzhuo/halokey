@@ -1,6 +1,6 @@
 import type { MacroStep, ApplicationTarget, KeyEntry } from "./keymap";
-import { entriesLabel } from "./labels";
-import { t, lang } from "../lib/i18n";
+import { entriesLabel, switchTo } from "./labels";
+import { pick } from "../lib/i18n";
 
 // 宏编辑器的纯逻辑：步骤标签、校验（与 Rust Macro::validate 一致）、不可变的增删移。
 // 校验信息的中文与 haloProblems 一样是数据字符串，第 5 期做结构化 i18n。
@@ -10,9 +10,9 @@ export const stepKind = (s: MacroStep): MacroStepKind => Object.keys(s)[0] as Ma
 
 export function stepLabel(step: MacroStep): string {
   if ("keyboard" in step) return entriesLabel((step as { keyboard: { _0: KeyEntry[] } }).keyboard._0);
-  if ("application" in step) return `${t("切换到")} ${(step as { application: { _0: ApplicationTarget } }).application._0.name}`;
+  if ("application" in step) return switchTo((step as { application: { _0: ApplicationTarget } }).application._0.name);
   const s = (step as { delay: { _0: number } }).delay._0;
-  return lang() === "en" ? `Wait ${s} s` : `等待 ${s} 秒`;
+  return pick({ zh: `等待 ${s} 秒`, en: `Wait ${s} s`, ja: `${s} 秒待つ` });
 }
 
 export function macroProblems(name: string, steps: MacroStep[]): string[] {

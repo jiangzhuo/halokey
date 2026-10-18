@@ -28,6 +28,14 @@ describe("labels", () => {
     expect(actionLabel({ library: { _0: "cccccccc-0000-4000-8000-000000000000" } }, null, [], lib)).toBe("动作库 cccccccc");
     setLang("en");
     try { expect(actionLabel({ library: { _0: lib[1]!.id } }, null, [], lib)).toBe("Macro “打开并输入”"); } finally { setLang("zh"); }
+    setLang("ja");
+    try {
+      expect(actionLabel({ library: { _0: lib[1]!.id } }, null, [], lib)).toBe("マクロ「打开并输入」");
+      expect(actionLabel({ library: { _0: lib[0]!.id } }, null, [], lib)).toBe("Chrome に切替");
+      expect(actionLabel({ macro: { _0: [1, 2] } } as any)).toBe("マクロ（2 ステップ）");
+      expect(actionLabel({ halo: { _0: "main" } }, null, [{ id: "main", name: "主菜单", options: [] }])).toBe("ハロー「主菜单」");
+      expect(keyName({ type: 2, code: 0xe0 })).toBe("左 Ctrl");
+    } finally { setLang("zh"); }
   });
   it("speaks English when the UI language is English", () => {
     setLang("en");
