@@ -94,7 +94,7 @@
   .slot { display: grid; grid-template-columns: 24px 1fr 1.2fr auto; gap: 10px; align-items: center; background: var(--card); border-radius: var(--r-md); padding: 1px 10px; min-height: 30px; border: 1px solid transparent; cursor: pointer; }
   .slot.on { border-color: var(--accent); }
   .slot .n { color: var(--muted); }
-  .slot input { background: transparent; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 2px 2px; font-size: 13px; }
+  .slot input { background: transparent; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 0 2px; height: 26px; font-size: 13px; }
   .slot input:focus { border-bottom-color: var(--accent); outline: none; }
   .slot .act { color: var(--text-2); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .slot .ops { display: flex; gap: 4px; opacity: 0; transition: opacity 120ms; }
