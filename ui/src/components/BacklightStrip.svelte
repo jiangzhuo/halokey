@@ -4,6 +4,16 @@
   import type { LayerLighting, LightEffect, LightMode } from "../model/keymap";
   let { layer, lighting, own, onEffect, onFollow, onClearBase }: { layer: number; lighting: LayerLighting | null; own: boolean; onEffect: (light: number, patch: Partial<LightEffect>) => void; onFollow: (follow: boolean) => void; onClearBase: () => void } = $props();
   let expanded = $state(false);
+  let wrap = $state<HTMLDivElement | null>(null);
+  // 展开的编辑器是浮层：点外面或按 Esc 关闭。
+  $effect(() => {
+    if (!expanded) return;
+    const onDown = (e: MouseEvent) => { if (wrap && !wrap.contains(e.target as Node)) expanded = false; };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") expanded = false; };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("mousedown", onDown); window.removeEventListener("keydown", onKey); };
+  });
   const MODES: LightMode[] = ["off", "solid", "breathe"];
   const modeName: Record<LightMode, string> = { off: "关", solid: "常亮", breathe: "呼吸" };
   const summary = $derived(!lighting ? (layer === 0 ? t("未设置（不管灯）") : t("跟随 Layer 0")) : "");
@@ -13,7 +23,7 @@
   const INVISIBLE = new Set([0]);
 </script>
 
-<div class="wrap">
+<div class="wrap" bind:this={wrap}>
   <div class="strip">
     <span class="title">{t("本层背光")}</span>
     {#if lighting}
@@ -56,7 +66,7 @@
 </div>
 
 <style>
-  .wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .wrap { position: relative; }
   .strip { display: flex; align-items: center; gap: 8px; background: var(--card); border-radius: 8px; padding: 6px 10px; font-size: 13px; }
   .title { color: var(--muted); }
   .dot { width: 10px; height: 10px; border-radius: 50%; background: #55555d; display: inline-block; }
@@ -73,7 +83,8 @@
   .strip .toggle.open { border-color: var(--accent); color: var(--accent); }
   .chev { font-style: normal; display: inline-block; transition: transform 150ms; line-height: 1; }
   .toggle.open .chev { transform: rotate(180deg); }
-  .editor { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 460px; }
+  /* 浮层：挂在状态条下方、右对齐，不把下面的内容挤走。 */
+  .editor { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 460px; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); }
   .light { display: grid; grid-template-columns: 48px auto 1fr 28px; align-items: center; gap: 10px; }
   .name { color: var(--muted); font-size: 13px; }
   .seg { display: inline-flex; background: var(--card); border-radius: 8px; padding: 3px; gap: 2px; }
