@@ -1,4 +1,4 @@
-import type { Behavior, ControlActionMap, Gesture, Halo, HostAction, HostKeymap, KeyEntry, LayerLighting, LightEffect } from "./keymap";
+import type { Behavior, ControlActionMap, Gesture, Halo, HostAction, HostKeymap, KeyEntry, LayerLighting, LightEffect, NamedHostAction } from "./keymap";
 import { CONTROL_NAMES } from "./labels";
 import { isRotation } from "./keymap";
 
@@ -165,10 +165,9 @@ export function upsertHalo(d: Draft, halo: Halo): Draft {
 
 const GESTURE_NAME = { press: "单击", double: "双击", long: "长按" } as const;
 
-/** 谁在用这个光环：基础层的手势动作、其它光环的槽位、各层的手势动作。 */
-export function haloReferences(map: HostKeymap, id: string): string[] {
+/** 哪些手势动作满足 isRef：基础层在前，各层在后；includeHalos 时也扫光环槽位。 */
+function actionReferences(map: HostKeymap, isRef: (a: HostAction | null | undefined) => boolean, includeHalos: boolean): string[] {
   const refs: string[] = [];
-  const isRef = (a: HostAction | null | undefined) => !!a && "halo" in a && (a as { halo: { _0: string } }).halo._0 === id;
   const scan = (controls: ControlActionMap[], prefix: string) => {
     for (const c of controls) {
       const name = CONTROL_NAMES[c.index] ?? `控件 ${c.index}`;
@@ -178,9 +177,14 @@ export function haloReferences(map: HostKeymap, id: string): string[] {
     }
   };
   scan(map.controls, "");
-  for (const h of map.halos ?? []) h.options.forEach((o, i) => { if (isRef(o.action)) refs.push(`光环「${h.name}」槽位 ${i + 1}`); });
+  if (includeHalos) for (const h of map.halos ?? []) h.options.forEach((o, i) => { if (isRef(o.action)) refs.push(`光环「${h.name}」槽位 ${i + 1}`); });
   for (const l of map.layers ?? []) scan(l.controls, `Layer ${l.id} · `);
   return refs;
+}
+
+/** 谁在用这个光环：基础层的手势动作、其它光环的槽位、各层的手势动作。 */
+export function haloReferences(map: HostKeymap, id: string): string[] {
+  return actionReferences(map, (a) => !!a && "halo" in a && (a as { halo: { _0: string } }).halo._0 === id, true);
 }
 
 export function deleteHalo(d: Draft, id: string): { draft: Draft; blockedBy: string[] } {
@@ -198,4 +202,47 @@ export function haloActionAllowed(action: HostAction, editingId: string | null):
   if ("library" in action || "momentaryLayer" in action) return false;
   if ("halo" in action && (action as { halo: { _0: string } }).halo._0 === editingId) return false;
   return true;
+}
+
+// ---- 功能库（应用 / 宏）----
+
+export const newUuid = (): string => crypto.randomUUID();
+
+const kindOf = (item: NamedHostAction): "application" | "macro" | null => ("application" in item.action ? "application" : "macro" in item.action ? "macro" : null);
+
+/** 某一类的功能库项，按 slot 排序。 */
+export function libraryItems(map: HostKeymap, kind: "application" | "macro"): NamedHostAction[] {
+  return (map.actionLibrary ?? []).filter((i) => kindOf(i) === kind).sort((a, b) => a.slot - b.slot);
+}
+
+/** 同类动作内最小的空编号 0–15；满了返回 null。 */
+export function nextSlot(map: HostKeymap, kind: "application" | "macro"): number | null {
+  const used = new Set(libraryItems(map, kind).map((i) => i.slot));
+  for (let s = 0; s < 16; s++) if (!used.has(s)) return s;
+  return null;
+}
+
+export function upsertLibraryItem(d: Draft, item: NamedHostAction): Draft {
+  if (!d.map) return d;
+  const map = clone(d.map);
+  map.actionLibrary ??= [];
+  const i = map.actionLibrary.findIndex((x) => x.id === item.id);
+  if (i >= 0) map.actionLibrary[i] = clone(item);
+  else map.actionLibrary.push(clone(item));
+  return { ...d, map, dirty: true };
+}
+
+/** 谁在用这个功能库项：基础层与各层的手势动作（光环选项不能引用功能库，不扫）。 */
+export function libraryReferences(map: HostKeymap, id: string): string[] {
+  return actionReferences(map, (a) => !!a && "library" in a && (a as { library: { _0: string } }).library._0 === id, false);
+}
+
+export function deleteLibraryItem(d: Draft, id: string): { draft: Draft; blockedBy: string[] } {
+  if (!d.map) return { draft: d, blockedBy: [] };
+  const blockedBy = libraryReferences(d.map, id);
+  if (blockedBy.length) return { draft: d, blockedBy };
+  const map = clone(d.map);
+  map.actionLibrary = (map.actionLibrary ?? []).filter((i) => i.id !== id);
+  if (!map.actionLibrary.length) delete map.actionLibrary;
+  return { draft: { ...d, map, dirty: true }, blockedBy: [] };
 }

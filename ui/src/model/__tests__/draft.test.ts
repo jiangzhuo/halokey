@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { initialDraft, loadSaved, select, assignEntries, assignAction, clearGesture, setTransparent, setBehavior, setTapCount, revert, markSaved, controlAt, resolvedControl, effectiveLighting, hasOwnLighting, setLightEffect, setFollowBase, clearBaseLighting, newHaloId, upsertHalo, deleteHalo, haloReferences, haloActionAllowed } from "../draft";
+import { initialDraft, loadSaved, select, assignEntries, assignAction, clearGesture, setTransparent, setBehavior, setTapCount, revert, markSaved, controlAt, resolvedControl, effectiveLighting, hasOwnLighting, setLightEffect, setFollowBase, clearBaseLighting, newHaloId, upsertHalo, deleteHalo, haloReferences, haloActionAllowed, newUuid, nextSlot, upsertLibraryItem, deleteLibraryItem, libraryReferences, libraryItems } from "../draft";
+import type { NamedHostAction } from "../keymap";
 import type { HostKeymap } from "../keymap";
 
 const load = (): HostKeymap => JSON.parse(readFileSync(resolve(__dirname, "../../../../docs/examples/halo-menu.json"), "utf8"));
@@ -159,5 +160,44 @@ describe("draft halos", () => {
     expect(haloActionAllowed({ library: { _0: "a" } }, null)).toBe(false);
     expect(haloActionAllowed({ momentaryLayer: { _0: 1 } }, null)).toBe(false);
     expect(haloActionAllowed({ pointerMove: { _0: { dx: 1, dy: 0 } } }, null)).toBe(true);
+  });
+});
+
+describe("draft action library", () => {
+  const loadApps = (): HostKeymap => JSON.parse(readFileSync(resolve(__dirname, "../../../../docs/examples/switch-apps-and-macro.json"), "utf8"));
+  const app = (id: string, slot: number, name = "X"): NamedHostAction => ({ id, name, slot, action: { application: { _0: { bundleIdentifier: "x", path: "", name } } } });
+  it("generates uuids and allocates slots per kind", () => {
+    expect(newUuid()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    let d = loadSaved(initialDraft(), load());
+    expect(nextSlot(d.map!, "application")).toBe(0);
+    d = upsertLibraryItem(d, app("11111111-1111-4111-8111-111111111111", 0, "A"));
+    d = upsertLibraryItem(d, app("22222222-2222-4222-8222-222222222222", 2, "C"));
+    expect(nextSlot(d.map!, "application")).toBe(1);
+    expect(nextSlot(d.map!, "macro")).toBe(0);
+    expect(libraryItems(d.map!, "application").map((i) => i.name)).toEqual(["A", "C"]);
+    expect(d.dirty).toBe(true);
+    for (let s = 0; s < 16; s++) d = upsertLibraryItem(d, app(`33333333-3333-4333-8333-${String(s).padStart(12, "0")}`, s));
+    expect(nextSlot(d.map!, "application")).toBeNull();
+  });
+  it("lists references and blocks deleting a referenced item", () => {
+    let d = loadSaved(initialDraft(), load());
+    const id = "44444444-4444-4444-8444-444444444444";
+    d = upsertLibraryItem(d, app(id, 0, "Chrome"));
+    d = assignAction(select(d, { layer: 0, index: 0, gesture: "long" }), { library: { _0: id } });
+    d = assignAction(select(d, { layer: 1, index: 2, gesture: "press" }), { library: { _0: id } });
+    expect(libraryReferences(d.map!, id)).toEqual(["顶部按键 › 长按", "Layer 1 · 底部按键 › 单击"]);
+    const r = deleteLibraryItem(d, id);
+    expect(r.blockedBy).toHaveLength(2);
+    expect(r.draft.map!.actionLibrary).toHaveLength(1);
+    d = clearGesture(select(d, { layer: 0, index: 0, gesture: "long" }));
+    d = clearGesture(select(d, { layer: 1, index: 2, gesture: "press" }));
+    const r2 = deleteLibraryItem(d, id);
+    expect(r2.blockedBy).toEqual([]);
+    expect(r2.draft.map!.actionLibrary).toBeUndefined();
+  });
+  it("keeps the example's inline actions untouched", () => {
+    const m = loadApps();
+    expect(libraryItems(m, "application")).toEqual([]);
+    expect(nextSlot(m, "macro")).toBe(0);
   });
 });
