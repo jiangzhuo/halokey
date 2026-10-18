@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from "../lib/i18n";
+  import { t, colon, listSep } from "../lib/i18n";
   import RingPreview from "../components/RingPreview.svelte";
   import Palette from "../components/Palette.svelte";
   import { actionLabel } from "../model/labels";
@@ -71,7 +71,7 @@
   <Palette bind:draft {halos} apps={(draft.map?.actionLibrary ?? []).filter((a) => "application" in a.action)} macros={(draft.map?.actionLibrary ?? []).filter((a) => "macro" in a.action)} mode="action" onAction={pickAction} excludeHalo={id} crumb={`${t("槽位")} ${selected + 1}`} />
   <footer>
     {#if problems.length}<span class="bad">{problems.join("；")}</span>{/if}
-    {#if blocked.length}<span class="bad">{t("被以下位置引用，无法删除")}：{blocked.join("、")}</span>{/if}
+    {#if blocked.length}<span class="bad">{t("被以下位置引用，无法删除")}{colon()}{blocked.join(listSep())}</span>{/if}
     {#if existing}<button class="danger" onclick={remove}>{t("删除光环")}</button>{/if}
     <button class="ghost" onclick={() => onClose(null)}>{t("取消")}</button>
     <button class="primary" onclick={save}>{t("完成")}</button>

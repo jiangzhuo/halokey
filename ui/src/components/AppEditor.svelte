@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { t } from "../lib/i18n";
+  import { t, colon, listSep } from "../lib/i18n";
   import { api, type WindowInfo } from "../lib/tauri";
   import { newUuid, nextSlot, upsertLibraryItem, deleteLibraryItem, type Draft } from "../model/draft";
   import type { ApplicationTarget } from "../model/keymap";
@@ -57,14 +57,14 @@
     <label><span>WM_CLASS</span><input data-role="app-class" bind:value={cls} placeholder="google-chrome" /></label>
     <label><span>{t("可执行文件路径")}</span><input data-role="app-path" bind:value={path} placeholder="/usr/bin/google-chrome" /></label>
     <div class="windows">
-      <div class="muted">{t("从当前打开的窗口选")}{#if listError}：{listError}{/if}</div>
+      <div class="muted">{t("从当前打开的窗口选")}{#if listError}{colon()}{listError}{/if}</div>
       <div class="list">
         {#each windows as w (w.class)}<button data-window={w.class} onclick={() => pick(w)}><b>{w.class}</b><small>{w.title}</small></button>{/each}
         {#if !windows.length && !listError}<span class="muted">{t("没有找到窗口")}</span>{/if}
       </div>
     </div>
     {#if problems.length}<p class="bad">{problems.join("；")}</p>{/if}
-    {#if blocked.length}<p class="bad">{t("被以下位置引用，无法删除")}：{blocked.join("、")}</p>{/if}
+    {#if blocked.length}<p class="bad">{t("被以下位置引用，无法删除")}{colon()}{blocked.join(listSep())}</p>{/if}
     <footer>
       {#if existing}<button class="danger" onclick={remove}>{t("删除")}</button>{/if}
       <button class="ghost" onclick={() => onClose(null)}>{t("取消")}</button>

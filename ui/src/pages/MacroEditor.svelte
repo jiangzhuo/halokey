@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { t } from "../lib/i18n";
+  import { t, colon, listSep } from "../lib/i18n";
   import { api, type WindowInfo } from "../lib/tauri";
   import ComboRecorder from "../components/ComboRecorder.svelte";
   import Icon from "../components/Icon.svelte";
@@ -102,7 +102,7 @@
   </section>
   <footer>
     {#if problems.length}<span class="bad">{problems.join("；")}</span>{/if}
-    {#if blocked.length}<span class="bad">{t("被以下位置引用，无法删除")}：{blocked.join("、")}</span>{/if}
+    {#if blocked.length}<span class="bad">{t("被以下位置引用，无法删除")}{colon()}{blocked.join(listSep())}</span>{/if}
     {#if existing}<button class="danger" onclick={remove}>{t("删除宏")}</button>{/if}
     <button class="ghost" onclick={() => onClose(null)}>{t("取消")}</button>
     <button class="primary" onclick={save}>{t("完成")}</button>

@@ -25,7 +25,7 @@ export const EN: Record<string, string> = {
   "光环名称": "Halo name", "返回": "Back", "名称": "Name", "（空）": "(empty)", "槽位": "Slot", "删除光环": "Delete halo", "取消": "Cancel", "保存光环": "Save halo",
   "被以下位置引用，无法删除": "Cannot delete, referenced by",
   "点这里，然后按下组合键": "Click here, then press the combo", "录制：先按修饰键再按主键；Esc 清空": "Recording: modifiers first, then the main key; Esc clears", "不支持这个键": "That key is not supported", "主键…": "Main key…", "分配组合键": "Assign combo",
-  "编辑 APP": "Edit app", "添加 APP": "Add app", "显示名称": "Display name", "可执行文件路径": "Executable path", "从当前打开的窗口选": "Pick from open windows", "没有找到窗口": "No windows found", "名称不能为空": "Name is required", "名称不能超过 80 字": "Name must be 80 characters or fewer", "WM_CLASS 和路径至少填一个": "Fill in WM_CLASS or the path", "应用最多 16 个": "At most 16 apps", "删除": "Delete", "保存": "Save", "完成": "Done", "窗口": "Window", "新建宏": "New macro", "还没有条目": "Nothing here yet",
+  "编辑 APP": "Edit app", "添加 APP": "Add app", "显示名称": "Display name", "可执行文件路径": "Executable path", "从当前打开的窗口选": "Pick from open windows", "没有找到窗口": "No windows found", "名称不能为空": "Name is required", "名称不能超过 80 字": "Name must be 80 characters or fewer", "WM_CLASS 和路径至少填一个": "Fill in WM_CLASS or the path", "应用最多 16 个": "At most 16 apps", "删除": "Delete", "保存": "Save", "完成": "Done", "外观": "Appearance", "跟随系统": "System", "深色": "Dark", "浅色": "Light", "已开启": "On", "已关闭": "Off", "窗口": "Window", "新建宏": "New macro", "还没有条目": "Nothing here yet",
   "编辑宏": "Edit macro", "宏名称": "Macro name", "步骤": "Steps", "清空最后一步": "Remove last step", "右边添加步骤；新步骤插在选中步骤之后": "Add steps on the right; new steps go after the selected one", "录制时 halokey 窗口有焦点，设备注入的按键也会被录进来": "While recording, keys the device injects into this focused window are captured too", "添加为步骤": "Add as step", "等待": "Wait", "添加等待": "Add wait", "宏最多 16 个": "At most 16 macros", "删除宏": "Delete macro", "保存宏": "Save macro", "光环选项不能引用功能库、切层或自己": "A halo option cannot use the library, a layer switch or this halo itself", "（未命名）": "(unnamed)",
 };
 
@@ -57,7 +57,7 @@ export const JA: Record<string, string> = {
   "光环名称": "ハロー名", "返回": "戻る", "名称": "名前", "（空）": "（空）", "槽位": "スロット", "删除光环": "ハローを削除", "取消": "キャンセル", "保存光环": "ハローを保存",
   "被以下位置引用，无法删除": "次の場所で参照されているため削除できません",
   "点这里，然后按下组合键": "ここをクリックしてキーを同時押し", "录制：先按修饰键再按主键；Esc 清空": "記録：修飾キー → メインキーの順、Esc でクリア", "不支持这个键": "このキーは対応していません", "主键…": "メインキー…", "分配组合键": "同時押しを割り当て",
-  "编辑 APP": "アプリを編集", "添加 APP": "アプリを追加", "显示名称": "表示名", "可执行文件路径": "実行ファイルのパス", "从当前打开的窗口选": "開いているウィンドウから選ぶ", "没有找到窗口": "ウィンドウが見つかりません", "名称不能为空": "名前は必須です", "名称不能超过 80 字": "名前は 80 文字以内にしてください", "WM_CLASS 和路径至少填一个": "WM_CLASS かパスのどちらかを入力してください", "应用最多 16 个": "アプリは最大 16 個です", "删除": "削除", "保存": "保存", "完成": "完了", "窗口": "ウィンドウ", "新建宏": "新しいマクロ", "还没有条目": "まだ項目がありません",
+  "编辑 APP": "アプリを編集", "添加 APP": "アプリを追加", "显示名称": "表示名", "可执行文件路径": "実行ファイルのパス", "从当前打开的窗口选": "開いているウィンドウから選ぶ", "没有找到窗口": "ウィンドウが見つかりません", "名称不能为空": "名前は必須です", "名称不能超过 80 字": "名前は 80 文字以内にしてください", "WM_CLASS 和路径至少填一个": "WM_CLASS かパスのどちらかを入力してください", "应用最多 16 个": "アプリは最大 16 個です", "删除": "削除", "保存": "保存", "完成": "完了", "外观": "外観", "跟随系统": "システムに従う", "深色": "ダーク", "浅色": "ライト", "已开启": "オン", "已关闭": "オフ", "窗口": "ウィンドウ", "新建宏": "新しいマクロ", "还没有条目": "まだ項目がありません",
   "编辑宏": "マクロを編集", "宏名称": "マクロ名", "步骤": "ステップ", "清空最后一步": "最後のステップを削除", "右边添加步骤；新步骤插在选中步骤之后": "右側でステップを追加。新しいステップは選択中の次に入ります", "录制时 halokey 窗口有焦点，设备注入的按键也会被录进来": "記録中は halokey ウィンドウにフォーカスがあるため、デバイスが送るキーも記録されます", "添加为步骤": "ステップとして追加", "等待": "待機", "添加等待": "待機を追加", "宏最多 16 个": "マクロは最大 16 個です", "删除宏": "マクロを削除", "保存宏": "マクロを保存", "光环选项不能引用功能库、切层或自己": "ハローの項目にライブラリ・レイヤー切替・自分自身は使えません", "（未命名）": "（名称未設定）",
 };
 
@@ -77,6 +77,9 @@ export const lang = () => current;
 export const t = (zh: string) => (current === "zh" ? zh : TABLES[current][zh] ?? EN[zh] ?? zh);
 /** 模板类文案（带变量的句子）按当前语言三选一。 */
 export const pick = (v: { zh: string; en: string; ja: string }) => v[current];
+/** 冒号 / 顿号随语言：中文日文全角，英文半角加空格。 */
+export const colon = () => pick({ zh: "：", en: ": ", ja: "：" });
+export const listSep = () => pick({ zh: "、", en: ", ", ja: "、" });
 export function setLang(l: Lang) {
   current = l;
   try { localStorage.setItem("halokey.lang", l); } catch { /* 忽略 */ }

@@ -3,6 +3,10 @@
   import { t, lang, setLang, type Lang } from "../lib/i18n";
   import { api, type UiSnapshot, type UiDeviceInfo, type UiPower, type HaloSettings } from "../lib/tauri";
   import Icon from "../components/Icon.svelte";
+  import { getTheme, setTheme, type Theme } from "../lib/theme";
+  let theme = $state<Theme>(getTheme());
+  const THEMES: [Theme, string][] = [["system", "跟随系统"], ["dark", "深色"], ["light", "浅色"]];
+  const onOff = (v: boolean | number | null | undefined) => (v == null ? "—" : v ? `● ${t("已开启")}` : `○ ${t("已关闭")}`);
   let { snapshot }: { snapshot: UiSnapshot | null } = $props();
   let info = $state<UiDeviceInfo | null>(null);
   let power = $state<UiPower | null>(null);
@@ -34,7 +38,6 @@
 
 <div class="page">
   <div class="ph"><h2>{t("设置")}</h2><label class="lang"><Icon name="globe" size={15} /> {t("界面语言")} <select value={lang()} onchange={(e) => setLang((e.target as HTMLSelectElement).value as Lang)}><option value="en">English</option><option value="zh">简体中文</option><!-- i18n-ignore: 语言自称 --><option value="ja">日本語</option></select></label></div>
-  <p class="muted">{t("其余写入项在后续计划中补全")}</p>
 
   <section class="card">
     <h3>{t("Vibe Key")} <span class="r"><button onclick={load}>{t("刷新状态")}</button></span></h3>
@@ -52,15 +55,15 @@
     </section>
     <section class="card">
       <h3>{t("麦克风")}</h3>
-      <div class="row"><span class="k">{t("收音")}</span><span class="v">{power?.micEnabled == null ? "—" : power.micEnabled ? "✓" : "✕"}</span></div>
-      <div class="row"><span class="k">{t("硬件降噪")}</span><span class="v">{power?.noiseReduction == null ? "—" : power.noiseReduction ? "✓" : "✕"}</span></div>
+      <div class="row"><span class="k">{t("收音")}</span><span class="v">{onOff(power?.micEnabled)}</span></div>
+      <div class="row"><span class="k">{t("硬件降噪")}</span><span class="v">{onOff(power?.noiseReduction)}</span></div>
     </section>
   </div>
 
   <div class="two">
     <section class="card">
       <h3>{t("电源")}</h3>
-      <div class="row"><span class="k">{t("休眠 / 自动关机")}</span><span class="v">{sleepText(power?.sleepDelay ?? null)}</span></div>
+      <div class="row"><span class="k">{t("休眠 / 自动关机")}</span><span class="v mono">{sleepText(power?.sleepDelay ?? null)}</span></div>
       <div class="row"><span class="k">{t("待机延时")}</span><span class="v mono">{power?.standbyDelay ?? "—"} s</span></div>
     </section>
     <section class="card">
@@ -73,21 +76,29 @@
         {#each SIZES as [v, name]}<button class:on={halo.size === v} onclick={() => setHalo({ size: v })}>{t(name)}</button>{/each}</span></span></div>
       {#if haloError}<p class="bad">{haloError}</p>{/if}
     </section>
-    <section class="card">
-      <h3>{t("通用")}</h3>
-      <div class="row"><span class="k">{t("登录时启动")}</span><span class="v"><input type="checkbox" bind:checked={autostart} onchange={changeAutostart}></span></div>
-      <div class="row"><span class="k">{t("当前文件")}</span><span class="v mono">{snapshot?.configPath ?? "—"}</span></div>
-      <div class="row"><span class="k">{t("关于")}</span><span class="v mono">halokey 0.0.1</span></div>
-    </section>
   </div>
+  <section class="card">
+    <h3>{t("通用")}</h3>
+    <div class="row"><span class="k">{t("登录时启动")}</span><span class="v"><input class="switch" type="checkbox" data-role="autostart" bind:checked={autostart} onchange={changeAutostart}></span></div>
+    <div class="row"><span class="k">{t("外观")}</span><span class="v"><span class="seg">
+      {#each THEMES as [v, name]}<button data-theme-choice={v} class:on={theme === v} onclick={() => { theme = v; setTheme(v); }}>{t(name)}</button>{/each}</span></span></div>
+  </section>
   {#if note}<p class="bad">{note}</p>{/if}
+  <p class="about mono">halokey 0.0.1 · {snapshot?.configPath ?? "—"}</p>
 </div>
 
 <style>
   .page { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; }
   .ph { display: flex; align-items: center; } .ph h2 { margin: 0; font-size: 18px; } .lang { margin-left: auto; color: var(--muted); }
   .card { background: var(--card); border-radius: var(--r-lg); padding: 14px 18px; }
-  .card h3 { margin: 0 0 10px; font-size: 14px; display: flex; align-items: center; } .card h3 .r { margin-left: auto; }
+  /* 卡片标题做成小标题（eyebrow）：12px、muted、字距，和正文拉开层级。 */
+  .card h3 { margin: 0 0 12px; font-size: 12px; font-weight: 600; letter-spacing: .06em; color: var(--muted); display: flex; align-items: center; } .card h3 .r { margin-left: auto; }
+  .about { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
+  /* 开关：原生 checkbox 画成滑动开关。 */
+  .switch { appearance: none; width: 36px; height: 20px; border-radius: 999px; background: var(--card-on); border: 0; padding: 0; position: relative; cursor: pointer; margin: 0; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--text); transition: left 120ms; }
+  .switch:checked { background: var(--accent); }
+  .switch:checked::after { left: 18px; background: var(--accent-text); }
   .row { display: flex; align-items: center; gap: 14px; padding: 8px 0; border-top: 1px solid var(--line); }
   .row:first-of-type { border-top: 0; }
   .k { width: 140px; color: var(--text-2); } .v { display: flex; align-items: center; gap: 10px; flex: 1; } .h { color: var(--muted); font-size: 12px; margin-left: auto; }
