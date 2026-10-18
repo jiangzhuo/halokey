@@ -53,7 +53,7 @@
     {#each CATEGORIES as c, i}
       {#if i === 5}<hr>{/if}
       {#if !(c.id === "layer" && actionMode)}
-        <button class:on={category === c.id} disabled={c.id === "layer" && !layerAllowed} onclick={() => (category = c.id)}>{t(c.name)}</button>
+        <button class:on={category === c.id} disabled={c.id === "layer" && !layerAllowed} data-icon={c.icon} onclick={() => (category = c.id)}>{t(c.name)}</button>
       {/if}
     {/each}
   </nav>
@@ -103,13 +103,16 @@
 <style>
   .panel { display: grid; grid-template-columns: 150px 1fr; border-top: 1px solid var(--line); min-height: 200px; }
   /* 左栏分类与右侧键帽各自滚动。 */
-  .cats { padding: 14px 12px; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--line); overflow-y: auto; min-height: 0; }
+  .cats { padding: 8px 8px; display: flex; flex-direction: column; gap: 1px; border-right: 1px solid var(--line); overflow-y: auto; min-height: 0; }
   .palwrap { position: relative; min-height: 0; display: flex; flex-direction: column; }
   .pal { overflow-y: auto; min-height: 0; flex: 1; }
   .more { position: absolute; left: 0; right: 0; bottom: 0; height: 56px; pointer-events: none; background: linear-gradient(to bottom, transparent, var(--bg) 70%); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; color: var(--muted); font-size: 12px; }
-  .cats button { text-align: left; background: none; padding: 7px 10px; color: #c9c9ce; }
+  .cats button { text-align: left; background: none; padding: 4px 8px; color: #c9c9ce; font-size: 13px; display: flex; align-items: center; gap: 8px; line-height: 1.3; }
+  /* 图标用 ::before 画，按钮文字保持纯分类名（测试与可访问名都按文字找）。 */
+  .cats button::before { content: attr(data-icon); width: 20px; text-align: center; font-size: 12px; color: var(--muted); flex: none; }
+  .cats button.on::before { color: var(--accent); }
   .cats button.on { background: var(--card-on); color: var(--text); }
-  .cats hr { border: 0; border-top: 1px solid var(--line); margin: 8px 0; width: 100%; }
+  .cats hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
   .pal { padding: 14px 18px; }
   .head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
   .crumb { font-size: 15px; }
