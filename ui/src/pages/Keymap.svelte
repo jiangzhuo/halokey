@@ -6,16 +6,23 @@
   import Palette from "../components/Palette.svelte";
   import BottomBar from "../components/BottomBar.svelte";
   import BacklightStrip from "../components/BacklightStrip.svelte";
-  import { effectiveLighting, hasOwnLighting, setLightEffect, setFollowBase, clearBaseLighting } from "../model/draft";
+  import AppEditor from "../components/AppEditor.svelte";
+  import { effectiveLighting, hasOwnLighting, setLightEffect, setFollowBase, clearBaseLighting, libraryItems } from "../model/draft";
   import { api } from "../lib/tauri";
   import { markSaved, revert } from "../model/draft";
   import { t } from "../lib/i18n";
   import type { UiSnapshot } from "../lib/tauri";
   import { actionLabel, CONTROL_NAMES } from "../model/labels";
   import { effectivePress, type Gesture } from "../model/keymap";
-  import { controlAt, resolvedControl, select, type Draft } from "../model/draft";
+  import { assignAction, controlAt, resolvedControl, select, type Draft } from "../model/draft";
 
-  let { draft = $bindable(), snapshot, activeLayers = [], onEditHalo }: { draft: Draft; snapshot: UiSnapshot | null; activeLayers?: number[]; onEditHalo?: (id: string | null) => void } = $props();
+  let { draft = $bindable(), snapshot, activeLayers = [], onEditHalo, onEditMacro }: { draft: Draft; snapshot: UiSnapshot | null; activeLayers?: number[]; onEditHalo?: (id: string | null) => void; onEditMacro?: (id: string | null) => void } = $props();
+  // APP 编辑器是本页的对话框；新建成功后把它分配到当前选中的手势。
+  let appEditing = $state<{ id: string | null } | null>(null);
+  function closeApp(savedId: string | null) {
+    if (appEditing && appEditing.id === null && savedId) draft = assignAction(draft, { library: { _0: savedId } });
+    appEditing = null;
+  }
   const map = $derived(draft.map);
   const sel = $derived(draft.selection);
   const halos = $derived(map?.halos ?? []);
@@ -79,8 +86,9 @@
       <GestureCard index={2} control={ctl(2)} selected={sel.index === 2 ? sel.gesture : null} {halos} layer={sel.layer} override={controlAt(map, sel.layer, 2)} onPick={(g) => pick(2, g)} />
     </div>
   </section>
-  <Palette bind:draft {halos} apps={(map.actionLibrary ?? []).filter((a) => "application" in a.action)} macros={(map.actionLibrary ?? []).filter((a) => "macro" in a.action)} {onEditHalo} />
+  <Palette bind:draft {halos} apps={libraryItems(map, "application")} macros={libraryItems(map, "macro")} {onEditHalo} onEditApp={(id) => (appEditing = { id })} {onEditMacro} />
   <BottomBar dirty={draft.dirty} {saving} {message} {error} onSave={save} onRevert={() => { draft = revert(draft); message = ""; }} />
+  {#if appEditing}<AppEditor bind:draft itemId={appEditing.id} onClose={closeApp} />{/if}
 </div>
 {/if}
 

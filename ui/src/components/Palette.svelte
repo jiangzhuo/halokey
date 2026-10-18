@@ -8,11 +8,14 @@
   import { isRotation, type Behavior, type Halo, type HostAction, type KeyEntry, type NamedHostAction } from "../model/keymap";
   import { assignAction, assignEntries, clearGesture, resolvedControl, setBehavior, setTapCount, setTransparent, type Draft } from "../model/draft";
 
-  let { draft = $bindable(), halos, apps, macros, mode = "gesture", onAction, excludeHalo = null, onEditHalo, crumb }: {
+  let { draft = $bindable(), halos, apps, macros, mode = "gesture", onAction, excludeHalo = null, onEditHalo, onEditApp, onEditMacro, crumb }: {
     draft: Draft; halos: Halo[]; apps: NamedHostAction[]; macros: NamedHostAction[];
     /** gesture：写当前选中手势；action：只把选到的动作回调出去（光环编辑器用）。 */
-    mode?: "gesture" | "action"; onAction?: (a: HostAction) => void; excludeHalo?: string | null; onEditHalo?: (id: string | null) => void; crumb?: string;
+    mode?: "gesture" | "action"; onAction?: (a: HostAction) => void; excludeHalo?: string | null;
+    /** 编辑器入口（null = 新建）；不传则没有 ✎ 与"添加"按钮。 */
+    onEditHalo?: (id: string | null) => void; onEditApp?: (id: string | null) => void; onEditMacro?: (id: string | null) => void; crumb?: string;
   } = $props();
+  const appClass = (item: NamedHostAction) => ("application" in item.action ? (item.action as { application: { _0: { bundleIdentifier: string } } }).application._0.bundleIdentifier : "");
   const actionMode = $derived(mode === "action");
   const emitEntries = (entries: KeyEntry[]) => { if (actionMode) onAction?.({ keyboard: { _0: entries } }); else draft = assignEntries(draft, entries); };
   const emitAction = (a: HostAction) => { if (actionMode) onAction?.(a); else draft = assignAction(draft, a); };
@@ -91,9 +94,22 @@
     {:else if category === "combo"}
       <ComboRecorder onAssign={emitEntries} />
     {:else if category === "app" || category === "macro"}
+      {@const items = category === "app" ? apps : macros}
+      {@const edit = category === "app" ? onEditApp : onEditMacro}
+      {@const letter = category === "app" ? "A" : "M"}
+      {@const newLabel = category === "app" ? t("添加 APP") : t("新建宏")}
       <div class="cards">
-        {#each (category === "app" ? apps : macros) as item}<button class="item" onclick={() => (actionMode ? emitAction(item.action) : (draft = assignAction(draft, { library: { _0: item.id } })))}><small>{category === "app" ? "A" : "M"}{item.slot}</small>{item.name}</button>{/each}
-        <span class="muted">{t("在本机构建里还没有的功能")}</span>
+        {#each items as item (item.id)}
+          <div class="item lib">
+            <button class="pick" onclick={() => (actionMode ? emitAction(item.action) : (draft = assignAction(draft, { library: { _0: item.id } })))}>
+              <small>{letter}{item.slot}</small>{item.name}
+              {#if category === "app"}<small class="sub">{appClass(item)}</small>{/if}
+            </button>
+            {#if edit}<button class="edit" data-edit-app={category === "app" ? item.id : undefined} data-edit-macro={category === "macro" ? item.id : undefined} title={t("编辑")} onclick={() => edit?.(item.id)}>✎</button>{/if}
+          </div>
+        {/each}
+        {#if edit}<button class="item new" data-role={category === "app" ? "new-app" : "new-macro"} onclick={() => edit?.(null)}>＋ {newLabel}</button>{/if}
+        {#if !items.length && !edit}<span class="muted">{t("还没有条目")}</span>{/if}
       </div>
     {:else}
       <span class="muted">{t("在本机构建里还没有的功能")}</span>
@@ -125,9 +141,10 @@
   .cards .item { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 150px; height: 60px; }
   .cards .item small { color: var(--muted); font-family: var(--mono); font-size: 11px; }
   .cards .special { color: var(--muted); }
-  .cards .item.halo { flex-direction: row; align-items: stretch; padding: 0; gap: 0; overflow: hidden; }
-  .cards .item.halo .pick { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 0; min-width: 0; height: 100%; }
-  .cards .item.halo .edit { width: 32px; min-width: 0; height: 100%; border-radius: 0; background: var(--card-on); padding: 0; }
+  .cards .item.halo, .cards .item.lib { flex-direction: row; align-items: stretch; padding: 0; gap: 0; overflow: hidden; }
+  .cards .item.halo .pick, .cards .item.lib .pick { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 0; min-width: 0; height: 100%; }
+  .cards .item.halo .edit, .cards .item.lib .edit { width: 32px; min-width: 0; height: 100%; border-radius: 0; background: var(--card-on); padding: 0; }
+  .cards .item.lib .sub { font-size: 10px; opacity: .7; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cards .item.new { border: 1px dashed var(--muted); background: transparent; color: var(--muted); justify-content: center; }
   .muted { color: var(--muted); font-size: 13px; }
 </style>

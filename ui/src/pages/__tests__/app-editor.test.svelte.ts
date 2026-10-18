@@ -1,0 +1,68 @@
+import { describe, it, expect, afterEach } from "vitest";
+import { mount, unmount, flushSync } from "svelte";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import Keymap from "../Keymap.svelte";
+import { initialDraft, loadSaved, type Draft } from "../../model/draft";
+import type { HostKeymap } from "../../model/keymap";
+import { setLang } from "../../lib/i18n";
+
+const load = (): HostKeymap => JSON.parse(readFileSync(resolve(__dirname, "../../../../docs/examples/halo-menu.json"), "utf8"));
+let app: ReturnType<typeof mount> | undefined;
+afterEach(() => { if (app) unmount(app); app = undefined; document.body.innerHTML = ""; });
+const buttons = () => [...document.querySelectorAll("button")] as HTMLButtonElement[];
+const byText = (t: string) => buttons().find((b) => b.textContent?.trim() === t);
+const tick = () => new Promise((r) => setTimeout(r, 0));
+const setInput = (el: HTMLInputElement, v: string) => { el.value = v; el.dispatchEvent(new Event("input", { bubbles: true })); };
+
+describe("APP editor", () => {
+  it("adds an app from the window list and assigns it to the selected gesture", async () => {
+    setLang("zh");
+    const draft = $state<{ v: Draft }>({ v: loadSaved(initialDraft(), load()) });
+    app = mount(Keymap, { target: document.body, props: { get draft() { return draft.v; }, set draft(d: Draft) { draft.v = d; }, snapshot: null } });
+    flushSync();
+    byText("APP")!.click();
+    flushSync();
+    expect(document.body.textContent).not.toContain("在本机构建里还没有的功能");
+    (document.querySelector("[data-role=new-app]") as HTMLButtonElement).click();
+    await tick(); await tick();
+    flushSync();
+    expect(document.querySelector("[role=dialog]")).toBeTruthy();
+    (document.querySelector("button[data-window='google-chrome']") as HTMLButtonElement).click();
+    flushSync();
+    expect((document.querySelector("input[data-role=app-class]") as HTMLInputElement).value).toBe("google-chrome");
+    expect((document.querySelector("input[data-role=app-name]") as HTMLInputElement).value).toBe("Chrome");
+    byText("保存")!.click();
+    flushSync();
+    const lib = draft.v.map!.actionLibrary!;
+    expect(lib).toHaveLength(1);
+    expect(lib[0]!.slot).toBe(0);
+    expect(lib[0]!.action).toEqual({ application: { _0: { bundleIdentifier: "google-chrome", path: "/usr/bin/google-chrome", name: "Chrome" } } });
+    expect(draft.v.map!.controls[0]!.pressAction).toEqual({ library: { _0: lib[0]!.id } });
+    expect(document.querySelector("[role=dialog]")).toBeNull();
+    expect(document.body.textContent).toContain("A0");
+  });
+  it("validates and blocks deleting a referenced app", async () => {
+    setLang("zh");
+    const draft = $state<{ v: Draft }>({ v: loadSaved(initialDraft(), load()) });
+    app = mount(Keymap, { target: document.body, props: { get draft() { return draft.v; }, set draft(d: Draft) { draft.v = d; }, snapshot: null } });
+    flushSync();
+    byText("APP")!.click(); flushSync();
+    (document.querySelector("[data-role=new-app]") as HTMLButtonElement).click();
+    await tick(); flushSync();
+    byText("保存")!.click(); flushSync();
+    expect(document.body.textContent).toContain("名称不能为空");
+    setInput(document.querySelector("input[data-role=app-name]") as HTMLInputElement, "编辑器");
+    byText("保存")!.click(); flushSync();
+    expect(document.body.textContent).toContain("WM_CLASS 和路径至少填一个");
+    setInput(document.querySelector("input[data-role=app-class]") as HTMLInputElement, "gnome-text-editor");
+    byText("保存")!.click(); flushSync();
+    const id = draft.v.map!.actionLibrary![0]!.id;
+    expect(draft.v.map!.controls[0]!.pressAction).toEqual({ library: { _0: id } });
+    (document.querySelector(`button[data-edit-app='${id}']`) as HTMLButtonElement).click();
+    await tick(); flushSync();
+    byText("删除")!.click(); flushSync();
+    expect(document.body.textContent).toContain("顶部按键 › 单击");
+    expect(draft.v.map!.actionLibrary).toHaveLength(1);
+  });
+});
