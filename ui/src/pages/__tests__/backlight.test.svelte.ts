@@ -23,7 +23,7 @@ describe("backlight strip", () => {
     // 键 1 在 AU05 上没有可见的灯：状态条和渲染图都不显示它，编辑器里那一行禁用并说明。
     expect(document.querySelectorAll(".strip .dot[data-mode=solid]")).toHaveLength(2);
     expect(document.querySelectorAll(".device .spot[data-mode=solid]")).toHaveLength(2);
-    byText("编辑…")!.click();
+    (document.querySelector(".strip .toggle") as HTMLButtonElement).click();
     flushSync();
     const rows = document.querySelectorAll(".editor .light");
     expect(rows).toHaveLength(4);
@@ -43,7 +43,7 @@ describe("backlight strip", () => {
     ([...document.querySelectorAll(".seg button")].find((b) => b.textContent?.trim() === "1") as HTMLButtonElement).click();
     flushSync();
     expect(document.querySelectorAll(".strip .dot[data-mode=breathe]")).toHaveLength(2);
-    byText("编辑…")!.click();
+    (document.querySelector(".strip .toggle") as HTMLButtonElement).click();
     flushSync();
     const follow = document.querySelector(".editor input[data-role=follow]") as HTMLInputElement;
     expect(follow.checked).toBe(false);

@@ -24,7 +24,7 @@
       <span class="sum">{summary}</span>
     {/if}
     {#if layer !== 0 && !own}<span class="muted">▽</span>{/if}
-    <button onclick={() => (expanded = !expanded)}>{expanded ? t("收起") : t("编辑…")}</button>
+    <button class="toggle" class:open={expanded} aria-expanded={expanded} title={expanded ? t("收起") : t("编辑")} onclick={() => (expanded = !expanded)}>{t("编辑")}<i class="chev" aria-hidden="true">⌄</i></button>
   </div>
   {#if expanded}
     <div class="editor">
@@ -67,7 +67,12 @@
   .lamp b { font-weight: 600; font-size: 12px; color: var(--muted); }
   .lamp .mono { font-family: var(--mono); font-size: 12px; }
   .muted { color: var(--muted); }
-  .strip button { padding: 4px 10px; font-size: 13px; }
+  /* 固定宽度的切换按钮：文字不变，只转箭头，展开 / 收起时条不伸缩；描边让它看起来可点。 */
+  .strip .toggle { padding: 3px 8px 3px 10px; font-size: 13px; background: var(--card-on); border: 1px solid #55555d; display: inline-flex; align-items: center; gap: 6px; min-width: 72px; justify-content: center; }
+  .strip .toggle:hover { border-color: var(--accent); }
+  .strip .toggle.open { border-color: var(--accent); color: var(--accent); }
+  .chev { font-style: normal; display: inline-block; transition: transform 150ms; line-height: 1; }
+  .toggle.open .chev { transform: rotate(180deg); }
   .editor { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 460px; }
   .light { display: grid; grid-template-columns: 48px auto 1fr 28px; align-items: center; gap: 10px; }
   .name { color: var(--muted); font-size: 13px; }

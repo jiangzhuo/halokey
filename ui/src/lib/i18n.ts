@@ -5,7 +5,7 @@ export const EN: Record<string, string> = {
   "单击": "Press", "双击": "Double", "长按": "Long press", "保持按住": "Hold", "短按一次": "Tap once", "连按": "Burst", "次": "×",
   "常用": "Common", "字母": "Letters", "功能键": "F keys", "数字键盘": "Keypad", "鼠标": "Mouse", "组合键": "Combo", "APP": "APP", "宏": "Macro", "光环": "Halo", "指针": "Pointer",
   "撤销更改": "Discard changes", "保存到本机": "Save locally", "已保存": "Saved", "透明继承": "Transparent", "不执行动作": "No action", "关闭手势": "Disable gesture",
-  "本层背光": "Layer backlight", "编辑…": "Edit…", "跟随 Layer 0": "Follow Layer 0",
+  "本层背光": "Layer backlight", "编辑…": "Edit…", "编辑": "Edit", "跟随 Layer 0": "Follow Layer 0",
   "Vibe Key": "Vibe Key", "灯光": "Lighting", "麦克风": "Microphone", "电源": "Power", "光环转盘": "Halo wheel", "键位配置": "Keymap file", "通用": "General",
   "状态": "Status", "本体在线": "Key unit online", "本体离线": "Key unit offline", "空闲后交还控制": "Hand back when idle", "永不": "Never", "分钟": "min",
   "登录时启动": "Launch at login", "界面语言": "Language", "刷新状态": "Refresh", "灯光模式": "Light mode", "全灭": "Off", "全亮": "All on", "工作": "Work",
