@@ -22,6 +22,7 @@
   let blocked = $state<string[]>([]);
   const apps = $derived(draft.map ? libraryItems(draft.map, "application") : []);
   const ICON: Record<string, string> = { keyboard: "⌨", application: "▣", delay: "⏱" };
+  const appClass = (a: NamedHostAction) => (a.action as { application: { _0: ApplicationTarget } }).application._0.bundleIdentifier;
   onMount(async () => {
     try { const r = await api.listWindows(); windows = r.windows; listError = r.error ?? ""; }
     catch (e) { listError = String(e); }
@@ -90,8 +91,8 @@
       <ComboRecorder assignLabel={t("添加为步骤")} onAssign={addKeys} />
       <h4>▣ APP</h4>
       <div class="cards">
-        {#each apps as a (a.id)}<button data-add-app={a.id} onclick={() => addApp(a)}><b>A{a.slot} {a.name}</b></button>{/each}
-        {#each windows as w (w.class)}<button data-add-window={w.class} onclick={() => addWindow(w)}><b>{w.class}</b><small>{w.title}</small></button>{/each}
+        {#each apps as a (a.id)}<button data-add-app={a.id} onclick={() => addApp(a)}><em>A{a.slot}</em><b>{a.name}</b><small>{appClass(a)}</small></button>{/each}
+        {#each windows as w (w.class)}<button data-add-window={w.class} onclick={() => addWindow(w)}><em>{t("窗口")}</em><b>{w.title || w.class}</b><small>{w.class}</small></button>{/each}
         {#if listError}<span class="muted">{listError}</span>{/if}
       </div>
       <h4>⏱ {t("等待")}</h4>
@@ -103,7 +104,7 @@
     {#if blocked.length}<span class="bad">{t("被以下位置引用，无法删除")}：{blocked.join("、")}</span>{/if}
     {#if existing}<button class="danger" onclick={remove}>{t("删除宏")}</button>{/if}
     <button class="ghost" onclick={() => onClose(null)}>{t("取消")}</button>
-    <button class="primary" onclick={save}>{t("保存宏")}</button>
+    <button class="primary" onclick={save}>{t("完成")}</button>
   </footer>
 </div>
 
@@ -123,13 +124,16 @@
   .n { color: var(--muted); font-family: var(--mono); width: 22px; }
   .ic { width: 20px; text-align: center; color: var(--muted); }
   .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ops { display: flex; gap: 4px; }
+  .ops { display: flex; gap: 4px; opacity: 0; transition: opacity 120ms; }
+  li:hover .ops, li.on .ops, li:focus-within .ops { opacity: 1; }
   .ops button { padding: 2px 8px; }
   .adders h4 { margin: 14px 0 6px; font-size: 13px; color: var(--muted); }
   .adders h4:first-child { margin-top: 0; }
   .cards { display: flex; flex-wrap: wrap; gap: 8px; }
-  .cards button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; max-width: 240px; }
-  .cards small { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+  .cards button { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 160px; padding: 6px 10px; text-align: left; }
+  .cards em { font-style: normal; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .cards b { font-weight: 600; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cards small { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
   .delay { display: flex; align-items: center; gap: 8px; }
   .delay input { width: 90px; }
   .small { padding: 2px 8px; font-size: 12px; margin-left: 8px; }

@@ -43,12 +43,12 @@
         {@const invisible = INVISIBLE.has(i)}
         <div class="light" class:invisible>
           <span class="name">{t(LIGHT_NAMES[i]!)}</span>
-          <span class="seg">
-            {#each MODES as m}<button data-mode={m} class:on={l.mode === m} disabled={invisible} onclick={() => onEffect(i, m === "off" ? { mode: m } : { mode: m, brightness: l.brightness || 20 })}>{t(modeName[m])}</button>{/each}
-          </span>
           {#if invisible}
-            <span class="note">{t("此设备无可见灯")}</span><span></span>
+            <span class="note">{t("此设备无可见灯")}</span><span></span><span></span>
           {:else}
+            <span class="seg">
+              {#each MODES as m}<button data-mode={m} class:on={l.mode === m} onclick={() => onEffect(i, m === "off" ? { mode: m } : { mode: m, brightness: l.brightness || 20 })}>{t(modeName[m])}</button>{/each}
+            </span>
             <input type="range" min="0" max="20" value={l.brightness} disabled={l.mode === "off"} oninput={(e) => onEffect(i, { brightness: Number((e.target as HTMLInputElement).value) })} />
             <span class="mono">{l.brightness}</span>
           {/if}
@@ -85,14 +85,14 @@
   .toggle.open .chev { transform: rotate(180deg); }
   /* 浮层：挂在状态条下方、右对齐，不把下面的内容挤走。 */
   .editor { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 460px; box-shadow: var(--shadow-pop); }
-  .light { display: grid; grid-template-columns: 48px auto 1fr 28px; align-items: center; gap: 10px; }
+  .light { display: grid; grid-template-columns: 48px auto 1fr 34px; align-items: center; gap: 10px; }
   .name { color: var(--muted); font-size: 13px; }
   .seg { display: inline-flex; background: var(--card); border-radius: var(--r-md); padding: 3px; gap: 2px; }
   .seg button { background: none; padding: 4px 10px; font-size: 13px; }
   .seg button:hover { background: var(--card-on); }
   .seg button.on { background: var(--card-on); color: var(--accent); }
-  .mono { font-family: var(--mono); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
-  .light.invisible { opacity: .55; }
+  .mono { font-family: var(--mono); font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; background: var(--bg); border-radius: var(--r-sm); padding: 1px 4px; }
+  .light.invisible .name { opacity: .55; }
   .note { color: var(--muted); font-size: 12px; }
   .foot { display: flex; justify-content: flex-end; font-size: 13px; color: var(--muted); }
   @keyframes breathe { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }

@@ -68,7 +68,7 @@
     <footer>
       {#if existing}<button class="danger" onclick={remove}>{t("删除")}</button>{/if}
       <button class="ghost" onclick={() => onClose(null)}>{t("取消")}</button>
-      <button class="primary" onclick={save}>{t("保存")}</button>
+      <button class="primary" onclick={save}>{t("完成")}</button>
     </footer>
   </div>
 </div>

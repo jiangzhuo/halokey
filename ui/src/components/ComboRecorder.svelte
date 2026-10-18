@@ -34,7 +34,7 @@
   </button>
   <div class="manual">
     {#each MODIFIER_USAGES as u}
-      <label><input type="checkbox" data-mod={u} checked={mods.has(u)} onchange={() => toggleMod(u)} /> {keyName({ type: 2, code: u })}</label>
+      <label class="chip" class:on={mods.has(u)}><input type="checkbox" data-mod={u} checked={mods.has(u)} onchange={() => toggleMod(u)} />{keyName({ type: 2, code: u })}</label>
     {/each}
     <select data-role="combo-main" value={main === null ? "" : String(main)} onchange={(e) => { const v = (e.target as HTMLSelectElement).value; main = v === "" ? null : Number(v); }}>
       <option value="">{t("主键…")}</option>
@@ -52,6 +52,10 @@
   .preview { font-size: 18px; font-weight: 600; }
   .rec small { color: var(--muted); font-size: 12px; }
   .rec small.bad { color: var(--bad); }
-  .manual { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; font-size: 13px; }
-  .manual label { display: inline-flex; align-items: center; gap: 4px; }
+  .manual { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; position: relative; }
+  .chip { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; background: var(--card); cursor: pointer; user-select: none; }
+  .chip:hover { background: var(--card-on); }
+  .chip.on { background: var(--card-on); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .chip input { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
+  .chip:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>

@@ -65,10 +65,11 @@
   <div class="pal" bind:this={pal} onscroll={updateMore}>
     <div class="head">
       <span class="crumb">{actionMode ? crumb ?? "" : `${t(CONTROL_NAMES[sel.index] ?? "")} › ${t(gestureName[sel.gesture] ?? "")}`}</span>
+      {#if !actionMode}<span class="quick">{#if sel.layer !== 0}<button class="ghost" title={t("透明继承")} onclick={() => (draft = setTransparent(draft))}>▽</button>{/if}<button class="ghost" title={`${t("不执行动作")} / ${t("关闭手势")}`} onclick={() => (draft = clearGesture(draft))}>⊠</button></span>{/if}
       {#if !actionMode}<div class="mode"><OutputModeSegment {behavior} {count} allowHold={!rotation && sel.gesture !== "double"} onBehavior={(b) => (draft = setBehavior(draft, b))} onCount={(n) => (draft = setTapCount(draft, n))} /></div>{/if}
     </div>
     {#if cat.keycaps}
-      <KeyGrid keycaps={cat.keycaps} current={actionMode ? null : current} showTransparent={!actionMode && sel.layer !== 0} showClear={!actionMode} onPick={emitEntries} onClear={() => (draft = clearGesture(draft))} onTransparent={() => (draft = setTransparent(draft))} />
+      <KeyGrid keycaps={cat.keycaps} current={actionMode ? null : current} onPick={emitEntries} />
     {:else if category === "layer"}
       <div class="cards">
         {#if sel.layer !== 0}<button class="special" onclick={() => (draft = setTransparent(draft))}>▽</button>{/if}
@@ -122,7 +123,8 @@
 <style>
   .panel { display: grid; grid-template-columns: 150px 1fr; border-top: 1px solid var(--line); min-height: 200px; }
   /* 左栏分类与右侧键帽各自滚动。 */
-  .cats { padding: 8px 8px; display: flex; flex-direction: column; gap: 1px; border-right: 1px solid var(--line); overflow-y: auto; min-height: 0; }
+  .cats { padding: 8px 6px; display: flex; flex-direction: column; gap: 1px; border-right: 1px solid var(--line); background: var(--surface); overflow-y: auto; min-height: 0; scrollbar-width: thin; scrollbar-color: transparent transparent; scrollbar-gutter: stable; }
+  .cats:hover { scrollbar-color: var(--line-strong) transparent; }
   .palwrap { position: relative; min-height: 0; display: flex; flex-direction: column; }
   .pal { overflow-y: auto; min-height: 0; flex: 1; }
   .more { position: absolute; left: 0; right: 0; bottom: 0; height: 56px; pointer-events: none; background: linear-gradient(to bottom, transparent, var(--bg) 70%); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; color: var(--muted); font-size: 12px; }
@@ -136,6 +138,8 @@
   .pal { padding: 14px 18px; }
   .head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
   .crumb { font-size: 14px; font-weight: 600; }
+  .quick { display: inline-flex; gap: 2px; }
+  .quick button { padding: 2px 8px; color: var(--muted); font-size: 13px; }
   .mode { margin-left: auto; }
   .cards { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
   .cards button { min-width: 86px; height: 44px; }

@@ -33,7 +33,7 @@ describe("APP editor", () => {
     flushSync();
     expect((document.querySelector("input[data-role=app-class]") as HTMLInputElement).value).toBe("google-chrome");
     expect((document.querySelector("input[data-role=app-name]") as HTMLInputElement).value).toBe("Chrome");
-    byText("保存")!.click();
+    byText("完成")!.click();
     flushSync();
     const lib = draft.v.map!.actionLibrary!;
     expect(lib).toHaveLength(1);
@@ -51,13 +51,13 @@ describe("APP editor", () => {
     byText("APP")!.click(); flushSync();
     (document.querySelector("[data-role=new-app]") as HTMLButtonElement).click();
     await tick(); flushSync();
-    byText("保存")!.click(); flushSync();
+    byText("完成")!.click(); flushSync();
     expect(document.body.textContent).toContain("名称不能为空");
     setInput(document.querySelector("input[data-role=app-name]") as HTMLInputElement, "编辑器");
-    byText("保存")!.click(); flushSync();
+    byText("完成")!.click(); flushSync();
     expect(document.body.textContent).toContain("WM_CLASS 和路径至少填一个");
     setInput(document.querySelector("input[data-role=app-class]") as HTMLInputElement, "gnome-text-editor");
-    byText("保存")!.click(); flushSync();
+    byText("完成")!.click(); flushSync();
     const id = draft.v.map!.actionLibrary![0]!.id;
     expect(draft.v.map!.controls[0]!.pressAction).toEqual({ library: { _0: id } });
     (document.querySelector(`button[data-edit-app='${id}']`) as HTMLButtonElement).click();
@@ -76,7 +76,7 @@ describe("APP editor", () => {
     await tick(); flushSync();
     setInput(document.querySelector("input[data-role=app-name]") as HTMLInputElement, "x".repeat(90));
     setInput(document.querySelector("input[data-role=app-class]") as HTMLInputElement, "foo");
-    byText("保存")!.click(); flushSync();
+    byText("完成")!.click(); flushSync();
     expect(document.body.textContent).toContain("名称不能超过 80 字");
     expect(draft.v.map!.actionLibrary).toBeUndefined();
   });
@@ -93,7 +93,7 @@ describe("APP editor", () => {
     expect(document.querySelector("button[data-window]")).toBeNull();
     setInput(document.querySelector("input[data-role=app-name]") as HTMLInputElement, "编辑器");
     setInput(document.querySelector("input[data-role=app-path]") as HTMLInputElement, "/usr/bin/gnome-text-editor");
-    byText("保存")!.click(); flushSync();
+    byText("完成")!.click(); flushSync();
     expect(draft.v.map!.actionLibrary).toHaveLength(1);
     expect(document.querySelector("[role=dialog]")).toBeNull();
   });

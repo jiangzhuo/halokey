@@ -28,7 +28,8 @@ describe("backlight strip", () => {
     const rows = document.querySelectorAll(".editor .light");
     expect(rows).toHaveLength(4);
     expect(rows[0]!.textContent).toContain("无可见灯");
-    expect((rows[0]!.querySelector("button[data-mode=breathe]") as HTMLButtonElement).disabled).toBe(true);
+    expect(rows[0]!.querySelector("button[data-mode]")).toBeNull(); // 键 1 无可见灯：不画控件，只留说明
+    expect(rows[0]!.textContent).toContain("此设备无可见灯");
     (rows[3]!.querySelector("button[data-mode=breathe]") as HTMLButtonElement).click();
     flushSync();
     expect(draft.v.map!.lighting!.lights[3]!.mode).toBe("breathe");

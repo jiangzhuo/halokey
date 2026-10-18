@@ -22,7 +22,7 @@ describe("halo editor", () => {
     app = mount(HaloEditor, { target: document.body, props: { get draft() { return draft.v; }, set draft(d: Draft) { draft.v = d; }, haloId: null, onClose: (id: string | null) => closed.push(id) } });
     flushSync();
     expect(document.querySelectorAll("path.wedge")).toHaveLength(8);
-    byText("保存光环")!.click();
+    byText("完成")!.click();
     flushSync();
     expect(document.body.textContent).toContain("名称不能为空");
     expect(document.body.textContent).toContain("至少要有一个选项");
@@ -34,7 +34,7 @@ describe("halo editor", () => {
     byText("Enter")!.click();
     flushSync();
     setInput(document.querySelectorAll("input[data-role=slot-label]")[2] as HTMLInputElement, "回车");
-    byText("保存光环")!.click();
+    byText("完成")!.click();
     flushSync();
     expect(closed).toEqual(["halo-1"]);
     const h = draft.v.map!.halos!.find((x) => x.id === "halo-1")!;
@@ -50,7 +50,7 @@ describe("halo editor", () => {
     expect((document.querySelector("input[data-role=halo-name]") as HTMLInputElement).value).toBe("主菜单");
     ([...document.querySelectorAll("button[data-role=slot-down]")][0] as HTMLButtonElement).click();
     flushSync();
-    byText("保存光环")!.click();
+    byText("完成")!.click();
     flushSync();
     expect(draft.v.map!.halos![0]!.options[1]!.label).toBe("文本编辑器");
     expect(closed).toEqual(["main"]);

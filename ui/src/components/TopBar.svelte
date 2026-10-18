@@ -18,7 +18,7 @@
   </nav>
   <div class="status">
     <div class:ok>● {status}</div>
-    {#if snapshot?.battery}<div class="muted">🔋 {snapshot.battery[0] ?? "?"}% · {snapshot.battery[1]} mV</div>{/if}
+    {#if snapshot?.battery}<div class="muted">🔋 {snapshot.battery[0] ?? "?"}%</div>{/if}
   </div>
 </header>
 
@@ -29,7 +29,7 @@
   nav button { background: none; padding: 6px 2px; color: var(--muted); border-radius: 0; border-bottom: 2px solid transparent; position: relative; }
   nav button:hover { background: none; color: var(--text); }
   nav button.on { color: var(--text); border-bottom-color: var(--accent); }
-  .dot { position: absolute; top: 4px; right: -8px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+  .dot { display: inline-block; margin-left: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); vertical-align: 2px; }
   .status { text-align: right; font-size: 13px; color: var(--muted); line-height: 1.3; }
   .status .ok { color: var(--ok); }
 </style>

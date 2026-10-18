@@ -24,7 +24,7 @@ describe("macro editor", () => {
     app = mount(MacroEditor, { target: document.body, props: { get draft() { return draft.v; }, set draft(d: Draft) { draft.v = d; }, itemId: null, onClose: (id: string | null) => closed.push(id) } });
     await tick(); flushSync();
     expect(document.body.textContent).toContain("设备注入的按键也会被录进来");
-    byText("保存宏")!.click(); flushSync();
+    byText("完成")!.click(); flushSync();
     expect(document.body.textContent).toContain("名称不能为空");
     setInput(document.querySelector("input[data-role=macro-name]") as HTMLInputElement, "打开并输入");
     (document.querySelector("button[data-add-window='google-chrome']") as HTMLButtonElement).click(); flushSync();
@@ -38,7 +38,7 @@ describe("macro editor", () => {
     expect(document.querySelectorAll("li[data-step]")).toHaveLength(2);
     key(rec, "KeyA"); flushSync();
     (document.querySelector("[data-role=combo-assign]") as HTMLButtonElement).click(); flushSync();
-    byText("保存宏")!.click(); flushSync();
+    byText("完成")!.click(); flushSync();
     expect(closed).toHaveLength(1);
     const item = draft.v.map!.actionLibrary![0]!;
     expect(closed[0]).toBe(item.id);

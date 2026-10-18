@@ -74,7 +74,7 @@
     {#if blocked.length}<span class="bad">{t("被以下位置引用，无法删除")}：{blocked.join("、")}</span>{/if}
     {#if existing}<button class="danger" onclick={remove}>{t("删除光环")}</button>{/if}
     <button class="ghost" onclick={() => onClose(null)}>{t("取消")}</button>
-    <button class="primary" onclick={save}>{t("保存光环")}</button>
+    <button class="primary" onclick={save}>{t("完成")}</button>
   </footer>
 </div>
 
@@ -92,8 +92,11 @@
   .slot { display: grid; grid-template-columns: 24px 1fr 1.2fr auto; gap: 10px; align-items: center; background: var(--card); border-radius: var(--r-lg); padding: 6px 12px; border: 1px solid transparent; cursor: pointer; }
   .slot.on { border-color: var(--accent); }
   .slot .n { color: var(--muted); }
-  .slot .act { color: var(--accent); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .slot .ops { display: flex; gap: 4px; }
+  .slot input { background: transparent; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 4px 2px; }
+  .slot input:focus { border-bottom-color: var(--accent); outline: none; }
+  .slot .act { color: var(--text-2); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .slot .ops { display: flex; gap: 4px; opacity: 0; transition: opacity 120ms; }
+  .slot:hover .ops, .slot.on .ops, .slot:focus-within .ops { opacity: 1; }
   .slot .ops button { padding: 2px 8px; }
   footer { display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding: 12px 22px; border-top: 1px solid var(--line); position: sticky; bottom: 0; background: var(--bg); }
   .bad { color: var(--bad); margin-right: auto; font-size: 13px; }
