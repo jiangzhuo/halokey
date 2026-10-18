@@ -36,7 +36,7 @@
   }
   // 宏步骤不能引用功能库，所以把应用内容复制进来。
   const addApp = (a: NamedHostAction) => add({ application: { _0: JSON.parse(JSON.stringify((a.action as { application: { _0: ApplicationTarget } }).application._0)) } });
-  const addWindow = (w: WindowInfo) => add({ application: { _0: { bundleIdentifier: w.class, path: w.exe, name: w.title || w.class } } });
+  const addWindow = (w: WindowInfo) => add({ application: { _0: { bundleIdentifier: w.class, path: w.exe, name: [...(w.title || w.class)].slice(0, 200).join("") } } });
   const addKeys = (entries: KeyEntry[]) => add({ keyboard: { _0: entries } });
   function pop() {
     if (!steps.length) return;

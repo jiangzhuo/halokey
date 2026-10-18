@@ -234,20 +234,13 @@ fn get_keymap(state: State<'_, App>) -> Result<serde_json::Value, String> {
     serde_json::from_slice(&bytes).map_err(|e| e.to_string())
 }
 
-/// 当前顶层窗口列表，供 APP 编辑器挑选；拿不到时给原因而不是失败。
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ListWindows {
-    windows: Vec<halokey_wm::WindowInfo>,
-    error: Option<String>,
-}
-
+/// 当前顶层窗口列表，供 APP 编辑器挑选；拿不到或不全时 `error` 给原因而不是失败。
+/// X11 往返是同步的，放到阻塞线程池里，不占 async 运行时的工作线程。
 #[tauri::command]
-async fn list_windows() -> ListWindows {
-    match halokey_wm::list_windows() {
-        Ok(windows) => ListWindows { windows, error: None },
-        Err(e) => ListWindows { windows: Vec::new(), error: Some(e) },
-    }
+async fn list_windows() -> halokey_wm::WindowList {
+    tauri::async_runtime::spawn_blocking(halokey_wm::list_windows)
+        .await
+        .unwrap_or_else(|e| halokey_wm::WindowList { windows: Vec::new(), error: Some(e.to_string()) })
 }
 
 /// 只校验不保存，供界面在保存前显示错误。

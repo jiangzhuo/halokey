@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { mount, unmount, flushSync } from "svelte";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -6,10 +6,11 @@ import Keymap from "../Keymap.svelte";
 import { initialDraft, loadSaved, type Draft } from "../../model/draft";
 import type { HostKeymap } from "../../model/keymap";
 import { setLang } from "../../lib/i18n";
+import { api } from "../../lib/tauri";
 
 const load = (): HostKeymap => JSON.parse(readFileSync(resolve(__dirname, "../../../../docs/examples/halo-menu.json"), "utf8"));
 let app: ReturnType<typeof mount> | undefined;
-afterEach(() => { if (app) unmount(app); app = undefined; document.body.innerHTML = ""; });
+afterEach(() => { if (app) unmount(app); app = undefined; document.body.innerHTML = ""; vi.restoreAllMocks(); });
 const buttons = () => [...document.querySelectorAll("button")] as HTMLButtonElement[];
 const byText = (t: string) => buttons().find((b) => b.textContent?.trim() === t);
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -64,5 +65,36 @@ describe("APP editor", () => {
     byText("删除")!.click(); flushSync();
     expect(document.body.textContent).toContain("顶部按键 › 单击");
     expect(draft.v.map!.actionLibrary).toHaveLength(1);
+  });
+  it("rejects item names over 80 characters (Rust NamedHostAction limit)", async () => {
+    setLang("zh");
+    const draft = $state<{ v: Draft }>({ v: loadSaved(initialDraft(), load()) });
+    app = mount(Keymap, { target: document.body, props: { get draft() { return draft.v; }, set draft(d: Draft) { draft.v = d; }, snapshot: null } });
+    flushSync();
+    byText("APP")!.click(); flushSync();
+    (document.querySelector("[data-role=new-app]") as HTMLButtonElement).click();
+    await tick(); flushSync();
+    setInput(document.querySelector("input[data-role=app-name]") as HTMLInputElement, "x".repeat(90));
+    setInput(document.querySelector("input[data-role=app-class]") as HTMLInputElement, "foo");
+    byText("保存")!.click(); flushSync();
+    expect(document.body.textContent).toContain("名称不能超过 80 字");
+    expect(draft.v.map!.actionLibrary).toBeUndefined();
+  });
+  it("shows the window-list reason and still saves a hand-filled app", async () => {
+    setLang("zh");
+    vi.spyOn(api, "listWindows").mockResolvedValue({ windows: [], error: "Wayland 会话：只能列出 XWayland 窗口" });
+    const draft = $state<{ v: Draft }>({ v: loadSaved(initialDraft(), load()) });
+    app = mount(Keymap, { target: document.body, props: { get draft() { return draft.v; }, set draft(d: Draft) { draft.v = d; }, snapshot: null } });
+    flushSync();
+    byText("APP")!.click(); flushSync();
+    (document.querySelector("[data-role=new-app]") as HTMLButtonElement).click();
+    await tick(); await tick(); flushSync();
+    expect(document.body.textContent).toContain("Wayland 会话");
+    expect(document.querySelector("button[data-window]")).toBeNull();
+    setInput(document.querySelector("input[data-role=app-name]") as HTMLInputElement, "编辑器");
+    setInput(document.querySelector("input[data-role=app-path]") as HTMLInputElement, "/usr/bin/gnome-text-editor");
+    byText("保存")!.click(); flushSync();
+    expect(draft.v.map!.actionLibrary).toHaveLength(1);
+    expect(document.querySelector("[role=dialog]")).toBeNull();
   });
 });

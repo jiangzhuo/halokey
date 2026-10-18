@@ -83,15 +83,38 @@ impl WindowInfo {
     }
 }
 
-/// 列出当前顶层窗口；没有后端时返回原因（Wayland、无 X 连接、非 Linux）。
-pub fn list_windows() -> Result<Vec<WindowInfo>, String> {
+/// `list_windows` 的结果：能列出的窗口，加上"为什么可能不全 / 为空"的原因。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowList {
+    pub windows: Vec<WindowInfo>,
+    pub error: Option<String>,
+}
+
+/// Wayland 会话里 X11 只看得到 XWayland 客户端，原生 Wayland 应用不在列表里；给用户一句原因。
+fn session_note(wayland_display: Option<&str>, session_type: Option<&str>) -> Option<String> {
+    let wayland = wayland_display.is_some_and(|d| !d.is_empty())
+        || session_type.is_some_and(|t| t.eq_ignore_ascii_case("wayland"));
+    wayland.then(|| "Wayland 会话：只能列出 XWayland 窗口，原生 Wayland 应用请手填".to_string())
+}
+
+/// 列出当前顶层窗口；拿不到或可能不全时附上原因（Wayland、无 X 连接、非 Linux）。
+pub fn list_windows() -> WindowList {
     #[cfg(target_os = "linux")]
     {
-        x11::list_windows().map_err(|e| e.to_string())
+        let env = |k: &str| std::env::var(k).ok();
+        let note = session_note(env("WAYLAND_DISPLAY").as_deref(), env("XDG_SESSION_TYPE").as_deref());
+        match x11::list_windows() {
+            Ok(windows) => WindowList { windows, error: note },
+            Err(e) => WindowList {
+                windows: Vec::new(),
+                error: Some(note.map_or_else(|| format!("连接 X 服务器失败：{e}"), |n| format!("{n}（X 连接失败：{e}）"))),
+            },
+        }
     }
     #[cfg(not(target_os = "linux"))]
     {
-        Err("此平台还没有窗口列表".to_string())
+        WindowList { windows: Vec::new(), error: Some("此平台还没有窗口列表".to_string()) }
     }
 }
 
@@ -116,5 +139,13 @@ mod tests {
         assert_eq!(out.len(), 2);
         assert_eq!((out[0].class.as_str(), out[0].title.as_str()), ("chrome", "c1"));
         assert_eq!((out[1].class.as_str(), out[1].title.as_str()), ("Zed", "z1"));
+    }
+
+    #[test]
+    fn wayland_sessions_get_a_reason_and_x11_sessions_none() {
+        assert!(session_note(Some("wayland-0"), None).is_some());
+        assert!(session_note(None, Some("wayland")).is_some());
+        assert_eq!(session_note(None, Some("x11")), None);
+        assert_eq!(session_note(None, None), None);
     }
 }

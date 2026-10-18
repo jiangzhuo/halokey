@@ -25,12 +25,13 @@
   function pick(w: WindowInfo) {
     cls = w.class;
     if (!path) path = w.exe;
-    if (!name.trim()) name = w.title || w.class;
+    // 窗口标题常常很长；功能库项的名称 Rust 限 80 字。
+    if (!name.trim()) name = [...(w.title || w.class)].slice(0, 80).join("");
   }
   function save() {
     const p: string[] = [];
     if (!name.trim()) p.push(t("名称不能为空"));
-    else if ([...name.trim()].length > 200) p.push(t("名称不能超过 200 字"));
+    else if ([...name.trim()].length > 80) p.push(t("名称不能超过 80 字"));
     if (!cls.trim() && !path.trim()) p.push(t("WM_CLASS 和路径至少填一个"));
     problems = p;
     if (p.length) return;
