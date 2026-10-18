@@ -1,4 +1,4 @@
-import { actionKind, actionValue, type HostAction, type KeyEntry, type Halo, type ApplicationTarget, type PointerDelta } from "./keymap";
+import { actionKind, actionValue, type HostAction, type KeyEntry, type Halo, type ApplicationTarget, type PointerDelta, type NamedHostAction } from "./keymap";
 import { t, lang } from "../lib/i18n";
 
 // 本文件的中文片段都经 t() 查表；英文表见 lib/i18n.ts。
@@ -37,13 +37,20 @@ export function entriesLabel(entries: KeyEntry[]): string {
   return mods && rest ? `${mods}${rest}` : mods || rest;
 }
 
-export function actionLabel(a: HostAction | null, entries?: KeyEntry[] | null, halos?: Halo[]): string {
+/** 动作的显示文字；`halos` / `library` 用来把引用解析成名字。 */
+export function actionLabel(a: HostAction | null, entries?: KeyEntry[] | null, halos?: Halo[], library?: NamedHostAction[]): string {
   if (!a) return entries ? entriesLabel(entries) : t("无");
   switch (actionKind(a)) {
     case "keyboard": return entriesLabel(actionValue<KeyEntry[]>(a));
     case "application": return `${t("切换到")} ${actionValue<ApplicationTarget>(a).name}`;
     case "macro": { const n = actionValue<unknown[]>(a).length; return lang() === "en" ? `Macro (${n} steps)` : `宏（${n} 步）`; }
-    case "library": return `${t("动作库")} ${String(actionValue<string>(a)).slice(0, 8)}`;
+    case "library": {
+      const id = actionValue<string>(a);
+      const item = library?.find((i) => i.id === id);
+      if (!item) return `${t("动作库")} ${String(id).slice(0, 8)}`;
+      if ("application" in item.action) return `${t("切换到")} ${item.name}`;
+      return lang() === "en" ? `Macro “${item.name}”` : `宏「${item.name}」`;
+    }
     case "momentaryLayer": return `MO(${actionValue<number>(a)})`;
     case "pointerMove": {
       const { dx, dy } = actionValue<PointerDelta>(a);

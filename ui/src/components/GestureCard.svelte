@@ -1,15 +1,15 @@
 <script lang="ts">
   import { t } from "../lib/i18n";
   import { actionLabel } from "../model/labels";
-  import { effectivePress, effectiveDouble, effectiveLong, GESTURES, type ControlActionMap, type Gesture, type Halo } from "../model/keymap";
-  let { index, control, selected, halos, onPick, layer, override }: { index: number; control: ControlActionMap; selected: Gesture | null; halos: Halo[]; onPick: (g: Gesture) => void; layer: number; override?: ControlActionMap } = $props();
+  import { effectivePress, effectiveDouble, effectiveLong, GESTURES, type ControlActionMap, type Gesture, type Halo, type NamedHostAction } from "../model/keymap";
+  let { index, control, selected, halos, library = [], onPick, layer, override }: { index: number; control: ControlActionMap; selected: Gesture | null; halos: Halo[]; library?: NamedHostAction[]; onPick: (g: Gesture) => void; layer: number; override?: ControlActionMap } = $props();
   const GKEY = { press: "press", double: "doublePress", long: "longPress" } as const;
   const inherited = (g: Gesture) => layer !== 0 && (!override || (override.inheritedGestures ?? []).includes(GKEY[g]));
   const text = (g: Gesture) => {
     if (inherited(g)) return "▽";
     const a = g === "press" ? effectivePress(control) : g === "double" ? effectiveDouble(control) : effectiveLong(control);
     if (g !== "press" && !a) return "⊠";
-    return actionLabel(a, null, halos);
+    return actionLabel(a, null, halos, library);
   };
   const names: Record<Gesture, string> = { press: "单击", double: "双击", long: "长按" };
   const gestures = $derived(index >= 4 ? (["press"] as Gesture[]) : [...GESTURES]);

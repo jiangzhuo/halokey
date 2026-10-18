@@ -26,6 +26,7 @@
   const map = $derived(draft.map);
   const sel = $derived(draft.selection);
   const halos = $derived(map?.halos ?? []);
+  const library = $derived(map?.actionLibrary ?? []);
   const ctl = (i: number) => resolvedControl(map!, sel.layer, i);
   const pick = (index: number, gesture: Gesture) => { draft = select(draft, { layer: sel.layer, index, gesture }); };
   // 引线：从图上控件出发先水平一段，再折向卡片高度，再水平接入卡片（左右镜像）。
@@ -62,10 +63,10 @@
   </LayerBar>
   <section class="stage">
     <div class="side left">
-      <div class="knobs end"><KnobLabel index={5} label={actionLabel(effectivePress(ctl(5)), null, halos)} selected={sel.index === 5} onPick={() => pick(5, "press")} /></div>
+      <div class="knobs end"><KnobLabel index={5} label={actionLabel(effectivePress(ctl(5)), null, halos, library)} selected={sel.index === 5} onPick={() => pick(5, "press")} /></div>
       <div class="name">⟳ {t(CONTROL_NAMES[3])}</div>
-      <GestureCard index={3} control={ctl(3)} selected={sel.index === 3 ? sel.gesture : null} {halos} layer={sel.layer} override={controlAt(map, sel.layer, 3)} onPick={(g) => pick(3, g)} />
-      <GestureCard index={1} control={ctl(1)} selected={sel.index === 1 ? sel.gesture : null} {halos} layer={sel.layer} override={controlAt(map, sel.layer, 1)} onPick={(g) => pick(1, g)} />
+      <GestureCard index={3} control={ctl(3)} selected={sel.index === 3 ? sel.gesture : null} {halos} {library} layer={sel.layer} override={controlAt(map, sel.layer, 3)} onPick={(g) => pick(3, g)} />
+      <GestureCard index={1} control={ctl(1)} selected={sel.index === 1 ? sel.gesture : null} {halos} {library} layer={sel.layer} override={controlAt(map, sel.layer, 1)} onPick={(g) => pick(1, g)} />
     </div>
     <svg class="leader" viewBox="0 0 40 295" width="40" height="295" aria-hidden="true">
       {#each LEFT as [i, from, to]}
@@ -81,9 +82,9 @@
       {/each}
     </svg>
     <div class="side right">
-      <div class="knobs"><KnobLabel index={4} label={actionLabel(effectivePress(ctl(4)), null, halos)} selected={sel.index === 4} onPick={() => pick(4, "press")} /></div>
-      <GestureCard index={0} control={ctl(0)} selected={sel.index === 0 ? sel.gesture : null} {halos} layer={sel.layer} override={controlAt(map, sel.layer, 0)} onPick={(g) => pick(0, g)} />
-      <GestureCard index={2} control={ctl(2)} selected={sel.index === 2 ? sel.gesture : null} {halos} layer={sel.layer} override={controlAt(map, sel.layer, 2)} onPick={(g) => pick(2, g)} />
+      <div class="knobs"><KnobLabel index={4} label={actionLabel(effectivePress(ctl(4)), null, halos, library)} selected={sel.index === 4} onPick={() => pick(4, "press")} /></div>
+      <GestureCard index={0} control={ctl(0)} selected={sel.index === 0 ? sel.gesture : null} {halos} {library} layer={sel.layer} override={controlAt(map, sel.layer, 0)} onPick={(g) => pick(0, g)} />
+      <GestureCard index={2} control={ctl(2)} selected={sel.index === 2 ? sel.gesture : null} {halos} {library} layer={sel.layer} override={controlAt(map, sel.layer, 2)} onPick={(g) => pick(2, g)} />
     </div>
   </section>
   <Palette bind:draft {halos} apps={libraryItems(map, "application")} macros={libraryItems(map, "macro")} {onEditHalo} onEditApp={(id) => (appEditing = { id })} {onEditMacro} />

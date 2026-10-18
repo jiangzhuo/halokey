@@ -4,18 +4,26 @@
   import Keymap from "./pages/Keymap.svelte";
   import Settings from "./pages/Settings.svelte";
   import HaloEditor from "./pages/HaloEditor.svelte";
+  import MacroEditor from "./pages/MacroEditor.svelte";
   import { api, subscribe, type UiSnapshot } from "./lib/tauri";
   import { initialDraft, loadSaved, assignAction, select, type Draft, type Selection } from "./model/draft";
 
-  let page = $state<"keymap" | "settings" | "halo">("keymap");
-  // 光环编辑器：记住从哪个手势进来的，新建成功后把新光环分配回去。
-  let editing = $state<{ id: string | null; wasNew: boolean; returnTo: Selection } | null>(null);
+  let page = $state<"keymap" | "settings" | "halo" | "macro">("keymap");
+  // 光环 / 宏编辑器：记住从哪个手势进来的，新建成功后把新条目分配回去。
+  let editing = $state<{ kind: "halo" | "macro"; id: string | null; wasNew: boolean; returnTo: Selection } | null>(null);
   function openHalo(id: string | null) {
-    editing = { id, wasNew: id === null, returnTo: draft.selection };
+    editing = { kind: "halo", id, wasNew: id === null, returnTo: draft.selection };
     page = "halo";
   }
-  function closeHalo(savedId: string | null) {
-    if (editing?.wasNew && savedId) draft = assignAction(select(draft, editing.returnTo), { halo: { _0: savedId } });
+  function openMacro(id: string | null) {
+    editing = { kind: "macro", id, wasNew: id === null, returnTo: draft.selection };
+    page = "macro";
+  }
+  function closeEditor(savedId: string | null) {
+    if (editing?.wasNew && savedId) {
+      const action = editing.kind === "halo" ? { halo: { _0: savedId } } : { library: { _0: savedId } };
+      draft = assignAction(select(draft, editing.returnTo), action);
+    }
     editing = null;
     page = "keymap";
   }
@@ -45,12 +53,14 @@
 
 {#key langTick}
 <div class="app">
-  <TopBar page={page === "halo" ? "keymap" : page} {snapshot} dirty={draft.dirty} onNavigate={(p) => { editing = null; page = p; }} />
+  <TopBar page={page === "settings" ? "settings" : "keymap"} {snapshot} dirty={draft.dirty} onNavigate={(p) => { editing = null; page = p; }} />
   <div class="view">
   {#if page === "keymap"}
-    <Keymap bind:draft {snapshot} {activeLayers} onEditHalo={openHalo} />
+    <Keymap bind:draft {snapshot} {activeLayers} onEditHalo={openHalo} onEditMacro={openMacro} />
   {:else if page === "halo"}
-    <HaloEditor bind:draft haloId={editing?.id ?? null} onClose={closeHalo} />
+    <HaloEditor bind:draft haloId={editing?.id ?? null} onClose={closeEditor} />
+  {:else if page === "macro"}
+    <MacroEditor bind:draft itemId={editing?.id ?? null} onClose={closeEditor} />
   {:else}
     <Settings {snapshot} />
   {/if}

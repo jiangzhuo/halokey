@@ -17,6 +17,18 @@ describe("labels", () => {
     expect(actionLabel({ halo: { _0: "main" } }, null, [{ id: "main", name: "主菜单", options: [] }])).toBe("光环「主菜单」");
     expect(actionLabel({ futureAction: { _0: 1 } } as any)).toBe("复杂动作");
   });
+  it("resolves library references to the item's name", () => {
+    setLang("zh");
+    const lib = [
+      { id: "aaaaaaaa-0000-4000-8000-000000000000", name: "Chrome", slot: 0, action: { application: { _0: { bundleIdentifier: "google-chrome", path: "", name: "Chrome" } } } },
+      { id: "bbbbbbbb-0000-4000-8000-000000000000", name: "打开并输入", slot: 0, action: { macro: { _0: [{ delay: { _0: 0.3 } }] } } },
+    ];
+    expect(actionLabel({ library: { _0: lib[0]!.id } }, null, [], lib)).toBe("切换到 Chrome");
+    expect(actionLabel({ library: { _0: lib[1]!.id } }, null, [], lib)).toBe("宏「打开并输入」");
+    expect(actionLabel({ library: { _0: "cccccccc-0000-4000-8000-000000000000" } }, null, [], lib)).toBe("动作库 cccccccc");
+    setLang("en");
+    try { expect(actionLabel({ library: { _0: lib[1]!.id } }, null, [], lib)).toBe("Macro “打开并输入”"); } finally { setLang("zh"); }
+  });
   it("speaks English when the UI language is English", () => {
     setLang("en");
     try {

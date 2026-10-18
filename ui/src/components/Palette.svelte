@@ -144,6 +144,9 @@
   .cards .item.halo, .cards .item.lib { flex-direction: row; align-items: stretch; padding: 0; gap: 0; overflow: hidden; }
   .cards .item.halo .pick, .cards .item.lib .pick { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 0; min-width: 0; height: 100%; }
   .cards .item.halo .edit, .cards .item.lib .edit { width: 32px; min-width: 0; height: 100%; border-radius: 0; background: var(--card-on); padding: 0; }
+  .cards .item.lib { height: auto; min-height: 60px; }
+  .cards .item.lib .edit { height: auto; align-self: stretch; }
+  .cards .item.lib .pick { padding: 6px 10px; }
   .cards .item.lib .sub { font-size: 10px; opacity: .7; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cards .item.new { border: 1px dashed var(--muted); background: transparent; color: var(--muted); justify-content: center; }
   .muted { color: var(--muted); font-size: 13px; }
