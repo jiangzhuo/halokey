@@ -27,6 +27,7 @@
   .logo { font-weight: 700; letter-spacing: .12em; display: flex; align-items: center; gap: 8px; user-select: none; }
   nav { margin: 0 auto; display: flex; gap: 24px; }
   nav button { background: none; padding: 6px 2px; color: var(--muted); border-radius: 0; border-bottom: 2px solid transparent; position: relative; }
+  nav button:hover { background: none; color: var(--text); }
   nav button.on { color: var(--text); border-bottom-color: var(--accent); }
   .dot { position: absolute; top: 4px; right: -8px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
   .status { text-align: right; font-size: 13px; color: var(--muted); line-height: 1.3; }

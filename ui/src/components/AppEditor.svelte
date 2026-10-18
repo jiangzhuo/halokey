@@ -66,8 +66,8 @@
     {#if problems.length}<p class="bad">{problems.join("；")}</p>{/if}
     {#if blocked.length}<p class="bad">{t("被以下位置引用，无法删除")}：{blocked.join("、")}</p>{/if}
     <footer>
-      {#if existing}<button onclick={remove}>{t("删除")}</button>{/if}
-      <button onclick={() => onClose(null)}>{t("取消")}</button>
+      {#if existing}<button class="danger" onclick={remove}>{t("删除")}</button>{/if}
+      <button class="ghost" onclick={() => onClose(null)}>{t("取消")}</button>
       <button class="primary" onclick={save}>{t("保存")}</button>
     </footer>
   </div>
@@ -75,7 +75,7 @@
 
 <style>
   .backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .5); display: flex; align-items: center; justify-content: center; z-index: 50; }
-  .dialog { width: 560px; max-width: calc(100vw - 32px); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 16px 48px rgba(0, 0, 0, .5); }
+  .dialog { width: 560px; max-width: calc(100vw - 32px); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow-modal); }
   h3 { margin: 0 0 4px; font-size: 15px; }
   label { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
   label input { width: 100%; }

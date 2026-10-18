@@ -101,8 +101,8 @@
   <footer>
     {#if problems.length}<span class="bad">{problems.join("；")}</span>{/if}
     {#if blocked.length}<span class="bad">{t("被以下位置引用，无法删除")}：{blocked.join("、")}</span>{/if}
-    {#if existing}<button onclick={remove}>{t("删除宏")}</button>{/if}
-    <button onclick={() => onClose(null)}>{t("取消")}</button>
+    {#if existing}<button class="danger" onclick={remove}>{t("删除宏")}</button>{/if}
+    <button class="ghost" onclick={() => onClose(null)}>{t("取消")}</button>
     <button class="primary" onclick={save}>{t("保存宏")}</button>
   </footer>
 </div>
@@ -113,10 +113,11 @@
   header h2 { margin: 0; font-size: 16px; }
   header input { flex: 0 0 260px; }
   .back { background: none; font-size: 18px; padding: 2px 8px; }
+  .back:hover { background: var(--card); }
   .body { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 16px 22px; align-items: start; flex: 1; }
   .head { display: flex; align-items: center; }
   ol { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-  li { display: flex; align-items: center; gap: 6px; background: var(--card); border-radius: 10px; padding: 4px 8px 4px 4px; border: 1px solid transparent; }
+  li { display: flex; align-items: center; gap: 6px; background: var(--card); border-radius: var(--r-lg); padding: 4px 8px 4px 4px; border: 1px solid transparent; }
   li.on { border-color: var(--accent); }
   .row { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; background: none; text-align: left; }
   .n { color: var(--muted); font-family: var(--mono); width: 22px; }

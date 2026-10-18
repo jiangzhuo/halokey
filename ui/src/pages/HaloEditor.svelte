@@ -72,8 +72,8 @@
   <footer>
     {#if problems.length}<span class="bad">{problems.join("；")}</span>{/if}
     {#if blocked.length}<span class="bad">{t("被以下位置引用，无法删除")}：{blocked.join("、")}</span>{/if}
-    {#if existing}<button onclick={remove}>{t("删除光环")}</button>{/if}
-    <button onclick={() => onClose(null)}>{t("取消")}</button>
+    {#if existing}<button class="danger" onclick={remove}>{t("删除光环")}</button>{/if}
+    <button class="ghost" onclick={() => onClose(null)}>{t("取消")}</button>
     <button class="primary" onclick={save}>{t("保存光环")}</button>
   </footer>
 </div>
@@ -84,11 +84,12 @@
   header h2 { margin: 0; font-size: 16px; }
   header input { flex: 0 0 260px; }
   .back { background: none; font-size: 18px; padding: 2px 8px; }
+  .back:hover { background: var(--card); }
   .id { color: var(--muted); font-size: 12px; }
   .mono { font-family: var(--mono); }
   .body { display: grid; grid-template-columns: 420px 1fr; gap: 24px; padding: 16px 22px; align-items: center; }
   .slots { display: flex; flex-direction: column; gap: 6px; }
-  .slot { display: grid; grid-template-columns: 24px 1fr 1.2fr auto; gap: 10px; align-items: center; background: var(--card); border-radius: 10px; padding: 6px 12px; border: 1px solid transparent; cursor: pointer; }
+  .slot { display: grid; grid-template-columns: 24px 1fr 1.2fr auto; gap: 10px; align-items: center; background: var(--card); border-radius: var(--r-lg); padding: 6px 12px; border: 1px solid transparent; cursor: pointer; }
   .slot.on { border-color: var(--accent); }
   .slot .n { color: var(--muted); }
   .slot .act { color: var(--accent); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

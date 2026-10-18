@@ -126,15 +126,16 @@
   .palwrap { position: relative; min-height: 0; display: flex; flex-direction: column; }
   .pal { overflow-y: auto; min-height: 0; flex: 1; }
   .more { position: absolute; left: 0; right: 0; bottom: 0; height: 56px; pointer-events: none; background: linear-gradient(to bottom, transparent, var(--bg) 70%); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; color: var(--muted); font-size: 12px; }
-  .cats button { text-align: left; background: none; padding: 4px 8px; color: #c9c9ce; font-size: 13px; display: flex; align-items: center; gap: 8px; line-height: 1.3; }
+  .cats button { text-align: left; background: none; padding: 4px 8px; color: var(--text-2); border-radius: var(--r-sm); font-size: 13px; display: flex; align-items: center; gap: 8px; line-height: 1.3; }
   /* 图标用 ::before 画，按钮文字保持纯分类名（测试与可访问名都按文字找）。 */
   .cats button::before { content: attr(data-icon); width: 20px; text-align: center; font-size: 12px; color: var(--muted); flex: none; }
+  .cats button:hover { background: var(--card); }
   .cats button.on::before { color: var(--accent); }
   .cats button.on { background: var(--card-on); color: var(--text); }
   .cats hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
   .pal { padding: 14px 18px; }
   .head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-  .crumb { font-size: 15px; }
+  .crumb { font-size: 14px; font-weight: 600; }
   .mode { margin-left: auto; }
   .cards { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
   .cards button { min-width: 86px; height: 44px; }
@@ -147,7 +148,7 @@
   .cards .item.lib { height: auto; min-height: 60px; }
   .cards .item.lib .edit { height: auto; align-self: stretch; }
   .cards .item.lib .pick { padding: 6px 10px; }
-  .cards .item.lib .sub { font-size: 10px; opacity: .7; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cards .item.lib .sub { font-size: 11px; opacity: .7; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cards .item.new { border: 1px dashed var(--muted); background: transparent; color: var(--muted); justify-content: center; }
   .muted { color: var(--muted); font-size: 13px; }
 </style>

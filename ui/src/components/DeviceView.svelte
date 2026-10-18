@@ -21,9 +21,9 @@
   .device { position: relative; width: 100px; margin: 0 auto; } /* 高 295px；舞台布局按这个高度算 */
   .device img { display: block; width: 100%; height: auto; user-select: none; }
   .spot { position: absolute; padding: 0; background: transparent; border-radius: 50%; border: 3px solid transparent; cursor: pointer; }
-  .spot:hover { border-color: rgba(242, 201, 181, .45); filter: none; }
-  .spot[data-mode="solid"] { box-shadow: 0 0 0 3px var(--accent), 0 0 14px 3px rgba(242, 201, 181, .55); opacity: var(--glow, 1); }
-  .spot[data-mode="breathe"] { box-shadow: 0 0 0 3px var(--accent), 0 0 14px 3px rgba(242, 201, 181, .55); animation: breathe 1.8s ease-in-out infinite; }
+  .spot:hover { border-color: var(--accent-glow); background: transparent; }
+  .spot[data-mode="solid"] { box-shadow: 0 0 0 3px var(--accent), 0 0 14px 3px var(--accent-glow); opacity: var(--glow, 1); }
+  .spot[data-mode="breathe"] { box-shadow: 0 0 0 3px var(--accent), 0 0 14px 3px var(--accent-glow); animation: breathe 1.8s ease-in-out infinite; }
   .spot.sel { border-color: var(--accent); }
   @keyframes breathe { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
 </style>

@@ -46,7 +46,8 @@
 
 <style>
   .combo { display: flex; flex-direction: column; gap: 12px; }
-  .rec { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 18px; border: 1px dashed var(--muted); border-radius: 10px; background: var(--card); min-height: 80px; }
+  .rec { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 18px; border: 1px dashed var(--line-strong); border-radius: var(--r-lg); background: var(--card); min-height: 80px; }
+  .rec:hover { background: var(--card); border-color: var(--muted); }
   .rec:focus { outline: 2px solid var(--accent); border-color: transparent; }
   .preview { font-size: 18px; font-weight: 600; }
   .rec small { color: var(--muted); font-size: 12px; }

@@ -85,15 +85,16 @@
 <style>
   .page { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; }
   .ph { display: flex; align-items: center; } .ph h2 { margin: 0; font-size: 18px; } .lang { margin-left: auto; color: var(--muted); }
-  .card { background: var(--panel); border-radius: 12px; padding: 14px 18px; }
+  .card { background: var(--card); border-radius: var(--r-lg); padding: 14px 18px; }
   .card h3 { margin: 0 0 10px; font-size: 14px; display: flex; align-items: center; } .card h3 .r { margin-left: auto; }
   .row { display: flex; align-items: center; gap: 14px; padding: 8px 0; border-top: 1px solid var(--line); }
   .row:first-of-type { border-top: 0; }
-  .k { width: 140px; color: #c9c9ce; } .v { display: flex; align-items: center; gap: 10px; flex: 1; } .h { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+  .k { width: 140px; color: var(--text-2); } .v { display: flex; align-items: center; gap: 10px; flex: 1; } .h { color: var(--muted); font-size: 12px; margin-left: auto; }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .mono { font-family: var(--mono); font-size: 12.5px; }
+  .mono { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
   .muted { color: var(--muted); font-size: 13px; } .bad { color: var(--bad); }
-  .seg { display: inline-flex; background: var(--card); border-radius: 8px; padding: 3px; gap: 2px; }
+  .seg { display: inline-flex; background: var(--card); border-radius: var(--r-md); padding: 3px; gap: 2px; }
   .seg button { background: none; padding: 5px 12px; font-size: 13px; }
-  .seg button.on { background: var(--accent); color: var(--accent-text); }
+  .seg button:hover { background: var(--card-on); }
+  .seg button.on { background: var(--card-on); color: var(--accent); }
 </style>

@@ -67,30 +67,31 @@
 
 <style>
   .wrap { position: relative; }
-  .strip { display: flex; align-items: center; gap: 8px; background: var(--card); border-radius: 8px; padding: 6px 10px; font-size: 13px; }
+  .strip { display: flex; align-items: center; gap: 8px; background: var(--card); border-radius: var(--r-md); padding: 6px 10px; font-size: 13px; }
   .title { color: var(--muted); }
-  .dot { width: 10px; height: 10px; border-radius: 50%; background: #55555d; display: inline-block; }
-  .dot[data-mode="solid"] { background: var(--accent); }
-  .dot[data-mode="breathe"] { background: var(--accent); animation: breathe 1.8s ease-in-out infinite; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line-strong); display: inline-block; }
+  .dot[data-mode="solid"] { background: var(--warn); }
+  .dot[data-mode="breathe"] { background: var(--warn); animation: breathe 1.8s ease-in-out infinite; }
   .sum { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .lamp { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 6px; background: var(--bg); }
+  .lamp { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: var(--r-sm); background: var(--bg); }
   .lamp b { font-weight: 600; font-size: 12px; color: var(--muted); }
   .lamp .mono { font-family: var(--mono); font-size: 12px; }
   .muted { color: var(--muted); }
   /* 固定宽度的切换按钮：文字不变，只转箭头，展开 / 收起时条不伸缩；描边让它看起来可点。 */
-  .strip .toggle { padding: 3px 8px 3px 10px; font-size: 13px; background: var(--card-on); border: 1px solid #55555d; display: inline-flex; align-items: center; gap: 6px; min-width: 72px; justify-content: center; }
+  .strip .toggle { padding: 3px 8px 3px 10px; font-size: 13px; background: var(--card-on); border: 1px solid var(--line-strong); display: inline-flex; align-items: center; gap: 6px; min-width: 72px; justify-content: center; }
   .strip .toggle:hover { border-color: var(--accent); }
   .strip .toggle.open { border-color: var(--accent); color: var(--accent); }
   .chev { font-style: normal; display: inline-block; transition: transform 150ms; line-height: 1; }
   .toggle.open .chev { transform: rotate(180deg); }
   /* 浮层：挂在状态条下方、右对齐，不把下面的内容挤走。 */
-  .editor { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 460px; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); }
+  .editor { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 460px; box-shadow: var(--shadow-pop); }
   .light { display: grid; grid-template-columns: 48px auto 1fr 28px; align-items: center; gap: 10px; }
   .name { color: var(--muted); font-size: 13px; }
-  .seg { display: inline-flex; background: var(--card); border-radius: 8px; padding: 3px; gap: 2px; }
+  .seg { display: inline-flex; background: var(--card); border-radius: var(--r-md); padding: 3px; gap: 2px; }
   .seg button { background: none; padding: 4px 10px; font-size: 13px; }
-  .seg button.on { background: var(--accent); color: var(--accent-text); }
-  .mono { font-family: var(--mono); font-size: 12.5px; text-align: right; }
+  .seg button:hover { background: var(--card-on); }
+  .seg button.on { background: var(--card-on); color: var(--accent); }
+  .mono { font-family: var(--mono); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
   .light.invisible { opacity: .55; }
   .note { color: var(--muted); font-size: 12px; }
   .foot { display: flex; justify-content: flex-end; font-size: 13px; color: var(--muted); }

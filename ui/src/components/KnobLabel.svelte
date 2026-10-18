@@ -9,7 +9,7 @@
   {#if index === 4}<i>↻</i>{/if}
 </button>
 <style>
-  .knob { background: var(--card); border-radius: 8px; padding: 6px 10px; display: flex; align-items: center; gap: 8px; border: 1px solid transparent; }
+  .knob { background: var(--card); border-radius: var(--r-md); padding: 6px 10px; display: flex; align-items: center; gap: 8px; border: 1px solid transparent; }
   .knob.on { border-color: var(--accent); }
   .knob i { width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--muted); display: inline-flex; align-items: center; justify-content: center; font-style: normal; }
   .knob small { display: block; color: var(--muted); font-size: 12px; text-align: left; }
