@@ -44,6 +44,7 @@
 {#if !map}
   <p class="empty">{t("未连接")}</p>
 {:else}
+<div class="keymap">
   <LayerBar layer={sel.layer} active={activeLayers} onSelect={(l) => { draft = select(draft, { ...sel, layer: l }); }}>
     {#snippet right()}
       <BacklightStrip layer={sel.layer} {lighting} own={hasOwnLighting(map, sel.layer)}
@@ -80,10 +81,14 @@
   </section>
   <Palette bind:draft {halos} apps={(map.actionLibrary ?? []).filter((a) => "application" in a.action)} macros={(map.actionLibrary ?? []).filter((a) => "macro" in a.action)} {onEditHalo} />
   <BottomBar dirty={draft.dirty} {saving} {message} {error} onSave={save} onRevert={() => { draft = revert(draft); message = ""; }} />
+</div>
 {/if}
 
 <style>
   .empty { padding: 40px; color: var(--muted); text-align: center; }
+  /* 舞台固定，键码面板占满剩余高度并自己滚动，底栏固定在最下面。 */
+  .keymap { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+  .keymap > :global(.panel) { flex: 1; min-height: 0; }
   /* 参考 olanzi：渲染图 100×295，舞台高度就是图高。左右旋在最上面一行（高于旋钮），旋钮按下在其下；
      右侧三张卡片紧凑堆叠；位置对不上的用引线指到图上的控件。 */
   .stage { display: grid; grid-template-columns: 1fr 40px 100px 40px 1fr; align-items: start; padding: 4px 40px 14px; }

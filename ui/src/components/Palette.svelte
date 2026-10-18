@@ -32,6 +32,20 @@
   // 选中切到旋转 / 双击时 Layer 面板已不适用，退回常用。
   $effect(() => { if (!layerAllowed && category === "layer") category = "common"; });
   const pointer = (dx: number, dy: number) => emitAction({ pointerMove: { _0: { dx, dy } } });
+
+  // 右侧键帽区能不能再往下滚：能就显示底部的渐隐 + 提示。
+  let pal = $state<HTMLDivElement | null>(null);
+  let more = $state(false);
+  const updateMore = () => { if (pal) more = pal.scrollHeight - pal.scrollTop - pal.clientHeight > 4; };
+  $effect(() => {
+    void category; void draft.selection;
+    const el = pal;
+    if (!el) return;
+    updateMore();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateMore) : null;
+    ro?.observe(el);
+    return () => ro?.disconnect();
+  });
 </script>
 
 <section class="panel">
@@ -43,7 +57,8 @@
       {/if}
     {/each}
   </nav>
-  <div class="pal">
+  <div class="palwrap">
+  <div class="pal" bind:this={pal} onscroll={updateMore}>
     <div class="head">
       <span class="crumb">{actionMode ? crumb ?? "" : `${t(CONTROL_NAMES[sel.index] ?? "")} › ${t(gestureName[sel.gesture] ?? "")}`}</span>
       {#if !actionMode}<div class="mode"><OutputModeSegment {behavior} {count} allowHold={!rotation && sel.gesture !== "double"} onBehavior={(b) => (draft = setBehavior(draft, b))} onCount={(n) => (draft = setTapCount(draft, n))} /></div>{/if}
@@ -81,11 +96,17 @@
       <span class="muted">{t("在本机构建里还没有的功能")}</span>
     {/if}
   </div>
+  {#if more}<div class="more" aria-hidden="true"><span>⌄ {t("向下滚动查看更多")}</span></div>{/if}
+  </div>
 </section>
 
 <style>
-  .panel { display: grid; grid-template-columns: 150px 1fr; border-top: 1px solid var(--line); min-height: 280px; }
-  .cats { padding: 14px 12px; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--line); }
+  .panel { display: grid; grid-template-columns: 150px 1fr; border-top: 1px solid var(--line); min-height: 200px; }
+  /* 左栏分类与右侧键帽各自滚动。 */
+  .cats { padding: 14px 12px; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--line); overflow-y: auto; min-height: 0; }
+  .palwrap { position: relative; min-height: 0; display: flex; flex-direction: column; }
+  .pal { overflow-y: auto; min-height: 0; flex: 1; }
+  .more { position: absolute; left: 0; right: 0; bottom: 0; height: 56px; pointer-events: none; background: linear-gradient(to bottom, transparent, var(--bg) 70%); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; color: var(--muted); font-size: 12px; }
   .cats button { text-align: left; background: none; padding: 7px 10px; color: #c9c9ce; }
   .cats button.on { background: var(--card-on); color: var(--text); }
   .cats hr { border: 0; border-top: 1px solid var(--line); margin: 8px 0; width: 100%; }

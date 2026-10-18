@@ -6,8 +6,9 @@
   let expanded = $state(false);
   const MODES: LightMode[] = ["off", "solid", "breathe"];
   const modeName: Record<LightMode, string> = { off: "关", solid: "常亮", breathe: "呼吸" };
-  const summary = $derived(!lighting ? (layer === 0 ? t("未设置（不管灯）") : t("跟随 Layer 0")) : lighting.lights.map((l, i) => `${t(LIGHT_NAMES[i]!)} ${t(modeName[l.mode])}`).join(" · "));
-  const maxBrightness = $derived(lighting ? Math.max(...lighting.lights.map((l) => l.brightness)) : 0);
+  const summary = $derived(!lighting ? (layer === 0 ? t("未设置（不管灯）") : t("跟随 Layer 0")) : "");
+  // 状态条里每盏灯一个紧凑小块：短名 + 模式圆点 + 亮度（关着的不显示亮度）。
+  const SHORT = ["1", "2", "3", "⟳"];
 </script>
 
 <div class="wrap">
@@ -15,11 +16,11 @@
     <span class="title">{t("本层背光")}</span>
     {#if lighting}
       {#each lighting.lights as l, i}
-        <span class="dot" data-mode={l.mode} title={`${t(LIGHT_NAMES[i]!)} · ${t(modeName[l.mode])} · ${l.brightness}`}></span>
+        <span class="lamp" title={`${t(LIGHT_NAMES[i]!)} · ${t(modeName[l.mode])} · ${l.brightness}`}><b>{SHORT[i]}</b><span class="dot" data-mode={l.mode}></span>{#if l.mode !== "off"}<span class="mono">{l.brightness}</span>{/if}</span>
       {/each}
+    {:else}
+      <span class="sum">{summary}</span>
     {/if}
-    <span class="sum">{summary}</span>
-    {#if lighting}<span class="muted">{t("亮度")} {maxBrightness}</span>{/if}
     {#if layer !== 0 && !own}<span class="muted">▽</span>{/if}
     <button onclick={() => (expanded = !expanded)}>{expanded ? t("收起") : t("编辑…")}</button>
   </div>
@@ -55,6 +56,9 @@
   .dot[data-mode="solid"] { background: var(--accent); }
   .dot[data-mode="breathe"] { background: var(--accent); animation: breathe 1.8s ease-in-out infinite; }
   .sum { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lamp { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 6px; background: var(--bg); }
+  .lamp b { font-weight: 600; font-size: 12px; color: var(--muted); }
+  .lamp .mono { font-family: var(--mono); font-size: 12px; }
   .muted { color: var(--muted); }
   .strip button { padding: 4px 10px; font-size: 13px; }
   .editor { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 460px; }

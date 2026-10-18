@@ -44,7 +44,9 @@
 </script>
 
 {#key langTick}
+<div class="app">
   <TopBar page={page === "halo" ? "keymap" : page} {snapshot} dirty={draft.dirty} onNavigate={(p) => { editing = null; page = p; }} />
+  <div class="view">
   {#if page === "keymap"}
     <Keymap bind:draft {snapshot} {activeLayers} onEditHalo={openHalo} />
   {:else if page === "halo"}
@@ -52,4 +54,12 @@
   {:else}
     <Settings {snapshot} />
   {/if}
+  </div>
+</div>
 {/key}
+
+<style>
+  /* 顶栏固定；页面内容在 .view 里滚动（键位页自己再把舞台固定、只滚键码面板）。 */
+  .app { display: flex; flex-direction: column; height: 100vh; }
+  .view { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; }
+</style>
