@@ -2,6 +2,7 @@
   import { t } from "../lib/i18n";
   import KeyGrid from "./KeyGrid.svelte";
   import OutputModeSegment from "./OutputModeSegment.svelte";
+  import ComboRecorder from "./ComboRecorder.svelte";
   import { CATEGORIES, type CategoryId } from "../model/codes";
   import { CONTROL_NAMES } from "../model/labels";
   import { isRotation, type Behavior, type Halo, type HostAction, type KeyEntry, type NamedHostAction } from "../model/keymap";
@@ -87,6 +88,8 @@
         {/each}
         {#if onEditHalo}<button class="item new" onclick={() => onEditHalo?.(null)}>＋ {t("新建光环")}</button>{/if}
       </div>
+    {:else if category === "combo"}
+      <ComboRecorder onAssign={emitEntries} />
     {:else if category === "app" || category === "macro"}
       <div class="cards">
         {#each (category === "app" ? apps : macros) as item}<button class="item" onclick={() => (actionMode ? emitAction(item.action) : (draft = assignAction(draft, { library: { _0: item.id } })))}><small>{category === "app" ? "A" : "M"}{item.slot}</small>{item.name}</button>{/each}
