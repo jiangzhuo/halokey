@@ -1227,3 +1227,8 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>" && git push origin mai
 - 类型一致性：`usageFromCode / comboEntries / isModifier / MODIFIER_USAGES`（Task 1）在 Task 3 同名；`newUuid / nextSlot / upsertLibraryItem / deleteLibraryItem / libraryReferences / libraryItems`（Task 2）在 Task 5、6 同名；`WindowInfo { class, instance, title, exe }` 在 Rust / TS 同形（camelCase 下字段名本来就是小写单词）；`api.listWindows()` 返回 `{ windows, error }` 在 Task 5、6 同用；`ComboRecorder` 的 `onAssign / assignLabel`（Task 3）在 Task 6 同名；`Palette` 的 `onEditApp / onEditMacro`（Task 5）在 Keymap / App 同名。
 - Review Focus 五项：1 → Task 1 `Unidentified / MediaPlayPause → null` + Task 3 录制框测试；2 → Task 2 `deleteLibraryItem` + Task 5 / 6 删除测试；3 → Task 2 `nextSlot → null` 测试 + Task 5 / 6 提示（真机清单 9）；4 → Task 4 `error` 字段 + Task 5 mock 无窗口时仍可保存（第二个用例手填）；5 → Task 6 文案测试 + "清空最后一步"。
 - 无自动化测试的部分：X11 `list_windows` 本体（需要 X 连接）——真机清单 4；执行时按 Ruling 记录。
+
+## 回填（执行后）
+
+- 2026-10-18 本机 GNOME/X11 真机清单 1–10 全部通过（用户实测：组合键录制 / 手动组合键 / 不支持的键提示 / 从窗口列表添加 APP 并切换 / 手填路径启动 / 宏"打开并输入" / 编辑宏改顺序 / 删除保护 / 16 个上限 / 英文界面）。
+- 执行中的 rulings 与审查后的修正（名称上限 80、Wayland 原因、`spawn_blocking`）见提交 92d6fc9..46c8593 的提交信息；审查未修的 minor：宏校验信息 i18n（第 5 期）、Flatpak `_NET_WM_PID` 误映射、等待输入框清空得 0、全角标点未走 t()、X 连接错误原文未本地化、启动器 spawn 失败时未退回 gtk-launch。
