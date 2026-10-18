@@ -72,6 +72,8 @@ halokey 只保存一个 JSON 文件，Linux 上在 `~/.config/halokey/keymap.jso
 | `pointerMove` | `{ "dx", "dy" }` | halokey 扩展。每次触发的像素位移，各不超过 ±1000，不能同时为零。 |
 | `halo` | 光环 id | halokey 扩展。打开该菜单。 |
 
+设置窗口通过 APP 编辑器与宏编辑器维护 `actionLibrary`（APP 编辑器可借 `list_windows` 从当前 X11 窗口里挑 WM_CLASS / 可执行文件），组合键从真实键盘录制（修饰键 `0xE0`–`0xE7` 在前、主键在后）。宏步骤内联复制应用，不引用功能库。
+
 ## 4. 光环菜单
 
 ```json

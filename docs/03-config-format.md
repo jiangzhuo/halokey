@@ -72,6 +72,8 @@ Actions use olanzi's tagged form `{ "<kind>": { "_0": <value> } }`:
 | `pointerMove` | `{ "dx", "dy" }` | halokey extension. Pixels per trigger, each within ±1000, not both zero. |
 | `halo` | halo id | halokey extension. Opens that menu. |
 
+The settings window edits `actionLibrary` through the APP and Macro editors (the APP editor can pick WM_CLASS / executable from the current X11 windows via `list_windows`), and records key combinations from the real keyboard (modifiers `0xE0`–`0xE7` first, then the main key). Macro steps copy the application inline; they never reference the library.
+
 ## 4. Halos
 
 ```json
