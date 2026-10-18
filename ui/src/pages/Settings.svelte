@@ -92,6 +92,8 @@
   .ph { display: flex; align-items: center; } .ph h2 { margin: 0; font-size: 18px; } .lang { margin-left: auto; color: var(--muted); }
   .card { background: var(--card); border-radius: var(--r-lg); padding: 14px 18px; }
   /* 卡片标题做成小标题（eyebrow）：12px、muted、字距，和正文拉开层级。 */
+  .card h3 .r button { background: transparent; box-shadow: inset 0 0 0 1px var(--line-strong); padding: 4px 12px; font-size: 13px; font-weight: 500; letter-spacing: 0; color: var(--text-2); }
+  .card h3 .r button:hover { background: var(--card-on); }
   .card h3 { margin: 0 0 12px; font-size: 12px; font-weight: 600; letter-spacing: .06em; color: var(--muted); display: flex; align-items: center; } .card h3 .r { margin-left: auto; }
   .about { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
   /* 开关：原生 checkbox 画成滑动开关。 */

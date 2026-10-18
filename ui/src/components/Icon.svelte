@@ -12,7 +12,7 @@
   {:else if name === "battery"}
     <rect x="2" y="7" width="18" height="10" rx="2" /><path d="M22 10v4" />
     {#if level != null}<rect x="4" y="9" width={Math.max(1, 14 * Math.min(1, Math.max(0, level / 100)))} height="6" rx="1" fill="currentColor" stroke="none" />{/if}
-  {:else if name === "star"}
+  {:else if name === "star" || name === "common"}
     <path d="m12 3 2.7 5.8 6.3.7-4.7 4.3 1.3 6.2L12 16.9 6.4 20l1.3-6.2L3 9.5l6.3-.7z" />
   {:else if name === "letters"}
     <text x="12" y="16.5" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor" stroke="none" font-family="inherit">Aa</text>
