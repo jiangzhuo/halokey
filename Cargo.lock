@@ -1348,6 +1348,7 @@ dependencies = [
  "halokey-host",
  "halokey-proto",
  "halokey-runtime",
+ "halokey-wm",
  "serde",
  "serde_json",
  "tauri",
@@ -1419,6 +1420,7 @@ dependencies = [
  "halokey-host",
  "objc2-app-kit",
  "objc2-foundation",
+ "serde",
  "windows",
  "x11rb",
 ]

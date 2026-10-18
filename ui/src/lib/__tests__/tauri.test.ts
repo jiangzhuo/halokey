@@ -26,4 +26,9 @@ describe("tauri bridge (mock mode in jsdom)", () => {
     await expect(api.validateKeymap({ ...map, lighting: { lights: [{ mode: "solid", brightness: 21 }, { mode: "off", brightness: 0 }, { mode: "off", brightness: 0 }, { mode: "off", brightness: 0 }] } })).rejects.toMatch(/0–20/);
     await expect(api.validateKeymap({ ...map, lighting: { lights: [{ mode: "solid", brightness: 1 }] } })).rejects.toMatch(/四盏/);
   });
+  it("mock window list has classes", async () => {
+    const r = await api.listWindows();
+    expect(r.error).toBeNull();
+    expect(r.windows.map((w) => w.class)).toContain("google-chrome");
+  });
 });

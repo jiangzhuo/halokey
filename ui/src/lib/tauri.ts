@@ -38,6 +38,14 @@ function mockValidate(map: HostKeymap): void {
   }
 }
 
+/** `list_windows` 的一项：当前打开的顶层窗口（Linux X11）。 */
+export type WindowInfo = { class: string; instance: string; title: string; exe: string };
+export type WindowList = { windows: WindowInfo[]; error: string | null };
+const MOCK_WINDOWS: WindowInfo[] = [
+  { class: "google-chrome", instance: "google-chrome", title: "Chrome", exe: "/usr/bin/google-chrome" },
+  { class: "org.gnome.TextEditor", instance: "gnome-text-editor", title: "Text Editor", exe: "/usr/bin/gnome-text-editor" },
+];
+
 export const api = {
   snapshot: (): Promise<UiSnapshot> => isTauri() ? invoke("snapshot") : Promise.resolve(mockSnapshot()),
   getKeymap: (): Promise<HostKeymap> => isTauri() ? invoke("get_keymap") : Promise.resolve(JSON.parse(JSON.stringify(memory))),
@@ -52,6 +60,7 @@ export const api = {
     return Promise.resolve(JSON.parse(JSON.stringify(mockSettings)));
   },
   setIdleMinutes: (minutes: number): Promise<void> => isTauri() ? invoke("set_idle_minutes", { minutes }) : Promise.resolve(),
+  listWindows: (): Promise<WindowList> => isTauri() ? invoke("list_windows") : Promise.resolve({ windows: JSON.parse(JSON.stringify(MOCK_WINDOWS)), error: null }),
   getAutostart: (): Promise<boolean> => isTauri() ? invoke("get_autostart") : Promise.resolve(false),
   setAutostart: (enabled: boolean): Promise<boolean> => isTauri() ? invoke("set_autostart", { enabled }) : Promise.resolve(enabled),
 };

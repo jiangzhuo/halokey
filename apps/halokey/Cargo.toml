@@ -21,6 +21,7 @@ serde_json = "1"
 halokey-proto = { path = "../../crates/proto" }
 halokey-host = { path = "../../crates/host" }
 halokey-runtime = { path = "../../crates/runtime" }
+halokey-wm = { path = "../../crates/wm" }
 
 [lints]
 workspace = true

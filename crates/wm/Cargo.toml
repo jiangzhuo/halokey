@@ -9,6 +9,7 @@ authors.workspace = true
 
 [dependencies]
 halokey-host = { path = "../host" }
+serde = { version = "1", features = ["derive"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 x11rb = "0.14"

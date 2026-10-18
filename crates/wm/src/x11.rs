@@ -181,3 +181,67 @@ impl Launcher for X11Launcher {
         }
     }
 }
+
+/// 枚举 `_NET_CLIENT_LIST` 里的窗口：WM_CLASS、标题、可执行文件。独立短连接，不碰守护线程里的启动器。
+pub fn list_windows() -> Result<Vec<crate::WindowInfo>, Box<dyn std::error::Error>> {
+    let (conn, screen) = x11rb::connect(None)?;
+    let root = conn.setup().roots[screen].root;
+    let atom = |name: &[u8]| -> Result<u32, Box<dyn std::error::Error>> {
+        Ok(conn.intern_atom(false, name)?.reply()?.atom)
+    };
+    let net_client_list = atom(b"_NET_CLIENT_LIST")?;
+    let net_wm_name = atom(b"_NET_WM_NAME")?;
+    let utf8_string = atom(b"UTF8_STRING")?;
+    let net_wm_pid = atom(b"_NET_WM_PID")?;
+    let windows: Vec<Window> = conn
+        .get_property(false, root, net_client_list, AtomEnum::WINDOW, 0, 4096)?
+        .reply()?
+        .value32()
+        .map(|v| v.collect())
+        .unwrap_or_default();
+    let text = |window: Window, property: u32, kind: u32| -> Option<String> {
+        conn.get_property(false, window, property, kind, 0, 1024)
+            .ok()
+            .and_then(|c| c.reply().ok())
+            .map(|r| String::from_utf8_lossy(&r.value).into_owned())
+            .filter(|s| !s.is_empty())
+    };
+    let mut out = Vec::new();
+    for w in windows {
+        let Some(class) = WmClass::get(&conn, w).ok().and_then(|c| c.reply().ok()).flatten() else {
+            continue;
+        };
+        let title = text(w, net_wm_name, utf8_string)
+            .or_else(|| text(w, AtomEnum::WM_NAME.into(), AtomEnum::STRING.into()))
+            .unwrap_or_default();
+        let exe = conn
+            .get_property(false, w, net_wm_pid, AtomEnum::CARDINAL, 0, 1)
+            .ok()
+            .and_then(|c| c.reply().ok())
+            .and_then(|r| r.value32().and_then(|mut v| v.next()))
+            .and_then(|pid| std::fs::read_link(format!("/proc/{pid}/exe")).ok())
+            .map(|p| p.display().to_string())
+            .unwrap_or_default();
+        out.push(crate::WindowInfo {
+            class: String::from_utf8_lossy(class.class()).into_owned(),
+            instance: String::from_utf8_lossy(class.instance()).into_owned(),
+            title,
+            exe,
+        });
+    }
+    Ok(crate::WindowInfo::dedup_sorted(out))
+}
+
+#[cfg(test)]
+mod tests {
+    /// 需要真实 X 连接；`cargo test -p halokey-wm -- --ignored --nocapture` 手动跑。
+    #[test]
+    #[ignore]
+    fn lists_real_windows() {
+        let windows = super::list_windows().expect("X11 connection");
+        for w in &windows {
+            eprintln!("{:<32} {:<40} {}", w.class, w.title, w.exe);
+        }
+        assert!(windows.iter().all(|w| !w.class.is_empty()));
+    }
+}

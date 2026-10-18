@@ -234,6 +234,22 @@ fn get_keymap(state: State<'_, App>) -> Result<serde_json::Value, String> {
     serde_json::from_slice(&bytes).map_err(|e| e.to_string())
 }
 
+/// 当前顶层窗口列表，供 APP 编辑器挑选；拿不到时给原因而不是失败。
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ListWindows {
+    windows: Vec<halokey_wm::WindowInfo>,
+    error: Option<String>,
+}
+
+#[tauri::command]
+async fn list_windows() -> ListWindows {
+    match halokey_wm::list_windows() {
+        Ok(windows) => ListWindows { windows, error: None },
+        Err(e) => ListWindows { windows: Vec::new(), error: Some(e) },
+    }
+}
+
 /// 只校验不保存，供界面在保存前显示错误。
 #[tauri::command]
 fn validate_keymap(keymap: serde_json::Value) -> Result<(), String> {
@@ -741,6 +757,7 @@ fn main() {
             snapshot,
             get_keymap,
             validate_keymap,
+            list_windows,
             save_keymap,
             read_device_keys,
             device_info,
