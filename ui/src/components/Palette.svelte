@@ -73,8 +73,6 @@
       <KeyGrid keycaps={cat.keycaps} current={actionMode ? null : current} onPick={emitEntries} />
     {:else if category === "layer"}
       <div class="cards">
-        {#if sel.layer !== 0}<button class="special" onclick={() => (draft = setTransparent(draft))}>▽</button>{/if}
-        <button class="special" onclick={() => (draft = clearGesture(draft))}>⊠</button>
         {#each [1, 2, 3] as l}<button onclick={() => (draft = assignAction(draft, { momentaryLayer: { _0: l } }))}>MO({l})</button>{/each}
       </div>
     {:else if category === "pointer"}
@@ -146,7 +144,6 @@
   .cards button { min-width: 86px; height: 44px; }
   .cards .item { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 150px; height: 60px; }
   .cards .item small { color: var(--muted); font-family: var(--mono); font-size: 11px; }
-  .cards .special { color: var(--muted); }
   .cards .item.halo, .cards .item.lib { flex-direction: row; align-items: stretch; padding: 0; gap: 0; overflow: hidden; }
   .cards .item.halo .pick, .cards .item.lib .pick { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 0; min-width: 0; height: 100%; }
   .cards .item.halo .edit, .cards .item.lib .edit { width: 32px; min-width: 0; height: 100%; border-radius: 0; background: var(--card-on); padding: 0; }

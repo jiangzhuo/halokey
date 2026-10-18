@@ -80,6 +80,7 @@ export const pick = (v: { zh: string; en: string; ja: string }) => v[current];
 /** 冒号 / 顿号随语言：中文日文全角，英文半角加空格。 */
 export const colon = () => pick({ zh: "：", en: ": ", ja: "：" });
 export const listSep = () => pick({ zh: "、", en: ", ", ja: "、" });
+export const sentenceSep = () => pick({ zh: "；", en: "; ", ja: "；" });
 export function setLang(l: Lang) {
   current = l;
   try { localStorage.setItem("halokey.lang", l); } catch { /* 忽略 */ }

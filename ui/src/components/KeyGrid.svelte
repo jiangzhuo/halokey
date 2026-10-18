@@ -10,6 +10,6 @@
 <style>
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
   .grid button { height: 44px; background: var(--card); font-size: 13px; line-height: 1.15; padding: 4px; }
-  .grid button.on { background: var(--card-on); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .grid button.on { background: var(--card-on); color: var(--accent-ink); box-shadow: inset 0 0 0 1px var(--accent); }
   .grid button.long { font-size: 12px; }
 </style>

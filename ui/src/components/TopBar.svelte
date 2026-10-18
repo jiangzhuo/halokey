@@ -14,7 +14,7 @@
     HALOKEY
   </div>
   <nav>
-    <button class:on={page === "keymap"} onclick={() => onNavigate("keymap")}><Icon name="keyboard" /> {t("键位")}{#if dirty}<i class="dot" title={t("未保存")}></i>{/if}</button>
+    <button class:on={page === "keymap"} onclick={() => onNavigate("keymap")}><Icon name="keyboard" /> {t("键位")}<i class="dot" class:show={dirty} title={dirty ? t("未保存") : ""}></i></button>
     <button class:on={page === "settings"} onclick={() => onNavigate("settings")}><Icon name="settings" /> {t("设置")}</button>
   </nav>
   <div class="status">
@@ -30,7 +30,9 @@
   nav button { background: none; padding: 6px 2px; display: inline-flex; align-items: center; gap: 6px; color: var(--muted); border-radius: 0; border-bottom: 2px solid transparent; position: relative; }
   nav button:hover { background: none; color: var(--text); }
   nav button.on { color: var(--text); border-bottom-color: var(--accent); }
-  .dot { display: inline-block; margin-left: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); vertical-align: 2px; }
+  /* 一直占位，只切换可见，避免脏 / 干净切换时导航宽度抖动。 */
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); vertical-align: 2px; visibility: hidden; }
+  .dot.show { visibility: visible; }
   .status { text-align: right; font-size: 13px; color: var(--muted); line-height: 1.3; }
   .status .ok { color: var(--ok); }
 </style>

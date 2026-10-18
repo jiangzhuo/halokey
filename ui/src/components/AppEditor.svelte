@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { t, colon, listSep } from "../lib/i18n";
+  import { t, colon, listSep, sentenceSep } from "../lib/i18n";
   import { api, type WindowInfo } from "../lib/tauri";
   import { newUuid, nextSlot, upsertLibraryItem, deleteLibraryItem, type Draft } from "../model/draft";
   import type { ApplicationTarget } from "../model/keymap";
@@ -63,7 +63,7 @@
         {#if !windows.length && !listError}<span class="muted">{t("没有找到窗口")}</span>{/if}
       </div>
     </div>
-    {#if problems.length}<p class="bad">{problems.join("；")}</p>{/if}
+    {#if problems.length}<p class="bad">{problems.join(sentenceSep())}</p>{/if}
     {#if blocked.length}<p class="bad">{t("被以下位置引用，无法删除")}{colon()}{blocked.join(listSep())}</p>{/if}
     <footer>
       {#if existing}<button class="danger" onclick={remove}>{t("删除")}</button>{/if}
@@ -74,9 +74,9 @@
 </div>
 
 <style>
-  .backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .5); display: flex; align-items: center; justify-content: center; z-index: 50; }
+  .backdrop { position: fixed; inset: 0; background: var(--scrim); display: flex; align-items: center; justify-content: center; z-index: 50; }
   .dialog { width: 560px; max-width: calc(100vw - 32px); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow-modal); }
-  h3 { margin: 0 0 4px; font-size: 15px; }
+  h3 { margin: 0 0 4px; font-size: 16px; }
   label { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
   label input { width: 100%; }
   .windows { border-top: 1px solid var(--line); padding-top: 10px; }

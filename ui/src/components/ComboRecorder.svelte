@@ -55,7 +55,7 @@
   .manual { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; position: relative; }
   .chip { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; background: var(--card); cursor: pointer; user-select: none; }
   .chip:hover { background: var(--card-on); }
-  .chip.on { background: var(--card-on); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .chip.on { background: var(--card-on); color: var(--accent-ink); box-shadow: inset 0 0 0 1px var(--accent); }
   .chip input { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
   .chip:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>

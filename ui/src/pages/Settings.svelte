@@ -79,7 +79,7 @@
   </div>
   <section class="card">
     <h3>{t("通用")}</h3>
-    <div class="row"><span class="k">{t("登录时启动")}</span><span class="v"><input class="switch" type="checkbox" data-role="autostart" bind:checked={autostart} onchange={changeAutostart}></span></div>
+    <div class="row"><span class="k">{t("登录时启动")}</span><span class="v"><input class="switch" type="checkbox" data-role="autostart" aria-label={t("登录时启动")} bind:checked={autostart} onchange={changeAutostart}></span></div>
     <div class="row"><span class="k">{t("外观")}</span><span class="v"><span class="seg">
       {#each THEMES as [v, name]}<button data-theme-choice={v} class:on={theme === v} onclick={() => { theme = v; setTheme(v); }}>{t(name)}</button>{/each}</span></span></div>
   </section>
@@ -110,5 +110,5 @@
   .seg { display: inline-flex; background: var(--card); border-radius: var(--r-md); padding: 3px; gap: 2px; }
   .seg button { background: none; padding: 5px 12px; font-size: 13px; }
   .seg button:hover { background: var(--card-on); }
-  .seg button.on { background: var(--card-on); color: var(--accent); }
+  .seg button.on { background: var(--card-on); color: var(--accent-ink); }
 </style>

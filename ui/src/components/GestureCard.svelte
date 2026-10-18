@@ -32,5 +32,5 @@
   .g.on { background: var(--card-on); }
   .g small { color: var(--muted); font-size: 12px; white-space: nowrap; }
   .g span { font-size: 13px; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .g .mark { color: var(--muted); opacity: .6; font-size: 13px; }
+  .g .mark { color: var(--muted); font-size: 13px; }
 </style>

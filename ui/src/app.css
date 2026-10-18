@@ -4,7 +4,9 @@
   --bg: #1b1b1d; --surface: #222225; --panel: var(--surface); --card: #2b2b2f; --card-on: #3a3a40;
   --line: #35353b; --line-strong: #4a4a52;
   --text: #ececee; --text-2: #c4c4ca; --muted: #8f8f98;
-  --accent: #f2c9b5; --accent-text: #1c1c1e; --accent-soft: rgba(242, 201, 181, .16); --accent-glow: rgba(242, 201, 181, .55);
+  /* --accent 用于实心填充与发光；--accent-ink 用于强调色文字（浅色下要更深才够对比度）。 */
+  --accent: #f2c9b5; --accent-ink: #f2c9b5; --accent-text: #1c1c1e; --accent-soft: rgba(242, 201, 181, .16); --accent-glow: rgba(242, 201, 181, .55);
+  --scrim: rgba(0, 0, 0, .5);
   --ok: #7ee787; --bad: #ff7b72; --bad-soft: rgba(255, 123, 114, .12); --warn: #fbbf24;
   /* 圆角三档：sm 标记 / 芯片，md 按钮 / 输入 / 分段，lg 卡片 / 对话框 / 浮层 */
   --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --radius: var(--r-lg);
@@ -20,7 +22,8 @@
 :root[data-theme="system"].light-system {
   --bg: #f5f5f7; --surface: #ffffff; --card: #ececf0; --card-on: #dcdce3; --line: #dedee4; --line-strong: #c2c2ca;
   --text: #1c1c1e; --text-2: #3a3a40; --muted: #6e6e76;
-  --accent: #d98f6c; --accent-text: #1c1c1e; --accent-soft: rgba(217, 143, 108, .18); --accent-glow: rgba(217, 143, 108, .55);
+  --accent: #d98f6c; --accent-ink: #a85a32; --accent-text: #1c1c1e; --accent-soft: rgba(217, 143, 108, .18); --accent-glow: rgba(217, 143, 108, .55);
+  --scrim: rgba(28, 28, 30, .35);
   --ok: #1a7f37; --bad: #cf222e; --bad-soft: rgba(207, 34, 46, .1); --warn: #b26a00;
   --shadow-pop: 0 10px 30px rgba(0, 0, 0, .18); --shadow-modal: 0 16px 48px rgba(0, 0, 0, .22);
   color-scheme: light;
@@ -37,6 +40,7 @@ button.ghost:hover { background: var(--card); }
 button.danger { background: transparent; color: var(--bad); }
 button.danger:hover { background: var(--bad-soft); }
 button:disabled { opacity: .45; cursor: default; filter: none; background: var(--card); }
+button.primary:disabled { background: var(--accent); }
 button.ghost:disabled, button.danger:disabled { background: transparent; }
 input, select { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-md); padding: 6px 10px; }
 input[type="range"], input[type="checkbox"] { accent-color: var(--accent); }

@@ -15,7 +15,7 @@
   .seg { display: inline-flex; background: var(--card); border-radius: var(--r-md); padding: 3px; gap: 2px; align-items: center; }
   .seg > button { background: none; padding: 5px 12px; font-size: 13px; }
   .seg > button:hover { background: var(--card-on); }
-  .seg > button.on { background: var(--card-on); color: var(--accent); }
+  .seg > button.on { background: var(--card-on); color: var(--accent-ink); }
   .count { display: inline-flex; align-items: center; gap: 6px; padding: 0 6px; font-family: var(--mono); font-size: 13px; }
   .count button { padding: 2px 8px; }
 </style>

@@ -10,6 +10,16 @@ describe("theme", () => {
     expect(resolveTheme("light")).toBe("light");
     expect(resolveTheme("system")).toBe("system");
   });
+  it("follows a light OS only in system mode", () => {
+    const listeners: ((e: unknown) => void)[] = [];
+    (window as unknown as { matchMedia: unknown }).matchMedia = () => ({ matches: true, addEventListener: (_: string, f: (e: unknown) => void) => listeners.push(f) });
+    applyTheme("system");
+    expect(document.documentElement.classList.contains("light-system")).toBe(true);
+    applyTheme("dark");
+    expect(document.documentElement.classList.contains("light-system")).toBe(false);
+    applyTheme("light");
+    expect(document.documentElement.classList.contains("light-system")).toBe(false);
+  });
   it("applies the choice to the root element and remembers it", () => {
     applyTheme("light");
     expect(document.documentElement.dataset.theme).toBe("light");

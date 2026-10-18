@@ -99,4 +99,20 @@ describe("Palette action mode", () => {
     flushSync();
     expect(edits).toEqual([null, "main"]);
   });
+  it("clears or inherits the selected gesture from the crumb-row quick buttons", () => {
+    setLang("zh");
+    const draft = $state<{ v: Draft }>({ v: loadSaved(initialDraft(), load()) });
+    app = mount(Keymap, { target: document.body, props: { get draft() { return draft.v; }, set draft(d: Draft) { draft.v = d; }, snapshot: null } });
+    flushSync();
+    expect(byText("▽")).toBeUndefined(); // 基础层没有"透明继承"
+    byText("⊠")!.click();
+    flushSync();
+    expect(controlAt(draft.v.map!, 0, 0)!.press).toEqual([{ type: 2, code: 0 }]);
+    ([...document.querySelectorAll(".seg button")].find((b) => b.textContent?.trim() === "1") as HTMLButtonElement).click();
+    flushSync();
+    byText("▽")!.click();
+    flushSync();
+    expect(controlAt(draft.v.map!, 1, 0)!.inheritedGestures).toContain("press");
+    expect(document.querySelectorAll(".grid .special")).toHaveLength(0); // 键帽网格里不再有清除 / 透明
+  });
 });

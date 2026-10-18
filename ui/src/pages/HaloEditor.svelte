@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t, colon, listSep } from "../lib/i18n";
+  import { t, colon, listSep, sentenceSep } from "../lib/i18n";
   import RingPreview from "../components/RingPreview.svelte";
   import Palette from "../components/Palette.svelte";
   import { actionLabel } from "../model/labels";
@@ -70,7 +70,7 @@
   </section>
   <Palette bind:draft {halos} apps={(draft.map?.actionLibrary ?? []).filter((a) => "application" in a.action)} macros={(draft.map?.actionLibrary ?? []).filter((a) => "macro" in a.action)} mode="action" onAction={pickAction} excludeHalo={id} crumb={`${t("槽位")} ${selected + 1}`} />
   <footer>
-    {#if problems.length}<span class="bad">{problems.join("；")}</span>{/if}
+    {#if problems.length}<span class="bad">{problems.join(sentenceSep())}</span>{/if}
     {#if blocked.length}<span class="bad">{t("被以下位置引用，无法删除")}{colon()}{blocked.join(listSep())}</span>{/if}
     {#if existing}<button class="danger" onclick={remove}>{t("删除光环")}</button>{/if}
     <button class="ghost" onclick={() => onClose(null)}>{t("取消")}</button>
@@ -82,7 +82,7 @@
   /* 上半部分固定高度，键码面板占满剩余并自己滚动（与键位页同构）。 */
   .page { display: flex; flex-direction: column; height: 100%; min-height: 0; }
   .page > :global(.panel) { flex: 1; min-height: 240px; }
-  header { display: flex; align-items: center; gap: 14px; padding: 8px 22px; border-bottom: 1px solid var(--line); }
+  header { display: flex; align-items: center; gap: 14px; padding: 12px 22px; border-bottom: 1px solid var(--line); }
   header h2 { margin: 0; font-size: 16px; }
   header input { flex: 0 0 260px; }
   .back { background: none; font-size: 18px; padding: 2px 8px; }

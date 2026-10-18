@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { t, colon, listSep } from "../lib/i18n";
+  import { t, colon, listSep, sentenceSep } from "../lib/i18n";
   import { api, type WindowInfo } from "../lib/tauri";
   import ComboRecorder from "../components/ComboRecorder.svelte";
   import Icon from "../components/Icon.svelte";
@@ -101,7 +101,7 @@
     </div>
   </section>
   <footer>
-    {#if problems.length}<span class="bad">{problems.join("；")}</span>{/if}
+    {#if problems.length}<span class="bad">{problems.join(sentenceSep())}</span>{/if}
     {#if blocked.length}<span class="bad">{t("被以下位置引用，无法删除")}{colon()}{blocked.join(listSep())}</span>{/if}
     {#if existing}<button class="danger" onclick={remove}>{t("删除宏")}</button>{/if}
     <button class="ghost" onclick={() => onClose(null)}>{t("取消")}</button>
@@ -119,7 +119,7 @@
   .body { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 16px 22px; align-items: start; flex: 1; }
   .head { display: flex; align-items: center; }
   ol { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-  li { display: flex; align-items: center; gap: 6px; background: var(--card); border-radius: var(--r-lg); padding: 4px 8px 4px 4px; border: 1px solid transparent; }
+  li { display: flex; align-items: center; gap: 6px; background: var(--card); border-radius: var(--r-md); padding: 4px 8px 4px 4px; border: 1px solid transparent; }
   li.on { border-color: var(--accent); }
   .row { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; background: none; text-align: left; }
   .n { color: var(--muted); font-family: var(--mono); width: 22px; }

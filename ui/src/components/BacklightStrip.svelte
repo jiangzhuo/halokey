@@ -44,7 +44,7 @@
         <div class="light" class:invisible>
           <span class="name">{t(LIGHT_NAMES[i]!)}</span>
           {#if invisible}
-            <span class="note">{t("此设备无可见灯")}</span><span></span><span></span>
+            <span class="note">{t("此设备无可见灯")}</span>
           {:else}
             <span class="seg">
               {#each MODES as m}<button data-mode={m} class:on={l.mode === m} onclick={() => onEffect(i, m === "off" ? { mode: m } : { mode: m, brightness: l.brightness || 20 })}>{t(modeName[m])}</button>{/each}
@@ -80,7 +80,7 @@
   /* 固定宽度的切换按钮：文字不变，只转箭头，展开 / 收起时条不伸缩；描边让它看起来可点。 */
   .strip .toggle { padding: 3px 8px 3px 10px; font-size: 13px; background: var(--card-on); border: 1px solid var(--line-strong); display: inline-flex; align-items: center; gap: 6px; min-width: 72px; justify-content: center; }
   .strip .toggle:hover { border-color: var(--accent); }
-  .strip .toggle.open { border-color: var(--accent); color: var(--accent); }
+  .strip .toggle.open { border-color: var(--accent); color: var(--accent-ink); }
   .chev { font-style: normal; display: inline-block; transition: transform 150ms; line-height: 1; }
   .toggle.open .chev { transform: rotate(180deg); }
   /* 浮层：挂在状态条下方、右对齐，不把下面的内容挤走。 */
@@ -90,10 +90,10 @@
   .seg { display: inline-flex; background: var(--card); border-radius: var(--r-md); padding: 3px; gap: 2px; }
   .seg button { background: none; padding: 4px 10px; font-size: 13px; }
   .seg button:hover { background: var(--card-on); }
-  .seg button.on { background: var(--card-on); color: var(--accent); }
+  .seg button.on { background: var(--card-on); color: var(--accent-ink); }
   .mono { font-family: var(--mono); font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; background: var(--bg); border-radius: var(--r-sm); padding: 1px 4px; }
   .light.invisible .name { opacity: .55; }
-  .note { color: var(--muted); font-size: 12px; }
+  .note { color: var(--muted); font-size: 12px; grid-column: 2 / -1; }
   .foot { display: flex; justify-content: flex-end; font-size: 13px; color: var(--muted); }
   @keyframes breathe { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
 </style>

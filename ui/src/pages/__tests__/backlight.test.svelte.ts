@@ -20,7 +20,7 @@ describe("backlight strip", () => {
     app = mount(Keymap, { target: document.body, props: { get draft() { return draft.v; }, set draft(d: Draft) { draft.v = d; }, snapshot: null } });
     flushSync();
     expect(document.body.textContent).toContain("本层背光");
-    // 键 1 在 AU05 上没有可见的灯：状态条和渲染图都不显示它，编辑器里那一行禁用并说明。
+    // 键 1 在 AU05 上没有可见的灯：状态条和渲染图都不显示它，编辑器里那一行不画控件、只留说明。
     expect(document.querySelectorAll(".strip .dot[data-mode=solid]")).toHaveLength(2);
     expect(document.querySelectorAll(".device .spot[data-mode=solid]")).toHaveLength(2);
     (document.querySelector(".strip .toggle") as HTMLButtonElement).click();
