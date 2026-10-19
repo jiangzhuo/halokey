@@ -97,3 +97,17 @@ The settings window's halo editor writes only slots that have an action, in slot
 - [`examples/switch-apps-and-macro.json`](examples/switch-apps-and-macro.json): keys switch apps, knob press runs a macro.
 - [`examples/halo-menu.json`](examples/halo-menu.json): a two-level halo on knob press.
 - [`examples/layer-backlight.json`](examples/layer-backlight.json): hold key 1 to breathe all keys (per-layer backlight).
+
+## 6. settings.json
+
+Application preferences live next to the keymap in `settings.json` and never enter the keymap file:
+
+| Key | Value | Default |
+|---|---|---|
+| `idleMinutes` | minutes of inactivity before halokey hands the device back to its own firmware; `0` = never | `5` |
+| `halo.position` | `pointer` or `center` | `pointer` |
+| `halo.timeoutSeconds` | seconds before the halo wheel closes | `4` |
+| `halo.size` | `small`, `medium`, `large` | `medium` |
+| `closeToTray` | closing the settings window hides it to the tray (`true`) or quits (`false`) | `true` |
+
+Language and appearance are per-machine browser preferences, not part of this file.

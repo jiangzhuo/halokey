@@ -97,3 +97,17 @@ halokey 只保存一个 JSON 文件，Linux 上在 `~/.config/halokey/keymap.jso
 - [`examples/switch-apps-and-macro.json`](examples/switch-apps-and-macro.json)：按键切换应用，旋钮按下跑宏。
 - [`examples/halo-menu.json`](examples/halo-menu.json)：旋钮按下上的两级光环。
 - [`examples/layer-backlight.json`](examples/layer-backlight.json)：按住键 1 让三个键呼吸（分层背光）。
+
+## 6. settings.json
+
+应用偏好和键位文件放在一起的 `settings.json` 里，不进键位文件：
+
+| 键 | 值 | 默认 |
+|---|---|---|
+| `idleMinutes` | 多少分钟没操作后把设备交还给它自己的固件；`0` = 永不 | `5` |
+| `halo.position` | `pointer` 或 `center` | `pointer` |
+| `halo.timeoutSeconds` | 光环转盘几秒后自动关闭 | `4` |
+| `halo.size` | `small`、`medium`、`large` | `medium` |
+| `closeToTray` | 关闭设置窗口时留在托盘（`true`）还是退出（`false`） | `true` |
+
+界面语言与外观是本机偏好，不进这个文件。

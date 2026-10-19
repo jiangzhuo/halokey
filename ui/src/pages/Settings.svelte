@@ -203,4 +203,7 @@
   .keys li { display: flex; gap: 14px; } .keys .k { width: 100px; }
   .help { margin-top: 8px; font-size: 13px; color: var(--muted); } .help summary { cursor: pointer; } .help ol { margin: 6px 0 0; padding-left: 20px; }
   .h.bad { color: var(--bad); } .v input[type="range"] { width: 160px; } .v.wrap { flex-wrap: wrap; }
+  /* 卡片里的动作按钮：卡片底上 card 色不可见，用描边。 */
+  .v > button { background: transparent; box-shadow: inset 0 0 0 1px var(--line-strong); padding: 5px 12px; font-size: 13px; }
+  .v > button:hover { background: var(--card-on); }
 </style>

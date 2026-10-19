@@ -8,6 +8,8 @@ Ulanzi Vibe Key（AU05）的跨平台开源控制中心：重映射三个按键�
 
 ## 现在就能试
 
+![键位页](docs/screenshots/keymap-zh.png)
+
 需要 Rust 工具链（`rustup`）。Linux 上把 `packaging/linux/70-halokey.rules` 复制到 `/etc/udev/rules.d/` 后重新插拔接收器，或临时 `chmod a+rw /dev/hidraw*`。
 
 ```sh
@@ -27,6 +29,8 @@ cargo run -p halokey-app --no-default-features   # 托盘应用（开发：加�
 `docs/examples/halo-menu.json` 把一个两级光环菜单放在旋钮按下上；复制到 `~/.config/halokey/keymap.json`，或粘贴进设置窗口。
 
 Debian/Ubuntu 安装：在 `apps/halokey` 里 `cargo tauri build --bundles deb`，然后 `sudo dpkg -i target/release/bundle/deb/halokey_*.deb`，重新插拔接收器让自带的 udev 规则生效。
+
+设置页可直接写灯光、电源、麦克风与设备自身键位，也能导入 / 导出键位文件或从设备重建。
 
 设置窗口里的设备渲染图（`ui/public/device.png`）来自 [Open VibeKey](https://github.com/palaemonboy/OpenVibeKey) 仓库（MIT）。
 
