@@ -11,7 +11,6 @@ export const EN: Record<string, string> = {
   "登录时启动": "Launch at login", "界面语言": "Language", "刷新状态": "Refresh", "灯光模式": "Light mode", "全灭": "Off", "全亮": "All on", "工作": "Work",
   "全亮亮度": "All-on brightness", "休眠 / 自动关机": "Sleep / auto power-off", "待机延时": "Standby delay", "收音": "Capture", "硬件降噪": "Noise reduction",
   "各灯效果在键位页按 Layer 设置": "Per-light effects are set per layer on the Keymap page", "当前文件": "Current file", "关于": "About",
-  "其余写入项在后续计划中补全": "Remaining settings become editable in later phases",
   "出现位置": "Position", "指针周围": "Around the pointer", "屏幕中央": "Screen centre", "自动关闭": "Auto close", "秒": "s", "大小": "Size", "小": "Small", "中": "Medium", "大": "Large",
   "点击上方的手势，再从下面选一个键码": "Pick a gesture above, then a keycode below", "指针步长": "Pointer step", "像素": "px",
   "在本机构建里还没有的功能": "Not available in this build yet", "复杂动作": "Complex action", "无": "None",
@@ -25,7 +24,8 @@ export const EN: Record<string, string> = {
   "光环名称": "Halo name", "返回": "Back", "名称": "Name", "（空）": "(empty)", "槽位": "Slot", "删除光环": "Delete halo", "取消": "Cancel", "保存光环": "Save halo",
   "被以下位置引用，无法删除": "Cannot delete, referenced by",
   "点这里，然后按下组合键": "Click here, then press the combo", "录制：先按修饰键再按主键；Esc 清空": "Recording: modifiers first, then the main key; Esc clears", "不支持这个键": "That key is not supported", "主键…": "Main key…", "分配组合键": "Assign combo",
-  "编辑 APP": "Edit app", "添加 APP": "Add app", "显示名称": "Display name", "可执行文件路径": "Executable path", "从当前打开的窗口选": "Pick from open windows", "没有找到窗口": "No windows found", "名称不能为空": "Name is required", "名称不能超过 80 字": "Name must be 80 characters or fewer", "WM_CLASS 和路径至少填一个": "Fill in WM_CLASS or the path", "应用最多 16 个": "At most 16 apps", "删除": "Delete", "保存": "Save", "完成": "Done", "外观": "Appearance", "跟随系统": "System", "深色": "Dark", "浅色": "Light", "已开启": "On", "已关闭": "Off", "窗口": "Window", "新建宏": "New macro", "还没有条目": "Nothing here yet",
+  "编辑 APP": "Edit app", "添加 APP": "Add app", "显示名称": "Display name", "可执行文件路径": "Executable path", "从当前打开的窗口选": "Pick from open windows", "没有找到窗口": "No windows found", "名称不能为空": "Name is required", "名称不能超过 80 字": "Name must be 80 characters or fewer", "WM_CLASS 和路径至少填一个": "Fill in WM_CLASS or the path", "应用最多 16 个": "At most 16 apps", "删除": "Delete", "保存": "Save", "完成": "Done",
+  "设备自身键位": "Device key table", "写入设备": "Write to device", "从设备读取": "Read from device", "连接帮助": "Connection help", "Linux 需要 udev 规则": "Linux needs a udev rule", "（.deb 会自动安装；手装见 packaging/linux）": " (the .deb installs it; see packaging/linux for manual setup)", "装好规则后重新插拔接收器": "Replug the receiver after installing the rule", "本体待机后按任意键唤醒；电源键长按会关机": "Press any key to wake the unit from standby; holding the power key turns it off", "由分层背光接管：各灯在键位页按 Layer 设置": "Owned by layer backlight: set each light per layer on the Keymap page", "设备未接受": "Device did not accept it", "系统默认输入": "System default input", "设为系统默认输入": "Set as default input", "小时": "h", "关闭窗口时": "On window close", "留在托盘": "Stay in tray", "退出": "Quit", "外观": "Appearance", "跟随系统": "System", "深色": "Dark", "浅色": "Light", "已开启": "On", "已关闭": "Off", "窗口": "Window", "新建宏": "New macro", "还没有条目": "Nothing here yet",
   "编辑宏": "Edit macro", "宏名称": "Macro name", "步骤": "Steps", "清空最后一步": "Remove last step", "右边添加步骤；新步骤插在选中步骤之后": "Add steps on the right; new steps go after the selected one", "录制时 halokey 窗口有焦点，设备注入的按键也会被录进来": "While recording, keys the device injects into this focused window are captured too", "添加为步骤": "Add as step", "等待": "Wait", "添加等待": "Add wait", "宏最多 16 个": "At most 16 macros", "删除宏": "Delete macro", "保存宏": "Save macro", "光环选项不能引用功能库、切层或自己": "A halo option cannot use the library, a layer switch or this halo itself", "（未命名）": "(unnamed)",
 };
 
@@ -43,7 +43,6 @@ export const JA: Record<string, string> = {
   "登录时启动": "ログイン時に起動", "界面语言": "表示言語", "刷新状态": "更新", "灯光模式": "ライトモード", "全灭": "全消灯", "全亮": "全点灯", "工作": "動作時",
   "全亮亮度": "全点灯の明るさ", "休眠 / 自动关机": "スリープ / 自動オフ", "待机延时": "スタンバイまで", "收音": "集音", "硬件降噪": "HW ノイズ低減",
   "各灯效果在键位页按 Layer 设置": "各ライトの効果はキーマップページでレイヤーごとに設定します", "当前文件": "現在のファイル", "关于": "情報",
-  "其余写入项在后续计划中补全": "残りの設定は今後のフェーズで編集可能になります",
   "出现位置": "表示位置", "指针周围": "ポインタの周り", "屏幕中央": "画面中央", "自动关闭": "自動で閉じる", "秒": "秒", "大小": "サイズ", "小": "小", "中": "中", "大": "大",
   "点击上方的手势，再从下面选一个键码": "上でジェスチャを選び、下からキーコードを選びます", "指针步长": "ポインタの移動量", "像素": "px",
   "在本机构建里还没有的功能": "このビルドではまだ使えません", "复杂动作": "複合アクション", "无": "なし",
@@ -57,7 +56,8 @@ export const JA: Record<string, string> = {
   "光环名称": "ハロー名", "返回": "戻る", "名称": "名前", "（空）": "（空）", "槽位": "スロット", "删除光环": "ハローを削除", "取消": "キャンセル", "保存光环": "ハローを保存",
   "被以下位置引用，无法删除": "次の場所で参照されているため削除できません",
   "点这里，然后按下组合键": "ここをクリックしてキーを同時押し", "录制：先按修饰键再按主键；Esc 清空": "記録：修飾キー → メインキーの順、Esc でクリア", "不支持这个键": "このキーは対応していません", "主键…": "メインキー…", "分配组合键": "同時押しを割り当て",
-  "编辑 APP": "アプリを編集", "添加 APP": "アプリを追加", "显示名称": "表示名", "可执行文件路径": "実行ファイルのパス", "从当前打开的窗口选": "開いているウィンドウから選ぶ", "没有找到窗口": "ウィンドウが見つかりません", "名称不能为空": "名前は必須です", "名称不能超过 80 字": "名前は 80 文字以内にしてください", "WM_CLASS 和路径至少填一个": "WM_CLASS かパスのどちらかを入力してください", "应用最多 16 个": "アプリは最大 16 個です", "删除": "削除", "保存": "保存", "完成": "完了", "外观": "外観", "跟随系统": "システムに従う", "深色": "ダーク", "浅色": "ライト", "已开启": "オン", "已关闭": "オフ", "窗口": "ウィンドウ", "新建宏": "新しいマクロ", "还没有条目": "まだ項目がありません",
+  "编辑 APP": "アプリを編集", "添加 APP": "アプリを追加", "显示名称": "表示名", "可执行文件路径": "実行ファイルのパス", "从当前打开的窗口选": "開いているウィンドウから選ぶ", "没有找到窗口": "ウィンドウが見つかりません", "名称不能为空": "名前は必須です", "名称不能超过 80 字": "名前は 80 文字以内にしてください", "WM_CLASS 和路径至少填一个": "WM_CLASS かパスのどちらかを入力してください", "应用最多 16 个": "アプリは最大 16 個です", "删除": "削除", "保存": "保存", "完成": "完了",
+  "设备自身键位": "デバイス側のキー表", "写入设备": "デバイスに書き込む", "从设备读取": "デバイスから読む", "连接帮助": "接続のヘルプ", "Linux 需要 udev 规则": "Linux では udev ルールが必要です", "（.deb 会自动安装；手装见 packaging/linux）": "（.deb が自動で入れます。手動は packaging/linux 参照）", "装好规则后重新插拔接收器": "ルールを入れたらレシーバーを挿し直す", "本体待机后按任意键唤醒；电源键长按会关机": "スタンバイ中は任意のキーで復帰。電源キー長押しは電源オフ", "由分层背光接管：各灯在键位页按 Layer 设置": "レイヤーのバックライトが管理中：各ライトはキーマップページでレイヤーごとに設定", "设备未接受": "デバイスが受け付けませんでした", "系统默认输入": "システム既定の入力", "设为系统默认输入": "既定の入力にする", "小时": "時間", "关闭窗口时": "ウィンドウを閉じたとき", "留在托盘": "トレイに残す", "退出": "終了", "外观": "外観", "跟随系统": "システムに従う", "深色": "ダーク", "浅色": "ライト", "已开启": "オン", "已关闭": "オフ", "窗口": "ウィンドウ", "新建宏": "新しいマクロ", "还没有条目": "まだ項目がありません",
   "编辑宏": "マクロを編集", "宏名称": "マクロ名", "步骤": "ステップ", "清空最后一步": "最後のステップを削除", "右边添加步骤；新步骤插在选中步骤之后": "右側でステップを追加。新しいステップは選択中の次に入ります", "录制时 halokey 窗口有焦点，设备注入的按键也会被录进来": "記録中は halokey ウィンドウにフォーカスがあるため、デバイスが送るキーも記録されます", "添加为步骤": "ステップとして追加", "等待": "待機", "添加等待": "待機を追加", "宏最多 16 个": "マクロは最大 16 個です", "删除宏": "マクロを削除", "保存宏": "マクロを保存", "光环选项不能引用功能库、切层或自己": "ハローの項目にライブラリ・レイヤー切替・自分自身は使えません", "（未命名）": "（名称未設定）",
 };
 
