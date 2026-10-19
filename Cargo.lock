@@ -1343,7 +1343,7 @@ dependencies = [
 
 [[package]]
 name = "halokey-app"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "halokey-host",
  "halokey-proto",
@@ -1358,7 +1358,7 @@ dependencies = [
 
 [[package]]
 name = "halokey-cli"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "clap",
  "ctrlc",
@@ -1373,7 +1373,7 @@ dependencies = [
 
 [[package]]
 name = "halokey-hid"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "halokey-proto",
  "hidapi",
@@ -1381,7 +1381,7 @@ dependencies = [
 
 [[package]]
 name = "halokey-host"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "halokey-proto",
  "serde",
@@ -1390,7 +1390,7 @@ dependencies = [
 
 [[package]]
 name = "halokey-input"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "core-graphics",
  "evdev",
@@ -1401,11 +1401,11 @@ dependencies = [
 
 [[package]]
 name = "halokey-proto"
-version = "0.0.1"
+version = "0.1.0"
 
 [[package]]
 name = "halokey-runtime"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "halokey-hid",
  "halokey-host",
@@ -1416,7 +1416,7 @@ dependencies = [
 
 [[package]]
 name = "halokey-wm"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "halokey-host",
  "objc2-app-kit",

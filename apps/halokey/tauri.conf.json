@@ -1,11 +1,11 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "halokey",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "identifier": "dev.halokey.app",
   "build": {
-    "beforeDevCommand": "npm --prefix ../../ui run dev",
-    "beforeBuildCommand": "npm --prefix ../../ui run build",
+    "beforeDevCommand": "npm --prefix \"$(git rev-parse --show-toplevel)/ui\" run dev",
+    "beforeBuildCommand": "npm --prefix \"$(git rev-parse --show-toplevel)/ui\" run build",
     "devUrl": "http://localhost:5177",
     "frontendDist": "../../ui/dist"
   },
