@@ -31,4 +31,28 @@ describe("tauri bridge (mock mode in jsdom)", () => {
     expect(r.error).toBeNull();
     expect(r.windows.map((w) => w.class)).toContain("google-chrome");
   });
+  it("mock device writes round-trip, and the mic mirrors the hardware quirk", async () => {
+    expect(await api.setSleepDelay(7200)).toBe(7200);
+    expect(await api.setStandbyDelay(120)).toBe(120);
+    expect(await api.setNoiseReduction(0)).toBe(0);
+    expect(await api.setMicEnabled(true)).toBe(false); // 硬件应答但读回仍为关
+    const info = await api.deviceInfo();
+    const lit = await api.setLighting({ ...info.lighting!, mode: 1, brightness: 7 });
+    expect(lit.mode).toBe(1);
+    expect((await api.deviceInfo()).lighting!.brightness).toBe(7);
+    expect((await api.readDeviceKeys()).map(([i]) => i)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(await api.setDefaultAudioInput()).toContain("AU05");
+    expect((await api.snapshot()).version).toBe("0.1.0");
+  });
+  it("mock keymap file actions replace the stored keymap", async () => {
+    const def = await api.loadDefaultKeymap();
+    expect(def.controls.map((c) => c.press[0]!.code)).toEqual([0x01, 0x28, 0x29, 0x46, 0x4f, 0x2a]);
+    expect((await api.getKeymap()).halos).toBeUndefined();
+    const fromDev = await api.keymapFromDevice();
+    expect(fromDev.controls).toHaveLength(6);
+    expect(await api.exportKeymap()).toBe("/tmp/keymap.json");
+    expect((await api.importKeymap())!.controls).toHaveLength(6);
+    const s = await api.setSettings({ closeToTray: false });
+    expect(s.closeToTray).toBe(false);
+  });
 });

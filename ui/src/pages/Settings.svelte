@@ -26,7 +26,7 @@
   const sleepText = (s: number | null) => s == null ? "—" : s === 0 ? t("永不") : `${s / 3600} h`;
   async function changeIdle(e: Event) {
     idle = Number((e.target as HTMLSelectElement).value);
-    try { await api.setIdleMinutes(idle); } catch (err) { note = String(err); }
+    try { await api.setSettings({ idleMinutes: idle }); } catch (err) { note = String(err); }
   }
   async function setHalo(patch: Partial<HaloSettings>) {
     try { halo = (await api.setSettings({ halo: patch })).halo; haloError = ""; } catch (e) { haloError = String(e); }

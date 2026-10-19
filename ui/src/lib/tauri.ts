@@ -1,7 +1,7 @@
 import type { HostKeymap, Halo, LayerLighting } from "../model/keymap";
 import example from "../../../docs/examples/halo-menu.json";
 
-export type UiSnapshot = { connected: boolean; online: boolean | null; battery: [number | null, number, boolean | null] | null; heartbeats: number; echoes: number; injected: number; lastError: string | null; configPath: string; paused: boolean; standby: boolean | null; link: boolean | null; activeLayers: number[]; effectiveLighting: LayerLighting | null };
+export type UiSnapshot = { connected: boolean; online: boolean | null; battery: [number | null, number, boolean | null] | null; heartbeats: number; echoes: number; injected: number; lastError: string | null; configPath: string; paused: boolean; standby: boolean | null; link: boolean | null; activeLayers: number[]; effectiveLighting: LayerLighting | null; version: string };
 export type UiEvent =
   | { kind: "connected" } | { kind: "disconnected" }
   | { kind: "key"; control: number; name: string; pressed: boolean; at: number }
@@ -14,8 +14,15 @@ export type UiLighting = { mode: number; brightness: number; lights: UiLight[] }
 export type UiDeviceInfo = { firmware: string | null; dongleFirmware: string | null; noiseReduction: number[] | null; lighting: UiLighting | null; errors: string[] };
 export type UiPower = { standby: boolean | null; standbyDelay: number | null; sleepDelay: number | null; micEnabled: boolean | null; noiseReduction: number | null; errors: string[] };
 export type HaloSettings = { position: "pointer" | "center"; timeoutSeconds: number; size: "small" | "medium" | "large" };
-export type AppSettings = { idleMinutes: number; halo: HaloSettings };
-let mockSettings: AppSettings = { idleMinutes: 5, halo: { position: "pointer", timeoutSeconds: 4, size: "medium" } };
+export type AppSettings = { idleMinutes: number; halo: HaloSettings; closeToTray: boolean };
+let mockSettings: AppSettings = { idleMinutes: 5, halo: { position: "pointer", timeoutSeconds: 4, size: "medium" }, closeToTray: true };
+/** 设备六格表：`[index, [[type, code], …]]`。 */
+export type DeviceKeys = [number, [number, number][]][];
+let mockInfo: UiDeviceInfo = { firmware: "4.4.2", dongleFirmware: "4.4.2", noiseReduction: [1, 64, 6, 232], lighting: { mode: 2, brightness: 14, lights: Array.from({ length: 4 }, () => ({ kind: 0, workTime: 10, breatheLevel: 3, breatheBrightness: 14, alwaysOnBrightness: 14 })) }, errors: [] };
+// 收音开关的 mock 照抄硬件：写入应答但读回仍为关（2026-10-18 实测）。
+let mockPower: UiPower = { standby: false, standbyDelay: 300, sleepDelay: 3600, micEnabled: false, noiseReduction: 1, errors: [] };
+const FACTORY: DeviceKeys = [[0, [[2, 0x01]]], [1, [[2, 0x28]]], [2, [[2, 0x29]]], [3, [[2, 0x46]]], [4, [[2, 0x4f]]], [5, [[2, 0x2a]]]];
+const factoryKeymap = (): HostKeymap => ({ version: 5, controls: FACTORY.map(([index, entries]) => ({ index, press: entries.map(([type, code]) => ({ type, code })) })), doublePressWindow: 0.3, longPressThreshold: 0.5 });
 
 export const isTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -27,7 +34,7 @@ async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T
 // 浏览器里（npm run dev / vitest）没有 Tauri，用内存数据让界面能跑。
 let memory: HostKeymap = JSON.parse(JSON.stringify(example));
 let mockActive: number[] = [];
-const mockSnapshot = (): UiSnapshot => ({ connected: true, online: true, battery: [60, 3791, false], heartbeats: 1024, echoes: 1024, injected: 58, lastError: null, configPath: "~/.config/halokey/keymap.json", paused: false, standby: false, link: true, activeLayers: mockActive, effectiveLighting: null });
+const mockSnapshot = (): UiSnapshot => ({ connected: true, online: true, battery: [60, 3791, false], heartbeats: 1024, echoes: 1024, injected: 58, lastError: null, configPath: "~/.config/halokey/keymap.json", paused: false, standby: false, link: true, activeLayers: mockActive, effectiveLighting: null, version: "0.1.0" });
 function mockValidate(map: HostKeymap): void {
   const idx = new Set(map.controls.map((c) => c.index));
   if (map.controls.length !== 6 || idx.size !== 6) throw "配置必须包含且仅包含六个控件，每个控件只能出现一次。";
@@ -51,15 +58,26 @@ export const api = {
   getKeymap: (): Promise<HostKeymap> => isTauri() ? invoke("get_keymap") : Promise.resolve(JSON.parse(JSON.stringify(memory))),
   validateKeymap: async (keymap: HostKeymap): Promise<void> => { if (isTauri()) return invoke("validate_keymap", { keymap }); mockValidate(keymap); },
   saveKeymap: async (keymap: HostKeymap): Promise<void> => { if (isTauri()) return invoke("save_keymap", { keymap }); mockValidate(keymap); memory = JSON.parse(JSON.stringify(keymap)); },
-  deviceInfo: (): Promise<UiDeviceInfo> => isTauri() ? invoke("device_info") : Promise.resolve({ firmware: "4.4.2", dongleFirmware: "4.4.2", noiseReduction: [1, 64, 6, 232], lighting: { mode: 2, brightness: 14, lights: [] }, errors: [] }),
-  powerInfo: (): Promise<UiPower> => isTauri() ? invoke("power_info") : Promise.resolve({ standby: false, standbyDelay: 300, sleepDelay: 3600, micEnabled: true, noiseReduction: 1, errors: [] }),
+  deviceInfo: (): Promise<UiDeviceInfo> => isTauri() ? invoke("device_info") : Promise.resolve(JSON.parse(JSON.stringify(mockInfo))),
+  powerInfo: (): Promise<UiPower> => isTauri() ? invoke("power_info") : Promise.resolve(JSON.parse(JSON.stringify(mockPower))),
+  setLighting: (lighting: UiLighting): Promise<UiLighting> => { if (isTauri()) return invoke("set_lighting", { lighting }); mockInfo = { ...mockInfo, lighting: JSON.parse(JSON.stringify(lighting)) }; return Promise.resolve(lighting); },
+  setSleepDelay: (seconds: number): Promise<number> => { if (isTauri()) return invoke("set_sleep_delay", { seconds }); mockPower.sleepDelay = seconds; return Promise.resolve(seconds); },
+  setStandbyDelay: (seconds: number): Promise<number> => { if (isTauri()) return invoke("set_standby_delay", { seconds }); mockPower.standbyDelay = seconds; return Promise.resolve(seconds); },
+  setMicEnabled: (enabled: boolean): Promise<boolean> => { if (isTauri()) return invoke("set_mic_enabled", { enabled }); mockPower.micEnabled = false; return Promise.resolve(false); },
+  setNoiseReduction: (level: 0 | 1): Promise<number> => { if (isTauri()) return invoke("set_noise_reduction", { level }); mockPower.noiseReduction = level; return Promise.resolve(level); },
+  setDefaultAudioInput: (): Promise<string> => isTauri() ? invoke("set_default_audio_input") : Promise.resolve("alsa_input.usb-AU05_mock-00.analog-stereo"),
+  readDeviceKeys: (): Promise<DeviceKeys> => isTauri() ? invoke("read_device_keys") : Promise.resolve(JSON.parse(JSON.stringify(FACTORY))),
+  writeDeviceKeys: (): Promise<string[]> => isTauri() ? invoke("write_device_keys") : Promise.resolve(["控件 0：已写入", "控件 1：已写入"]),
+  importKeymap: (): Promise<HostKeymap | null> => isTauri() ? invoke("import_keymap") : Promise.resolve(JSON.parse(JSON.stringify(memory))),
+  exportKeymap: (): Promise<string | null> => isTauri() ? invoke("export_keymap") : Promise.resolve("/tmp/keymap.json"),
+  loadDefaultKeymap: (): Promise<HostKeymap> => { if (isTauri()) return invoke("load_default_keymap"); memory = factoryKeymap(); return Promise.resolve(JSON.parse(JSON.stringify(memory))); },
+  keymapFromDevice: (): Promise<HostKeymap> => { if (isTauri()) return invoke("keymap_from_device"); memory = factoryKeymap(); return Promise.resolve(JSON.parse(JSON.stringify(memory))); },
   getSettings: (): Promise<AppSettings> => isTauri() ? invoke("get_settings") : Promise.resolve(JSON.parse(JSON.stringify(mockSettings))),
-  setSettings: (patch: { idleMinutes?: number; halo?: Partial<HaloSettings> }): Promise<AppSettings> => {
+  setSettings: (patch: { idleMinutes?: number; closeToTray?: boolean; halo?: Partial<HaloSettings> }): Promise<AppSettings> => {
     if (isTauri()) return invoke("set_settings", { patch });
     mockSettings = { ...mockSettings, ...patch, halo: { ...mockSettings.halo, ...(patch.halo ?? {}) } };
     return Promise.resolve(JSON.parse(JSON.stringify(mockSettings)));
   },
-  setIdleMinutes: (minutes: number): Promise<void> => isTauri() ? invoke("set_idle_minutes", { minutes }) : Promise.resolve(),
   listWindows: (): Promise<WindowList> => isTauri() ? invoke("list_windows") : Promise.resolve({ windows: JSON.parse(JSON.stringify(MOCK_WINDOWS)), error: null }),
   getAutostart: (): Promise<boolean> => isTauri() ? invoke("get_autostart") : Promise.resolve(false),
   setAutostart: (enabled: boolean): Promise<boolean> => isTauri() ? invoke("set_autostart", { enabled }) : Promise.resolve(enabled),
