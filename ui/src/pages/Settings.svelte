@@ -70,6 +70,22 @@
   async function setClose(tray: boolean) {
     try { closeToTray = (await api.setSettings({ closeToTray: tray })).closeToTray; } catch (e) { note = String(e); }
   }
+  // 键位配置卡：三种"替换键位文件"的操作共用一个流程；取消（null）不提示。
+  let fileNote = $state("");
+  let fileError = $state("");
+  async function replaceWith(run: () => Promise<HostKeymap | null>) {
+    fileNote = ""; fileError = "";
+    try {
+      const map = await run();
+      if (!map) return;
+      onKeymapReplaced?.(map);
+      fileNote = t("已替换键位文件");
+    } catch (e) { fileError = String(e); }
+  }
+  async function exportFile() {
+    fileNote = ""; fileError = "";
+    try { const p = await api.exportKeymap(); if (p) fileNote = `${t("已导出到")} ${p}`; } catch (e) { fileError = String(e); }
+  }
   async function changeAutostart() {
     try { autostart = await api.setAutostart(autostart); } catch (e) { note = String(e); }
   }
@@ -135,7 +151,16 @@
     </section>
   </div>
 
-  <!-- 键位配置卡（Task 4） -->
+  <section class="card">
+    <h3>{t("键位配置")}</h3>
+    <div class="row"><span class="k">{t("当前文件")}</span><span class="v mono">{snapshot?.configPath ?? "—"}</span></div>
+    <div class="row"><span class="k"></span><span class="v wrap">
+      <button data-role="import" disabled={dirty} onclick={() => replaceWith(api.importKeymap)}>{t("导入…")}</button>
+      <button data-role="export" onclick={exportFile}>{t("导出…")}</button>
+      <button data-role="load-default" disabled={dirty} onclick={() => replaceWith(api.loadDefaultKeymap)}>{t("载入默认键位")}</button>
+      <button data-role="from-device" disabled={dirty || !snapshot?.connected} onclick={() => replaceWith(api.keymapFromDevice)}>{t("从设备键位生成")}</button>
+    </span>{#if dirty}<span class="h">{t("先保存或撤销键位页的改动")}</span>{:else if fileError}<span class="h bad">{fileError}</span>{:else if fileNote}<span class="h">{fileNote}</span>{/if}</div>
+  </section>
 
   <section class="card">
     <h3>{t("通用")}</h3>
@@ -177,5 +202,5 @@
   .keys { list-style: none; margin: 4px 0 6px 154px; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
   .keys li { display: flex; gap: 14px; } .keys .k { width: 100px; }
   .help { margin-top: 8px; font-size: 13px; color: var(--muted); } .help summary { cursor: pointer; } .help ol { margin: 6px 0 0; padding-left: 20px; }
-  .h.bad { color: var(--bad); } .v input[type="range"] { width: 160px; }
+  .h.bad { color: var(--bad); } .v input[type="range"] { width: 160px; } .v.wrap { flex-wrap: wrap; }
 </style>
