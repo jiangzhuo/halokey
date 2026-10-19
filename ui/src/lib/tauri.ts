@@ -15,12 +15,15 @@ export type UiDeviceInfo = { firmware: string | null; dongleFirmware: string | n
 export type UiPower = { standby: boolean | null; standbyDelay: number | null; sleepDelay: number | null; micEnabled: boolean | null; noiseReduction: number | null; errors: string[] };
 export type HaloSettings = { position: "pointer" | "center"; timeoutSeconds: number; size: "small" | "medium" | "large" };
 export type AppSettings = { idleMinutes: number; halo: HaloSettings; closeToTray: boolean };
-let mockSettings: AppSettings = { idleMinutes: 5, halo: { position: "pointer", timeoutSeconds: 4, size: "medium" }, closeToTray: true };
+const defaultSettings = (): AppSettings => ({ idleMinutes: 5, halo: { position: "pointer", timeoutSeconds: 4, size: "medium" }, closeToTray: true });
+let mockSettings: AppSettings = defaultSettings();
 /** 设备六格表：`[index, [[type, code], …]]`。 */
 export type DeviceKeys = [number, [number, number][]][];
-let mockInfo: UiDeviceInfo = { firmware: "4.4.2", dongleFirmware: "4.4.2", noiseReduction: [1, 64, 6, 232], lighting: { mode: 2, brightness: 14, lights: Array.from({ length: 4 }, () => ({ kind: 0, workTime: 10, breatheLevel: 3, breatheBrightness: 14, alwaysOnBrightness: 14 })) }, errors: [] };
+const defaultInfo = (): UiDeviceInfo => ({ firmware: "4.4.2", dongleFirmware: "4.4.2", noiseReduction: [1, 64, 6, 232], lighting: { mode: 2, brightness: 14, lights: Array.from({ length: 4 }, () => ({ kind: 0, workTime: 10, breatheLevel: 3, breatheBrightness: 14, alwaysOnBrightness: 14 })) }, errors: [] });
+let mockInfo: UiDeviceInfo = defaultInfo();
 // 收音开关的 mock 照抄硬件：写入应答但读回仍为关（2026-10-18 实测）。
-let mockPower: UiPower = { standby: false, standbyDelay: 300, sleepDelay: 3600, micEnabled: false, noiseReduction: 1, errors: [] };
+const defaultPower = (): UiPower => ({ standby: false, standbyDelay: 300, sleepDelay: 3600, micEnabled: false, noiseReduction: 1, errors: [] });
+let mockPower: UiPower = defaultPower();
 const FACTORY: DeviceKeys = [[0, [[2, 0x01]]], [1, [[2, 0x28]]], [2, [[2, 0x29]]], [3, [[2, 0x46]]], [4, [[2, 0x4f]]], [5, [[2, 0x2a]]]];
 const factoryKeymap = (): HostKeymap => ({ version: 5, controls: FACTORY.map(([index, entries]) => ({ index, press: entries.map(([type, code]) => ({ type, code })) })), doublePressWindow: 0.3, longPressThreshold: 0.5 });
 
@@ -33,6 +36,8 @@ async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T
 
 // 浏览器里（npm run dev / vitest）没有 Tauri，用内存数据让界面能跑。
 let memory: HostKeymap = JSON.parse(JSON.stringify(example));
+/** 测试用：把内存 mock 全部复位（模块单例，不然用例之间互相污染）。 */
+export function resetMocks() { memory = JSON.parse(JSON.stringify(example)); mockActive = []; mockSettings = defaultSettings(); mockInfo = defaultInfo(); mockPower = defaultPower(); }
 let mockActive: number[] = [];
 const mockSnapshot = (): UiSnapshot => ({ connected: true, online: true, battery: [60, 3791, false], heartbeats: 1024, echoes: 1024, injected: 58, lastError: null, configPath: "~/.config/halokey/keymap.json", paused: false, standby: false, link: true, activeLayers: mockActive, effectiveLighting: null, version: "0.1.0" });
 function mockValidate(map: HostKeymap): void {

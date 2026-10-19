@@ -269,6 +269,20 @@ fn save_keymap(state: State<'_, App>, keymap: serde_json::Value) -> Result<(), S
     install_keymap(&state, map).map(|_| ())
 }
 
+/// 退出：先停设备线程（松开按住的键、把控制交还设备），再退出进程。托盘"退出"与关窗退出都走这里。
+fn quit_app(app: &AppHandle) {
+    if let Some(service) = app
+        .state::<App>()
+        .service
+        .lock()
+        .ok()
+        .and_then(|mut g| g.take())
+    {
+        service.stop();
+    }
+    app.exit(0);
+}
+
 /// 把一份已校验的键位写到配置文件（归一化 JSON，版本号由内容决定）并下发运行时；
 /// 保存、导入、载入默认、从设备生成都走这里。
 fn install_keymap(state: &App, map: HostKeymap) -> Result<serde_json::Value, String> {
@@ -276,15 +290,16 @@ fn install_keymap(state: &App, map: HostKeymap) -> Result<serde_json::Value, Str
         serde_json::from_slice(&map.to_json().map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?;
     let pretty = serde_json::to_vec_pretty(&normalized).map_err(|e| e.to_string())?;
+    // 先确认服务还在，再落盘，尽量不出现"文件换了、运行时没换"的半失败。
+    let guard = state.service.lock().map_err(|e| e.to_string())?;
+    let service = guard.as_ref().ok_or("服务未运行，文件未改动")?;
     if let Some(dir) = state.config_path.parent() {
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
     std::fs::write(&state.config_path, pretty)
         .map_err(|e| format!("写入 {} 失败：{e}", state.config_path.display()))?;
-    let guard = state.service.lock().map_err(|e| e.to_string())?;
-    let service = guard.as_ref().ok_or("服务未运行")?;
     if !service.send(Command::SetKeymap(map)) {
-        return Err("设备线程已退出".into());
+        return Err("文件已替换，但设备线程已退出；重启 halokey 后生效".into());
     }
     Ok(normalized)
 }
@@ -308,6 +323,10 @@ async fn import_keymap(
     .map_err(|e| e.to_string())?;
     let Some(file) = picked else { return Ok(None) };
     let path = file.into_path().map_err(|e| e.to_string())?;
+    let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+    if size > 1 << 20 {
+        return Err(format!("{} 太大（{} 字节），不像键位文件", path.display(), size));
+    }
     let bytes =
         std::fs::read(&path).map_err(|e| format!("读取 {} 失败：{e}", path.display()))?;
     let map = HostKeymap::from_json(&bytes).map_err(|e| e.to_string())?;
@@ -331,6 +350,9 @@ async fn export_keymap(app: AppHandle, state: State<'_, App>) -> Result<Option<S
     .map_err(|e| e.to_string())?;
     let Some(file) = picked else { return Ok(None) };
     let target = file.into_path().map_err(|e| e.to_string())?;
+    if !state.config_path.exists() {
+        return Err("还没有键位文件：先在键位页保存一次".into());
+    }
     std::fs::copy(&state.config_path, &target)
         .map_err(|e| format!("写入 {} 失败：{e}", target.display()))?;
     Ok(Some(target.display().to_string()))
@@ -373,6 +395,14 @@ fn pick_vibe_source(list: &str) -> Option<String> {
         .map(str::to_string)
 }
 
+/// `pactl list sources short` 的结果判定：连不上声音服务要说清楚，别冒充"没找到麦克风"。
+fn vibe_source_from_pactl(ok: bool, stdout: &str, stderr: &str) -> Result<String, String> {
+    if !ok {
+        return Err(format!("pactl 失败：{}", stderr.trim()));
+    }
+    pick_vibe_source(stdout).ok_or_else(|| "没有找到 Vibe Key 的麦克风（本体开着、收音打开了吗？）".to_string())
+}
+
 /// Linux：把 Vibe Key 设为系统默认输入（PipeWire / PulseAudio 都认 pactl）。
 #[tauri::command]
 async fn set_default_audio_input() -> Result<String, String> {
@@ -381,14 +411,20 @@ async fn set_default_audio_input() -> Result<String, String> {
             .args(["list", "sources", "short"])
             .output()
             .map_err(|e| format!("找不到 pactl：{e}"))?;
-        let name = pick_vibe_source(&String::from_utf8_lossy(&out.stdout))
-            .ok_or("没有找到 Vibe Key 的麦克风（本体开着、收音打开了吗？）")?;
-        let status = std::process::Command::new("pactl")
+        let name = vibe_source_from_pactl(
+            out.status.success(),
+            &String::from_utf8_lossy(&out.stdout),
+            &String::from_utf8_lossy(&out.stderr),
+        )?;
+        let out = std::process::Command::new("pactl")
             .args(["set-default-source", &name])
-            .status()
+            .output()
             .map_err(|e| e.to_string())?;
-        if !status.success() {
-            return Err("pactl set-default-source 失败".to_string());
+        if !out.status.success() {
+            return Err(format!(
+                "pactl set-default-source 失败：{}",
+                String::from_utf8_lossy(&out.stderr).trim()
+            ));
         }
         Ok(name)
     })
@@ -917,18 +953,7 @@ fn main() {
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "open" => show_main(app),
-                    "quit" => {
-                        if let Some(service) = app
-                            .state::<App>()
-                            .service
-                            .lock()
-                            .ok()
-                            .and_then(|mut g| g.take())
-                        {
-                            service.stop();
-                        }
-                        app.exit(0);
-                    }
+                    "quit" => quit_app(app),
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
@@ -953,7 +978,7 @@ fn main() {
                         api.prevent_close();
                         let _ = window.hide();
                     } else {
-                        window.app_handle().exit(0);
+                        quit_app(window.app_handle());
                     }
                 }
             }
@@ -978,6 +1003,22 @@ mod tests {
             None
         );
         assert_eq!(pick_vibe_source(""), None);
+    }
+
+    #[test]
+    fn pactl_failures_report_the_real_reason() {
+        assert_eq!(
+            vibe_source_from_pactl(false, "", "Connection failure: Connection refused\n"),
+            Err("pactl 失败：Connection failure: Connection refused".to_string())
+        );
+        assert_eq!(
+            vibe_source_from_pactl(true, "1\talsa_input.usb-Other-00.analog-stereo\tPipeWire\n", ""),
+            Err("没有找到 Vibe Key 的麦克风（本体开着、收音打开了吗？）".to_string())
+        );
+        assert_eq!(
+            vibe_source_from_pactl(true, "2\talsa_input.usb-AU05_AU05_202609xxxxxx-00.analog-stereo\tPipeWire\n", ""),
+            Ok("alsa_input.usb-AU05_AU05_202609xxxxxx-00.analog-stereo".to_string())
+        );
     }
 
     #[test]

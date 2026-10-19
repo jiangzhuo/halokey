@@ -62,7 +62,7 @@
   {:else if page === "macro"}
     <MacroEditor bind:draft itemId={editing?.id ?? null} onClose={closeEditor} />
   {:else}
-    <Settings {snapshot} dirty={draft.dirty} hasBacklight={!!draft.map?.lighting || (draft.map?.layers ?? []).some((l) => !!l.lighting)} onKeymapReplaced={(m) => { draft = loadSaved(initialDraft(), m); }} />
+    <Settings {snapshot} dirty={draft.dirty} hasBacklight={!!draft.saved?.lighting || (draft.saved?.layers ?? []).some((l) => !!l.lighting)} onKeymapReplaced={(m) => { draft = loadSaved(initialDraft(), m); }} />
   {/if}
   </div>
 </div>

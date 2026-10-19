@@ -1,11 +1,12 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { mount, unmount, flushSync } from "svelte";
 import Settings from "../Settings.svelte";
 import { setLang } from "../../lib/i18n";
 import type { UiSnapshot } from "../../lib/tauri";
-import { api } from "../../lib/tauri";
+import { api, resetMocks } from "../../lib/tauri";
 
 let app: ReturnType<typeof mount> | undefined;
+beforeEach(() => resetMocks());
 afterEach(() => { if (app) unmount(app); app = undefined; document.body.innerHTML = ""; vi.restoreAllMocks(); });
 const tick = () => new Promise((r) => setTimeout(r, 0));
 const settle = async () => { await tick(); await tick(); flushSync(); };
@@ -141,6 +142,37 @@ describe("Settings page", () => {
     expect(q<HTMLButtonElement>("button[data-role=import]").disabled).toBe(true);
     expect(q<HTMLButtonElement>("button[data-role=from-device]").disabled).toBe(true);
     expect(q<HTMLButtonElement>("button[data-role=export]").disabled).toBe(false);
+    expect(document.body.textContent).toContain("先保存或撤销键位页的改动");
+  });
+  it("reverts a control when the device write fails, and gates device rows on the connection", async () => {
+    setLang("zh");
+    vi.spyOn(api, "setMicEnabled").mockRejectedValue("接收器未连接");
+    vi.spyOn(api, "setSleepDelay").mockRejectedValue("设备没有在限定时间内回复");
+    app = mount(Settings, { target: document.body, props: { snapshot } });
+    await settle();
+    const mic = q<HTMLInputElement>("input[data-role=mic]");
+    mic.click(); await settle();
+    expect(mic.checked).toBe(false);
+    expect(document.body.textContent).toContain("接收器未连接");
+    const sleep = q<HTMLSelectElement>("select[data-role=sleep]");
+    change(sleep, "7200"); await settle();
+    expect(sleep.value).toBe("3600");
+    expect(document.body.textContent).toContain("限定时间内回复");
+    unmount(app); app = undefined; document.body.innerHTML = "";
+    app = mount(Settings, { target: document.body, props: { snapshot: { ...snapshot, connected: false } } });
+    await settle();
+    expect(q<HTMLInputElement>("input[data-role=mic]").disabled).toBe(true);
+    expect(q<HTMLSelectElement>("select[data-role=sleep]").disabled).toBe(true);
+    expect(q<HTMLButtonElement>("button[data-light-mode='1']").disabled).toBe(true);
+  });
+  it("shows export results even while the keymap page is dirty", async () => {
+    setLang("zh");
+    vi.spyOn(api, "exportKeymap").mockRejectedValue("写入 /x 失败：Permission denied");
+    app = mount(Settings, { target: document.body, props: { snapshot, dirty: true } });
+    await settle();
+    q<HTMLButtonElement>("button[data-role=export]").click();
+    await settle();
+    expect(document.body.textContent).toContain("Permission denied");
     expect(document.body.textContent).toContain("先保存或撤销键位页的改动");
   });
 });

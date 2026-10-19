@@ -36,39 +36,45 @@
   }
   onMount(load);
 
-  /** 跑一次设备写入：成功清掉该行错误并把读回值交给 apply，失败把错误放到该行。 */
-  async function write<T>(row: string, run: () => Promise<T>, apply: (v: T) => void) {
+  /** 正在写入的行：写入期间禁用该行控件，避免 15 s 超时窗口里排队重复写。 */
+  let busy = $state<Record<string, boolean>>({});
+  /** 跑一次设备写入：成功清掉该行错误并把读回值交给 apply；失败把错误放到该行并 revert（控件回到写入前的值）。 */
+  async function write<T>(row: string, run: () => Promise<T>, apply: (v: T) => void, revert?: () => void) {
+    busy = { ...busy, [row]: true };
     try { const v = await run(); rowError = { ...rowError, [row]: "" }; apply(v); }
-    catch (e) { rowError = { ...rowError, [row]: String(e) }; }
+    catch (e) { rowError = { ...rowError, [row]: String(e) }; revert?.(); }
+    finally { busy = { ...busy, [row]: false }; }
   }
+  const online = $derived(!!snapshot?.connected);
   // 全局灯光：四盏灯的记录原样回传，只改 mode / brightness（Rust 要求四盏齐全）。
   const setLightingGlobal = (patch: Partial<Pick<UiLighting, "mode" | "brightness">>) => {
     if (!info?.lighting) return;
     const desired = { ...info.lighting, ...patch };
     return write("lighting", () => api.setLighting(desired), (l) => { if (info) info = { ...info, lighting: l }; });
   };
-  const setSleep = (s: number) => write("sleep", () => api.setSleepDelay(s), (v) => { if (power) power = { ...power, sleepDelay: v }; });
-  const setStandby = (s: number) => write("standby", () => api.setStandbyDelay(s), (v) => { if (power) power = { ...power, standbyDelay: v }; });
+  // 下拉：失败时把 DOM 值拨回当前读到的值（Svelte 不会重设没变化的 value）。
+  const setSleep = (el: HTMLSelectElement) => write("sleep", () => api.setSleepDelay(Number(el.value)), (v) => { if (power) power = { ...power, sleepDelay: v }; }, () => { el.value = String(power?.sleepDelay ?? ""); });
+  const setStandby = (el: HTMLSelectElement) => write("standby", () => api.setStandbyDelay(Number(el.value)), (v) => { if (power) power = { ...power, standbyDelay: v }; }, () => { el.value = String(power?.standbyDelay ?? ""); });
   // 收音：硬件应答但读回可能仍为关，按读回值显示并提示。
   // 开关的 DOM 状态被点击翻转过了，读回后要显式写回，否则读回值没变时界面会停在"开"。
   const setMic = (el: HTMLInputElement) => { const on = el.checked; return write("mic", () => api.setMicEnabled(on), (v) => {
     el.checked = v;
     if (power) power = { ...power, micEnabled: v };
     if (v !== on) rowError = { ...rowError, mic: t("设备未接受") };
-  }); };
-  const setNoise = (el: HTMLInputElement) => write("noise", () => api.setNoiseReduction(el.checked ? 1 : 0), (v) => { el.checked = !!v; if (power) power = { ...power, noiseReduction: v }; });
+  }, () => { el.checked = !!power?.micEnabled; }); };
+  const setNoise = (el: HTMLInputElement) => write("noise", () => api.setNoiseReduction(el.checked ? 1 : 0), (v) => { el.checked = !!v; if (power) power = { ...power, noiseReduction: v }; }, () => { el.checked = !!power?.noiseReduction; });
   const setDefaultInput = () => write("audio", () => api.setDefaultAudioInput(), (name) => { audioSource = name; });
   const readDevice = () => write("deviceKeys", () => api.readDeviceKeys(), (k) => { deviceKeys = k; writeReport = []; });
   const writeDevice = () => write("deviceKeys", () => api.writeDeviceKeys(), (r) => { writeReport = r; deviceKeys = null; });
   async function changeIdle(e: Event) {
     idle = Number((e.target as HTMLSelectElement).value);
-    try { await api.setSettings({ idleMinutes: idle }); } catch (err) { note = String(err); }
+    try { await api.setSettings({ idleMinutes: idle }); rowError = { ...rowError, idle: "" }; } catch (err) { rowError = { ...rowError, idle: String(err) }; }
   }
   async function setHalo(patch: Partial<HaloSettings>) {
     try { halo = (await api.setSettings({ halo: patch })).halo; rowError = { ...rowError, halo: "" }; } catch (e) { rowError = { ...rowError, halo: String(e) }; }
   }
   async function setClose(tray: boolean) {
-    try { closeToTray = (await api.setSettings({ closeToTray: tray })).closeToTray; } catch (e) { note = String(e); }
+    try { closeToTray = (await api.setSettings({ closeToTray: tray })).closeToTray; rowError = { ...rowError, close: "" }; } catch (e) { rowError = { ...rowError, close: String(e) }; }
   }
   // 键位配置卡：三种"替换键位文件"的操作共用一个流程；取消（null）不提示。
   let fileNote = $state("");
@@ -98,7 +104,7 @@
     <h3>{t("Vibe Key")} <span class="r"><button onclick={load}>{t("刷新状态")}</button></span></h3>
     <div class="row"><span class="k">{t("状态")}</span><span class="v">{snapshot?.connected ? "● " + (snapshot.online === false ? t("本体离线") : t("本体在线")) : "○ " + t("未连接")}{#if snapshot?.battery} · <Icon name="battery" size={15} level={snapshot.battery[0]} /> {snapshot.battery[0] ?? "?"}% · {snapshot.battery[1]} mV{/if}</span><span class="h">{t("心跳")} {snapshot?.heartbeats ?? 0} · {t("回显")} {snapshot?.echoes ?? 0}</span></div>
     <div class="row"><span class="k">{t("固件")}</span><span class="v mono">{info?.firmware ?? "—"} / {info?.dongleFirmware ?? "—"}</span></div>
-    <div class="row"><span class="k">{t("空闲后交还控制")}</span><span class="v"><select data-role="idle" value={String(idle)} onchange={changeIdle}>{#each IDLE as m}<option value={String(m)}>{m === 0 ? t("永不") : `${m} ${t("分钟")}`}</option>{/each}</select></span></div>
+    <div class="row"><span class="k">{t("空闲后交还控制")}</span><span class="v"><select data-role="idle" value={String(idle)} onchange={changeIdle}>{#each IDLE as m}<option value={String(m)}>{m === 0 ? t("永不") : `${m} ${t("分钟")}`}</option>{/each}</select></span>{#if rowError.idle}<span class="h bad">{rowError.idle}</span>{/if}</div>
     <div class="row"><span class="k">{t("设备自身键位")}</span><span class="v"><button data-role="write-device" disabled={!snapshot?.connected} onclick={writeDevice}>{t("写入设备")}</button><button data-role="read-device" disabled={!snapshot?.connected} onclick={readDevice}>{t("从设备读取")}</button></span>{#if rowError.deviceKeys}<span class="h bad">{rowError.deviceKeys}</span>{/if}</div>
     {#if deviceKeys}
       <ul class="keys">{#each deviceKeys as [index, entries]}<li><span class="k">{t(CONTROL_NAMES[index] ?? "")}</span><span class="mono">{entriesLabel(entries.map(([type, code]) => ({ type, code })))}</span></li>{/each}</ul>
@@ -121,24 +127,24 @@
         <div class="row"><span class="k">{t("全亮亮度")}</span><span class="v mono">{info?.lighting?.brightness ?? "—"} / 20</span></div>
         <div class="row"><span class="k"></span><span class="v muted">{t("由分层背光接管：各灯在键位页按 Layer 设置")}</span></div>
       {:else}
-        <div class="row"><span class="k">{t("灯光模式")}</span><span class="v"><span class="seg">{#each [0, 1, 2] as m}<button data-light-mode={m} class:on={info?.lighting?.mode === m} disabled={!info?.lighting} onclick={() => setLightingGlobal({ mode: m })}>{t(modeName[m]!)}</button>{/each}</span></span>{#if rowError.lighting}<span class="h bad">{rowError.lighting}</span>{/if}</div>
-        <div class="row"><span class="k">{t("全亮亮度")}</span><span class="v"><input type="range" data-role="all-on" min="0" max="20" value={info?.lighting?.brightness ?? 0} disabled={!info?.lighting} onchange={(e) => setLightingGlobal({ brightness: Number((e.target as HTMLInputElement).value) })} /><span class="mono">{info?.lighting?.brightness ?? "—"} / 20</span></span></div>
+        <div class="row"><span class="k">{t("灯光模式")}</span><span class="v"><span class="seg">{#each [0, 1, 2] as m}<button data-light-mode={m} class:on={info?.lighting?.mode === m} disabled={!online || !info?.lighting || busy.lighting} onclick={() => setLightingGlobal({ mode: m })}>{t(modeName[m]!)}</button>{/each}</span></span>{#if rowError.lighting}<span class="h bad">{rowError.lighting}</span>{/if}</div>
+        <div class="row"><span class="k">{t("全亮亮度")}</span><span class="v"><input type="range" data-role="all-on" min="0" max="20" value={info?.lighting?.brightness ?? 0} disabled={!online || !info?.lighting || busy.lighting} onchange={(e) => setLightingGlobal({ brightness: Number((e.target as HTMLInputElement).value) })} /><span class="mono">{info?.lighting?.brightness ?? "—"} / 20</span></span></div>
         <div class="row"><span class="k"></span><span class="v muted">{t("各灯效果在键位页按 Layer 设置")}</span></div>
       {/if}
     </section>
     <section class="card">
       <h3>{t("麦克风")}</h3>
-      <div class="row"><span class="k">{t("收音")}</span><span class="v"><input class="switch" type="checkbox" data-role="mic" aria-label={t("收音")} checked={!!power?.micEnabled} disabled={!power} onchange={(e) => setMic(e.target as HTMLInputElement)}></span>{#if rowError.mic}<span class="h bad">{rowError.mic}</span>{/if}</div>
-      <div class="row"><span class="k">{t("硬件降噪")}</span><span class="v"><input class="switch" type="checkbox" data-role="noise" aria-label={t("硬件降噪")} checked={!!power?.noiseReduction} disabled={!power} onchange={(e) => setNoise(e.target as HTMLInputElement)}></span>{#if rowError.noise}<span class="h bad">{rowError.noise}</span>{/if}</div>
-      <div class="row"><span class="k">{t("系统默认输入")}</span><span class="v"><button data-role="default-input" onclick={setDefaultInput}>{t("设为系统默认输入")}</button></span>{#if rowError.audio}<span class="h bad">{rowError.audio}</span>{:else if audioSource}<span class="h mono">{audioSource}</span>{/if}</div>
+      <div class="row"><span class="k">{t("收音")}</span><span class="v"><input class="switch" type="checkbox" data-role="mic" aria-label={t("收音")} checked={!!power?.micEnabled} disabled={!online || power?.micEnabled == null || busy.mic} onchange={(e) => setMic(e.target as HTMLInputElement)}></span>{#if rowError.mic}<span class="h bad">{rowError.mic}</span>{/if}</div>
+      <div class="row"><span class="k">{t("硬件降噪")}</span><span class="v"><input class="switch" type="checkbox" data-role="noise" aria-label={t("硬件降噪")} checked={!!power?.noiseReduction} disabled={!online || power?.noiseReduction == null || busy.noise} onchange={(e) => setNoise(e.target as HTMLInputElement)}></span>{#if rowError.noise}<span class="h bad">{rowError.noise}</span>{/if}</div>
+      <div class="row"><span class="k">{t("系统默认输入")}</span><span class="v"><button data-role="default-input" disabled={busy.audio} onclick={setDefaultInput}>{t("设为系统默认输入")}</button></span>{#if rowError.audio}<span class="h bad">{rowError.audio}</span>{:else if audioSource}<span class="h mono">{audioSource}</span>{/if}</div>
     </section>
   </div>
 
   <div class="two">
     <section class="card">
       <h3>{t("电源")}</h3>
-      <div class="row"><span class="k">{t("休眠 / 自动关机")}</span><span class="v"><select data-role="sleep" value={String(power?.sleepDelay ?? 3600)} disabled={!power} onchange={(e) => setSleep(Number((e.target as HTMLSelectElement).value))}>{#each SLEEP as s}<option value={String(s)}>{sleepLabel(s)}</option>{/each}</select></span>{#if rowError.sleep}<span class="h bad">{rowError.sleep}</span>{/if}</div>
-      <div class="row"><span class="k">{t("待机延时")}</span><span class="v"><select data-role="standby" value={String(power?.standbyDelay ?? 300)} disabled={!power} onchange={(e) => setStandby(Number((e.target as HTMLSelectElement).value))}>{#each STANDBY as s}<option value={String(s)}>{s} {t("秒")}</option>{/each}</select></span>{#if rowError.standby}<span class="h bad">{rowError.standby}</span>{/if}</div>
+      <div class="row"><span class="k">{t("休眠 / 自动关机")}</span><span class="v"><select data-role="sleep" value={String(power?.sleepDelay ?? "")} disabled={!online || power?.sleepDelay == null || busy.sleep} onchange={(e) => setSleep(e.target as HTMLSelectElement)}>{#if power?.sleepDelay == null}<option value="">—</option>{/if}{#each SLEEP as s}<option value={String(s)}>{sleepLabel(s)}</option>{/each}</select></span>{#if rowError.sleep}<span class="h bad">{rowError.sleep}</span>{/if}</div>
+      <div class="row"><span class="k">{t("待机延时")}</span><span class="v"><select data-role="standby" value={String(power?.standbyDelay ?? "")} disabled={!online || power?.standbyDelay == null || busy.standby} onchange={(e) => setStandby(e.target as HTMLSelectElement)}>{#if power?.standbyDelay == null}<option value="">—</option>{/if}{#each STANDBY as s}<option value={String(s)}>{s} {t("秒")}</option>{/each}</select></span>{#if rowError.standby}<span class="h bad">{rowError.standby}</span>{/if}</div>
     </section>
     <section class="card">
       <h3>{t("光环转盘")}</h3>
@@ -159,7 +165,8 @@
       <button data-role="export" onclick={exportFile}>{t("导出…")}</button>
       <button data-role="load-default" disabled={dirty} onclick={() => replaceWith(api.loadDefaultKeymap)}>{t("载入默认键位")}</button>
       <button data-role="from-device" disabled={dirty || !snapshot?.connected} onclick={() => replaceWith(api.keymapFromDevice)}>{t("从设备键位生成")}</button>
-    </span>{#if dirty}<span class="h">{t("先保存或撤销键位页的改动")}</span>{:else if fileError}<span class="h bad">{fileError}</span>{:else if fileNote}<span class="h">{fileNote}</span>{/if}</div>
+    </span>{#if fileError}<span class="h bad">{fileError}</span>{:else if fileNote}<span class="h">{fileNote}</span>{:else if dirty}<span class="h">{t("先保存或撤销键位页的改动")}</span>{/if}</div>
+    {#if dirty && (fileError || fileNote)}<div class="row"><span class="k"></span><span class="v muted">{t("先保存或撤销键位页的改动")}</span></div>{/if}
   </section>
 
   <section class="card">
@@ -167,7 +174,7 @@
     <div class="row"><span class="k">{t("登录时启动")}</span><span class="v"><input class="switch" type="checkbox" data-role="autostart" aria-label={t("登录时启动")} bind:checked={autostart} onchange={changeAutostart}></span></div>
     <div class="row"><span class="k">{t("关闭窗口时")}</span><span class="v"><span class="seg">
       <button data-close="tray" class:on={closeToTray} onclick={() => setClose(true)}>{t("留在托盘")}</button>
-      <button data-close="quit" class:on={!closeToTray} onclick={() => setClose(false)}>{t("退出")}</button></span></span></div>
+      <button data-close="quit" class:on={!closeToTray} onclick={() => setClose(false)}>{t("退出")}</button></span></span>{#if rowError.close}<span class="h bad">{rowError.close}</span>{/if}</div>
     <div class="row"><span class="k">{t("外观")}</span><span class="v"><span class="seg">
       {#each THEMES as [v, name]}<button data-theme-choice={v} class:on={theme === v} onclick={() => { theme = v; setTheme(v); }}>{t(name)}</button>{/each}</span></span></div>
   </section>

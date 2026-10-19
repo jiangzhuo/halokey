@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "identifier": "dev.halokey.app",
   "build": {
-    "beforeDevCommand": "npm --prefix \"$(git rev-parse --show-toplevel)/ui\" run dev",
-    "beforeBuildCommand": "npm --prefix \"$(git rev-parse --show-toplevel)/ui\" run build",
+    "beforeDevCommand": { "script": "npm run dev", "cwd": "../../ui" },
+    "beforeBuildCommand": { "script": "npm run build", "cwd": "../../ui" },
     "devUrl": "http://localhost:5177",
     "frontendDist": "../../ui/dist"
   },

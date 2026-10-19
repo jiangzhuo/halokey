@@ -30,6 +30,8 @@ cargo run -p halokey-app --no-default-features   # 托盘应用（开发：加�
 
 Debian/Ubuntu 安装：在 `apps/halokey` 里 `cargo tauri build --bundles deb`，然后 `sudo dpkg -i target/release/bundle/deb/halokey_*.deb`，重新插拔接收器让自带的 udev 规则生效。
 
+![设置页](docs/screenshots/settings-en.png)
+
 设置页可直接写灯光、电源、麦克风与设备自身键位，也能导入 / 导出键位文件或从设备重建。
 
 设置窗口里的设备渲染图（`ui/public/device.png`）来自 [Open VibeKey](https://github.com/palaemonboy/OpenVibeKey) 仓库（MIT）。

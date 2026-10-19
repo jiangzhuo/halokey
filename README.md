@@ -30,6 +30,8 @@ cargo run -p halokey-app --no-default-features   # tray app (dev: loads the Vite
 
 To install on Debian/Ubuntu: `cargo tauri build --bundles deb` in `apps/halokey`, then `sudo dpkg -i target/release/bundle/deb/halokey_*.deb` and replug the receiver so the bundled udev rule applies.
 
+![Settings page](docs/screenshots/settings-en.png)
+
 The Settings page writes lighting, power, microphone and the device's own key table directly, and can import / export the keymap file or rebuild it from the device.
 
 The device render in the settings window (`ui/public/device.png`) comes from the [Open VibeKey](https://github.com/palaemonboy/OpenVibeKey) repository (MIT).
