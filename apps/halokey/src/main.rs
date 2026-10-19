@@ -75,6 +75,8 @@ struct UiSnapshot {
     /// 当前按住的 MO 层，从底到顶。
     active_layers: Vec<u8>,
     effective_lighting: Option<halokey_host::LayerLighting>,
+    /// 应用版本（Cargo.toml），设置页"关于"行显示。
+    version: String,
 }
 
 impl UiSnapshot {
@@ -94,6 +96,7 @@ impl UiSnapshot {
             idle_minutes: 0,
             active_layers: s.active_layers,
             effective_lighting: s.effective_lighting,
+            version: env!("CARGO_PKG_VERSION").to_string(),
         }
     }
 }
@@ -263,7 +266,12 @@ fn save_keymap(state: State<'_, App>, keymap: serde_json::Value) -> Result<(), S
             c.effective_press()
         );
     }
-    // 落盘归一化后的形状（版本号由内容决定），而不是界面原样回传的 JSON。
+    install_keymap(&state, map).map(|_| ())
+}
+
+/// 把一份已校验的键位写到配置文件（归一化 JSON，版本号由内容决定）并下发运行时；
+/// 保存、导入、载入默认、从设备生成都走这里。
+fn install_keymap(state: &App, map: HostKeymap) -> Result<serde_json::Value, String> {
     let normalized: serde_json::Value =
         serde_json::from_slice(&map.to_json().map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?;
@@ -271,13 +279,121 @@ fn save_keymap(state: State<'_, App>, keymap: serde_json::Value) -> Result<(), S
     if let Some(dir) = state.config_path.parent() {
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
-    std::fs::write(&state.config_path, pretty).map_err(|e| e.to_string())?;
+    std::fs::write(&state.config_path, pretty)
+        .map_err(|e| format!("写入 {} 失败：{e}", state.config_path.display()))?;
     let guard = state.service.lock().map_err(|e| e.to_string())?;
     let service = guard.as_ref().ok_or("服务未运行")?;
     if !service.send(Command::SetKeymap(map)) {
         return Err("设备线程已退出".into());
     }
-    Ok(())
+    Ok(normalized)
+}
+
+/// 导入键位文件：对话框选 JSON → Rust 校验 → 替换配置文件并下发。取消返回 `None`。
+#[tauri::command]
+async fn import_keymap(
+    app: AppHandle,
+    state: State<'_, App>,
+) -> Result<Option<serde_json::Value>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let handle = app.clone();
+    let picked = tauri::async_runtime::spawn_blocking(move || {
+        handle
+            .dialog()
+            .file()
+            .add_filter("JSON", &["json"])
+            .blocking_pick_file()
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    let Some(file) = picked else { return Ok(None) };
+    let path = file.into_path().map_err(|e| e.to_string())?;
+    let bytes =
+        std::fs::read(&path).map_err(|e| format!("读取 {} 失败：{e}", path.display()))?;
+    let map = HostKeymap::from_json(&bytes).map_err(|e| e.to_string())?;
+    install_keymap(&state, map).map(Some)
+}
+
+/// 导出键位文件：保存对话框 → 原样拷贝当前配置文件。取消返回 `None`。
+#[tauri::command]
+async fn export_keymap(app: AppHandle, state: State<'_, App>) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let handle = app.clone();
+    let picked = tauri::async_runtime::spawn_blocking(move || {
+        handle
+            .dialog()
+            .file()
+            .add_filter("JSON", &["json"])
+            .set_file_name("keymap.json")
+            .blocking_save_file()
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    let Some(file) = picked else { return Ok(None) };
+    let target = file.into_path().map_err(|e| e.to_string())?;
+    std::fs::copy(&state.config_path, &target)
+        .map_err(|e| format!("写入 {} 失败：{e}", target.display()))?;
+    Ok(Some(target.display().to_string()))
+}
+
+/// 出厂六键的主机映射替换当前文件。
+#[tauri::command]
+fn load_default_keymap(state: State<'_, App>) -> Result<serde_json::Value, String> {
+    install_keymap(&state, HostKeymap::default_keymap())
+}
+
+/// 读设备六格表，生成基础映射替换当前文件。
+#[tauri::command]
+async fn keymap_from_device(state: State<'_, App>) -> Result<serde_json::Value, String> {
+    let replies = ask(&state, Command::ReadKeys, 12)??;
+    let bindings: Vec<(u8, Vec<halokey_host::KeyEntry>)> = replies
+        .into_iter()
+        .map(|r| {
+            (
+                r.index,
+                r.entries
+                    .iter()
+                    .map(|e| halokey_host::KeyEntry {
+                        kind: e.kind.byte(),
+                        code: e.code,
+                    })
+                    .collect(),
+            )
+        })
+        .collect();
+    let map = HostKeymap::from_device_bindings(&bindings).map_err(|e| e.to_string())?;
+    install_keymap(&state, map)
+}
+
+/// 从 `pactl list sources short` 的输出里挑 Vibe Key 的输入源（名字含 AU05，排除 .monitor）。
+fn pick_vibe_source(list: &str) -> Option<String> {
+    list.lines()
+        .filter_map(|l| l.split('\t').nth(1))
+        .find(|n| n.contains("AU05") && !n.ends_with(".monitor"))
+        .map(str::to_string)
+}
+
+/// Linux：把 Vibe Key 设为系统默认输入（PipeWire / PulseAudio 都认 pactl）。
+#[tauri::command]
+async fn set_default_audio_input() -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let out = std::process::Command::new("pactl")
+            .args(["list", "sources", "short"])
+            .output()
+            .map_err(|e| format!("找不到 pactl：{e}"))?;
+        let name = pick_vibe_source(&String::from_utf8_lossy(&out.stdout))
+            .ok_or("没有找到 Vibe Key 的麦克风（本体开着、收音打开了吗？）")?;
+        let status = std::process::Command::new("pactl")
+            .args(["set-default-source", &name])
+            .status()
+            .map_err(|e| e.to_string())?;
+        if !status.success() {
+            return Err("pactl set-default-source 失败".to_string());
+        }
+        Ok(name)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// 设备六格表：`(index, [(type, code)])`。
@@ -453,6 +569,8 @@ fn halo_window_origin(cursor_x: f64, cursor_y: f64, size: u32, scale: f64) -> (f
 struct AppSettings {
     idle_minutes: u64,
     halo: HaloSettings,
+    /// 关闭设置窗口时留在托盘（true）还是退出（false）。
+    close_to_tray: bool,
 }
 
 impl Default for AppSettings {
@@ -460,6 +578,7 @@ impl Default for AppSettings {
         AppSettings {
             idle_minutes: 5,
             halo: HaloSettings::default(),
+            close_to_tray: true,
         }
     }
 }
@@ -551,11 +670,6 @@ fn set_settings(state: State<'_, App>, patch: serde_json::Value) -> Result<AppSe
         return Err("设备线程已退出".into());
     }
     Ok(settings)
-}
-
-#[tauri::command]
-fn set_idle_minutes(state: State<'_, App>, minutes: u64) -> Result<(), String> {
-    set_settings(state, serde_json::json!({ "idleMinutes": minutes })).map(|_| ())
 }
 
 #[derive(Serialize, Clone)]
@@ -746,6 +860,7 @@ fn main() {
             service: Mutex::new(None),
             config_path: path,
         })
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             snapshot,
             get_keymap,
@@ -759,8 +874,12 @@ fn main() {
             set_autostart,
             write_device_keys,
             get_settings,
-            set_idle_minutes,
             set_settings,
+            import_keymap,
+            export_keymap,
+            load_default_keymap,
+            keymap_from_device,
+            set_default_audio_input,
             power_info,
             set_sleep_delay,
             set_standby_delay,
@@ -825,11 +944,17 @@ fn main() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            // 关闭设置窗只是隐藏；应用留在托盘。
+            // 关闭设置窗：按设置留在托盘（只隐藏）或退出。
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if window.label() == "main" {
-                    api.prevent_close();
-                    let _ = window.hide();
+                    let close_to_tray =
+                        load_settings(&window.state::<App>().config_path).close_to_tray;
+                    if close_to_tray {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    } else {
+                        window.app_handle().exit(0);
+                    }
                 }
             }
         })
@@ -839,6 +964,34 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn picks_the_vibe_key_capture_source_and_skips_monitors() {
+        let list = "94\talsa_output.platform-hdmi.monitor\tPipeWire\ts32le 2ch 48000Hz\tRUNNING\n\
+                    4779424\talsa_input.usb-AU05_AU05_202609xxxxxx-00.analog-stereo\tPipeWire\ts24le 2ch 48000Hz\tSUSPENDED\n\
+                    4779425\talsa_input.usb-AU05_AU05_202609xxxxxx-00.analog-stereo.monitor\tPipeWire\ts24le 2ch 48000Hz\tSUSPENDED\n";
+        assert_eq!(
+            pick_vibe_source(list).as_deref(),
+            Some("alsa_input.usb-AU05_AU05_202609xxxxxx-00.analog-stereo")
+        );
+        assert_eq!(
+            pick_vibe_source("1\talsa_input.usb-Other-00.analog-stereo\tPipeWire\n"),
+            None
+        );
+        assert_eq!(pick_vibe_source(""), None);
+    }
+
+    #[test]
+    fn settings_default_close_to_tray_and_merge_keeps_it() {
+        let s = AppSettings::default();
+        assert!(s.close_to_tray);
+        let merged: AppSettings =
+            serde_json::from_value(serde_json::json!({ "idleMinutes": 3 })).unwrap();
+        assert!(merged.close_to_tray, "缺省字段用默认值");
+        let off: AppSettings =
+            serde_json::from_value(serde_json::json!({ "closeToTray": false })).unwrap();
+        assert!(!off.close_to_tray);
+    }
+
     use super::*;
 
     #[test]
