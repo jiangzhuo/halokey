@@ -208,7 +208,11 @@ pub fn list_windows() -> Result<Vec<crate::WindowInfo>, Box<dyn std::error::Erro
     };
     let mut out = Vec::new();
     for w in windows {
-        let Some(class) = WmClass::get(&conn, w).ok().and_then(|c| c.reply().ok()).flatten() else {
+        let Some(class) = WmClass::get(&conn, w)
+            .ok()
+            .and_then(|c| c.reply().ok())
+            .flatten()
+        else {
             continue;
         };
         let title = text(w, net_wm_name, utf8_string)

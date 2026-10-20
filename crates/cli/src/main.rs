@@ -276,7 +276,14 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 if let Some(a) = access {
                     frame[3] = a;
                 }
-                println!("写入帧：{}", frame.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" "));
+                println!(
+                    "写入帧：{}",
+                    frame
+                        .iter()
+                        .map(|b| format!("{b:02x}"))
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                );
                 match transport.transact(&frame, REPLY_TIMEOUT, |f| f.len() >= 4 && f[2] == 0x2A) {
                     Ok(f) => println!("  (写入应答原始帧) {}", describe(&f)),
                     Err(e) => println!("  (写入无应答：{e})"),
@@ -329,7 +336,14 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 .iter()
                 .map(|b| u8::from_str_radix(b.trim_start_matches("0x"), 16))
                 .collect::<Result<_, _>>()?;
-            println!("发送：{}", frame.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" "));
+            println!(
+                "发送：{}",
+                frame
+                    .iter()
+                    .map(|b| format!("{b:02x}"))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            );
             let cmd = frame.get(2).copied().unwrap_or(0);
             match transport.transact(&frame, REPLY_TIMEOUT, |f| f.len() >= 3 && f[2] == cmd) {
                 Ok(f) => println!("回复：{}", describe(&f)),

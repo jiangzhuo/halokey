@@ -120,7 +120,6 @@ impl ControlActionMap {
             .clone()
             .or_else(|| self.long_press.clone().map(HostAction::Keyboard))
     }
-
 }
 
 /// 稀疏层：未配置的控件继续查找较低的活动层，最后回到基础层。

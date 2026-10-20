@@ -103,18 +103,30 @@ pub fn list_windows() -> WindowList {
     #[cfg(target_os = "linux")]
     {
         let env = |k: &str| std::env::var(k).ok();
-        let note = session_note(env("WAYLAND_DISPLAY").as_deref(), env("XDG_SESSION_TYPE").as_deref());
+        let note = session_note(
+            env("WAYLAND_DISPLAY").as_deref(),
+            env("XDG_SESSION_TYPE").as_deref(),
+        );
         match x11::list_windows() {
-            Ok(windows) => WindowList { windows, error: note },
+            Ok(windows) => WindowList {
+                windows,
+                error: note,
+            },
             Err(e) => WindowList {
                 windows: Vec::new(),
-                error: Some(note.map_or_else(|| format!("连接 X 服务器失败：{e}"), |n| format!("{n}（X 连接失败：{e}）"))),
+                error: Some(note.map_or_else(
+                    || format!("连接 X 服务器失败：{e}"),
+                    |n| format!("{n}（X 连接失败：{e}）"),
+                )),
             },
         }
     }
     #[cfg(not(target_os = "linux"))]
     {
-        WindowList { windows: Vec::new(), error: Some("此平台还没有窗口列表".to_string()) }
+        WindowList {
+            windows: Vec::new(),
+            error: Some("此平台还没有窗口列表".to_string()),
+        }
     }
 }
 
@@ -137,8 +149,14 @@ mod tests {
             w("", "no class"),
         ]);
         assert_eq!(out.len(), 2);
-        assert_eq!((out[0].class.as_str(), out[0].title.as_str()), ("chrome", "c1"));
-        assert_eq!((out[1].class.as_str(), out[1].title.as_str()), ("Zed", "z1"));
+        assert_eq!(
+            (out[0].class.as_str(), out[0].title.as_str()),
+            ("chrome", "c1")
+        );
+        assert_eq!(
+            (out[1].class.as_str(), out[1].title.as_str()),
+            ("Zed", "z1")
+        );
     }
 
     #[test]

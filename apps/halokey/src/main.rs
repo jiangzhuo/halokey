@@ -243,7 +243,10 @@ fn get_keymap(state: State<'_, App>) -> Result<serde_json::Value, String> {
 async fn list_windows() -> halokey_wm::WindowList {
     tauri::async_runtime::spawn_blocking(halokey_wm::list_windows)
         .await
-        .unwrap_or_else(|e| halokey_wm::WindowList { windows: Vec::new(), error: Some(e.to_string()) })
+        .unwrap_or_else(|e| halokey_wm::WindowList {
+            windows: Vec::new(),
+            error: Some(e.to_string()),
+        })
 }
 
 /// 只校验不保存，供界面在保存前显示错误。
@@ -325,10 +328,13 @@ async fn import_keymap(
     let path = file.into_path().map_err(|e| e.to_string())?;
     let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
     if size > 1 << 20 {
-        return Err(format!("{} 太大（{} 字节），不像键位文件", path.display(), size));
+        return Err(format!(
+            "{} 太大（{} 字节），不像键位文件",
+            path.display(),
+            size
+        ));
     }
-    let bytes =
-        std::fs::read(&path).map_err(|e| format!("读取 {} 失败：{e}", path.display()))?;
+    let bytes = std::fs::read(&path).map_err(|e| format!("读取 {} 失败：{e}", path.display()))?;
     let map = HostKeymap::from_json(&bytes).map_err(|e| e.to_string())?;
     install_keymap(&state, map).map(Some)
 }
@@ -400,7 +406,8 @@ fn vibe_source_from_pactl(ok: bool, stdout: &str, stderr: &str) -> Result<String
     if !ok {
         return Err(format!("pactl 失败：{}", stderr.trim()));
     }
-    pick_vibe_source(stdout).ok_or_else(|| "没有找到 Vibe Key 的麦克风（本体开着、收音打开了吗？）".to_string())
+    pick_vibe_source(stdout)
+        .ok_or_else(|| "没有找到 Vibe Key 的麦克风（本体开着、收音打开了吗？）".to_string())
 }
 
 /// Linux：把 Vibe Key 设为系统默认输入（PipeWire / PulseAudio 都认 pactl）。
@@ -1006,11 +1013,19 @@ mod tests {
             Err("pactl 失败：Connection failure: Connection refused".to_string())
         );
         assert_eq!(
-            vibe_source_from_pactl(true, "1\talsa_input.usb-Other-00.analog-stereo\tPipeWire\n", ""),
+            vibe_source_from_pactl(
+                true,
+                "1\talsa_input.usb-Other-00.analog-stereo\tPipeWire\n",
+                ""
+            ),
             Err("没有找到 Vibe Key 的麦克风（本体开着、收音打开了吗？）".to_string())
         );
         assert_eq!(
-            vibe_source_from_pactl(true, "2\talsa_input.usb-AU05_AU05_202609xxxxxx-00.analog-stereo\tPipeWire\n", ""),
+            vibe_source_from_pactl(
+                true,
+                "2\talsa_input.usb-AU05_AU05_202609xxxxxx-00.analog-stereo\tPipeWire\n",
+                ""
+            ),
             Ok("alsa_input.usb-AU05_AU05_202609xxxxxx-00.analog-stereo".to_string())
         );
     }
