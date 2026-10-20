@@ -129,12 +129,12 @@ fn device_mapping_sets_work_time_255_for_lit_lights_and_keeps_breathe_level() {
     assert_eq!(out.lights[3].kind, 0);
     assert_eq!(out.lights[3].work_time, 7, "关着的灯不改工作时长");
     assert_eq!(out.lights[3].always_on_brightness, 0);
-    // 全局模式 0（全灭）或 1（全亮）都会压住单灯设置：有亮的灯就切到 2（工作）。
+    // 全局模式是设置页的总开关：映射不碰它（运行时只在"工作"模式下才写分层背光）。
     let dark = Lighting {
         mode: 1,
         ..current.clone()
     };
-    assert_eq!(want.device_lighting(&dark).mode, 1) // 全局模式不动：总开关归设置页;
+    assert_eq!(want.device_lighting(&dark).mode, 1);
     let all_off = LayerLighting {
         lights: [LightEffect {
             mode: LightMode::Off,
