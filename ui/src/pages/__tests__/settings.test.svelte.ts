@@ -76,7 +76,10 @@ describe("Settings page", () => {
     await settle();
     q<HTMLButtonElement>("button[data-role=default-input]").click();
     await settle();
-    expect(document.body.textContent).toContain("AU05");
+    // 源名太长会把按钮挤扁：行里只显示结果，完整名字放 title。
+    expect(document.body.textContent).toContain("已设为系统默认输入");
+    expect(document.body.textContent).not.toContain("AU05");
+    expect(q<HTMLElement>("[data-role=audio-source]").title).toContain("AU05");
     vi.spyOn(api, "setDefaultAudioInput").mockRejectedValue("没有找到 Vibe Key 的麦克风");
     q<HTMLButtonElement>("button[data-role=default-input]").click();
     await settle();

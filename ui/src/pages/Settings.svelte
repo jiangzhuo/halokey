@@ -130,7 +130,7 @@
       <h3>{t("麦克风")}</h3>
       <div class="row"><span class="k">{t("收音")}</span><span class="v"><input class="switch" type="checkbox" data-role="mic" aria-label={t("收音")} checked={!!power?.micEnabled} disabled={!online || power?.micEnabled == null || busy.mic} onchange={(e) => setMic(e.target as HTMLInputElement)}></span>{#if rowError.mic}<span class="h bad">{rowError.mic}</span>{/if}</div>
       <div class="row"><span class="k">{t("硬件降噪")}</span><span class="v"><input class="switch" type="checkbox" data-role="noise" aria-label={t("硬件降噪")} checked={!!power?.noiseReduction} disabled={!online || power?.noiseReduction == null || busy.noise} onchange={(e) => setNoise(e.target as HTMLInputElement)}></span>{#if rowError.noise}<span class="h bad">{rowError.noise}</span>{/if}</div>
-      <div class="row"><span class="k">{t("系统默认输入")}</span><span class="v"><button data-role="default-input" disabled={busy.audio} onclick={setDefaultInput}>{t("设为系统默认输入")}</button></span>{#if rowError.audio}<span class="h bad">{rowError.audio}</span>{:else if audioSource}<span class="h mono">{audioSource}</span>{/if}</div>
+      <div class="row"><span class="k">{t("系统默认输入")}</span><span class="v"><button data-role="default-input" disabled={busy.audio} onclick={setDefaultInput}>{t("设为系统默认输入")}</button></span>{#if rowError.audio}<span class="h bad">{rowError.audio}</span>{:else if audioSource}<span class="h ok" data-role="audio-source" title={audioSource}>✓ {t("已设为系统默认输入")}</span>{/if}</div>
     </section>
   </div>
 
@@ -192,7 +192,11 @@
   .switch:checked::after { left: 18px; background: var(--accent-text); }
   .row { display: flex; align-items: center; gap: 14px; padding: 8px 0; border-top: 1px solid var(--line); }
   .row:first-of-type { border-top: 0; }
-  .k { width: 140px; color: var(--text-2); } .v { display: flex; align-items: center; gap: 10px; flex: 1; } .h { color: var(--muted); font-size: 12px; margin-left: auto; }
+  .k { width: 140px; color: var(--text-2); } .v { display: flex; align-items: center; gap: 10px; flex: 1; }
+  /* 右侧提示最多占一半宽并可换行，不许把左边的控件挤扁。 */
+  .h { color: var(--muted); font-size: 12px; margin-left: auto; max-width: 45%; text-align: right; overflow-wrap: anywhere; }
+  .h.ok { color: var(--ok); }
+  .v > button, .v > select, .v > .seg { flex: none; white-space: nowrap; }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .mono { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
   .muted { color: var(--muted); font-size: 13px; } .bad { color: var(--bad); }
