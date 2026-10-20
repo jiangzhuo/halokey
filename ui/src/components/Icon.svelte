@@ -23,7 +23,7 @@
   {:else if name === "mouse"}
     <rect x="7" y="2" width="10" height="20" rx="5" /><path d="M12 2v7" />
   {:else if name === "combo"}
-    <text x="12" y="17" text-anchor="middle" font-size="16" fill="currentColor" stroke="none" font-family="inherit">⌘</text>
+    <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" />
   {:else if name === "layer"}
     <path d="m12 3 9 5-9 5-9-5z" /><path d="m3 13 9 5 9-5" />
   {:else if name === "app" || name === "window"}
