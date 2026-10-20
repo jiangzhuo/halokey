@@ -141,11 +141,9 @@ fn device_mapping_sets_work_time_255_for_lit_lights_and_keeps_breathe_level() {
             brightness: 0,
         }; 4],
     };
-    assert_eq!(
-        all_off.device_lighting(&dark).mode,
-        2,
-        "全关的记录也切到工作模式，四盏 kind=0 才真的灭"
-    );
+    let mapped = all_off.device_lighting(&dark);
+    assert_eq!(mapped.mode, 1, "全关的记录也不碰全局模式");
+    assert!(mapped.lights.iter().all(|l| l.kind == 0), "四盏 kind=0");
 }
 
 #[test]
