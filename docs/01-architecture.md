@@ -53,7 +53,7 @@ The heartbeat keeps the device in vendor-event mode. When halokey stops, suspend
 - A second Tauri window: transparent, undecorated, always on top, skipped in the taskbar, **not focusable**. It must never steal focus, because the chosen action is injected into whatever application was active when the knob was first turned.
 - Knob ticks rotate the selection, knob press confirms, a timeout or key press cancels.
 - Eight options per halo; each option is any host action, so a halo can also open another halo.
-- Platform notes: Linux X11 works as-is, Wayland needs the layer-shell protocol and GNOME does not support it; macOS needs a non-activating panel; Windows needs a no-activate window style.
+- Platform notes: Linux X11 works as-is. **Wayland, tested 2026-10-20 in a nested GNOME Shell (mutter 46) session**: the settings window and the halo overlay both work (the user saw no visible problem on knob press); GTK cannot pin or position windows on Wayland, so the overlay sits where the compositor puts it. Window listing and app switching still go through XWayland (X11 clients only). macOS needs a non-activating panel; Windows needs a no-activate window style.
 
 ## 5. Protocol facts carried over
 

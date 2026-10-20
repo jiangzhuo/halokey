@@ -59,8 +59,8 @@ Ulanzi Studio 只支持 Windows 和 macOS。目前所有社区项目要么只做
 |---|---|---|---|
 | HID 传输 | hidapi 走 `hidraw` | hidapi 走 IOKit | hidapi 走 Win32 HID |
 | 输入注入 | uinput（已完成） | CGEvent（仅编译检查，未实测） | SendInput（仅编译检查，未实测） |
-| 切换应用 | X11 EWMH（已完成），Wayland 按合成器适配 | NSWorkspace + `open`（仅编译检查） | SetForegroundWindow（仅编译检查） |
-| 悬浮窗 | X11 可用，Wayland 需要 layer-shell | 不抢焦点的面板 | 不激活的窗口 |
+| 切换应用 | X11 EWMH（已完成）；Wayland 下只认 XWayland 客户端 | NSWorkspace + `open`（仅编译检查） | SetForegroundWindow（仅编译检查） |
+| 悬浮窗 | X11 可用；GNOME Wayland 可用，位置由合成器安排 | 不抢焦点的面板 | 不激活的窗口 |
 
 ## 仓库布局
 

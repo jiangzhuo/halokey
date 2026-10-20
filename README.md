@@ -59,8 +59,8 @@ Ulanzi Studio supports only Windows and macOS. Every community project so far is
 |---|---|---|---|
 | HID transport | `hidraw` via hidapi | IOKit via hidapi | Win32 HID via hidapi |
 | Input injection | uinput (done) | CGEvent (compile-checked, untested) | SendInput (compile-checked, untested) |
-| App switching | X11 EWMH (done), Wayland per compositor | NSWorkspace + `open` (compile-checked) | SetForegroundWindow (compile-checked) |
-| Overlay window | X11 ready, Wayland needs layer-shell | non-activating panel | no-activate window |
+| App switching | X11 EWMH (done); under Wayland only XWayland clients | NSWorkspace + `open` (compile-checked) | SetForegroundWindow (compile-checked) |
+| Overlay window | X11 ready; GNOME Wayland works, placed by the compositor | non-activating panel | no-activate window |
 
 ## Repository layout
 
