@@ -92,6 +92,7 @@ pub struct WindowList {
 }
 
 /// Wayland 会话里 X11 只看得到 XWayland 客户端，原生 Wayland 应用不在列表里；给用户一句原因。
+#[cfg(target_os = "linux")]
 fn session_note(wayland_display: Option<&str>, session_type: Option<&str>) -> Option<String> {
     let wayland = wayland_display.is_some_and(|d| !d.is_empty())
         || session_type.is_some_and(|t| t.eq_ignore_ascii_case("wayland"));
@@ -160,6 +161,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn wayland_sessions_get_a_reason_and_x11_sessions_none() {
         assert!(session_note(Some("wayland-0"), None).is_some());
         assert!(session_note(None, Some("wayland")).is_some());
