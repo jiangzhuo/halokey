@@ -122,15 +122,9 @@
   <div class="two">
     <section class="card">
       <h3>{t("灯光")}</h3>
-      {#if hasBacklight}
-        <div class="row"><span class="k">{t("灯光模式")}</span><span class="v">{info?.lighting ? t(modeName[info.lighting.mode] ?? "—") : "—"}</span></div>
-        <div class="row"><span class="k">{t("全亮亮度")}</span><span class="v mono">{info?.lighting?.brightness ?? "—"} / 20</span></div>
-        <div class="row"><span class="k"></span><span class="v muted">{t("由分层背光接管：各灯在键位页按 Layer 设置")}</span></div>
-      {:else}
-        <div class="row"><span class="k">{t("灯光模式")}</span><span class="v"><span class="seg">{#each [0, 1, 2] as m}<button data-light-mode={m} class:on={info?.lighting?.mode === m} disabled={!online || !info?.lighting || busy.lighting} onclick={() => setLightingGlobal({ mode: m })}>{t(modeName[m]!)}</button>{/each}</span></span>{#if rowError.lighting}<span class="h bad">{rowError.lighting}</span>{/if}</div>
-        <div class="row"><span class="k">{t("全亮亮度")}</span><span class="v"><input type="range" data-role="all-on" min="0" max="20" value={info?.lighting?.brightness ?? 0} disabled={!online || !info?.lighting || busy.lighting} onchange={(e) => setLightingGlobal({ brightness: Number((e.target as HTMLInputElement).value) })} /><span class="mono">{info?.lighting?.brightness ?? "—"} / 20</span></span></div>
-        <div class="row"><span class="k"></span><span class="v muted">{t("各灯效果在键位页按 Layer 设置")}</span></div>
-      {/if}
+      <div class="row"><span class="k">{t("灯光模式")}</span><span class="v"><span class="seg">{#each [0, 1, 2] as m}<button data-light-mode={m} class:on={info?.lighting?.mode === m} disabled={!online || !info?.lighting || busy.lighting} onclick={() => setLightingGlobal({ mode: m })}>{t(modeName[m]!)}</button>{/each}</span></span>{#if rowError.lighting}<span class="h bad">{rowError.lighting}</span>{/if}</div>
+      <div class="row"><span class="k">{t("全亮亮度")}</span><span class="v"><input type="range" data-role="all-on" min="0" max="20" value={info?.lighting?.brightness ?? 0} disabled={!online || !info?.lighting || busy.lighting} onchange={(e) => setLightingGlobal({ brightness: Number((e.target as HTMLInputElement).value) })} /><span class="mono">{info?.lighting?.brightness ?? "—"} / 20</span></span></div>
+      <div class="row"><span class="k"></span><span class="v muted">{hasBacklight ? t("工作：按键位页的 Layer 背光；全灭 / 全亮时忽略分层背光") : t("各灯效果在键位页按 Layer 设置")}</span></div>
     </section>
     <section class="card">
       <h3>{t("麦克风")}</h3>

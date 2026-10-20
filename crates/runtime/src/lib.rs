@@ -24,7 +24,7 @@ use halokey_input::{Injector, KeyBridge, RecordingInjector};
 use halokey_proto::frame::Plaintext;
 use halokey_proto::settings::NoiseReductionSetting;
 use halokey_proto::{settings, status, Battery, Control, KeyConfigReply, Lighting, VendorKeyEvent};
-use lighting::LightingScheduler;
+use lighting::{layer_backlight_allowed, LightingScheduler};
 
 /// 心跳间隔。
 pub const HEARTBEAT_INTERVAL: Duration = Duration::from_millis(800);
@@ -580,8 +580,10 @@ impl Worker {
                 }
                 Ok(Command::SetLighting(desired, reply)) => {
                     let _ = reply.send(set_lighting(transport, &desired));
-                    // 设置页直接改了设备记录：运行时的缓存作废，下次按层变化重写。
+                    // 设置页直接改了设备记录（含总开关）：缓存作废并立刻按当前层重算，
+                    // 切回"工作"时分层背光马上恢复，不用等下一次按键。
                     self.lighting.failed();
+                    self.refresh_layers();
                     self.drain_stray();
                 }
                 Ok(Command::SetIdleTimeout(timeout)) => {
@@ -1059,6 +1061,10 @@ fn read_lighting(transport: &mut Transport) -> Result<Lighting, String> {
 /// 把一层的背光套到设备现值上写入：只改四盏灯的 kind 与亮度，每条写等确认（不读回核对，省两次往返）。
 fn write_layer_lighting(transport: &mut Transport, desired: &LayerLighting) -> Result<(), String> {
     let current = read_lighting(transport)?;
+    // 全局模式不是"工作"：用户在设置页选了全灭 / 全亮，分层背光让位，什么都不写。
+    if !layer_backlight_allowed(current.mode) {
+        return Ok(());
+    }
     let target = desired.device_lighting(&current);
     let mut writes = settings::lighting_writes(&target, &current).map_err(|e| e.to_string())?;
     // 固件只让这次被写到的灯（重新）开始显示，没写到的灯会被打断：亮着的灯不管有没有变化都补写

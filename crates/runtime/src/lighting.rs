@@ -8,6 +8,12 @@ pub(crate) const DEBOUNCE: Duration = Duration::from_millis(100);
 /// 写入失败后，同一个值再试之前至少等这么久（层真的变了不受此限制）。
 pub(crate) const RETRY_BACKOFF: Duration = Duration::from_secs(10);
 
+/// 设备的全局灯光模式是总开关：只有"工作"(2) 时分层背光才写进去；"全灭"(0) / "全亮"(1)
+/// 是用户在设置页的选择，运行时不去覆盖它。
+pub(crate) fn layer_backlight_allowed(global_mode: u8) -> bool {
+    global_mode == 2
+}
+
 /// 把"活动层变化"变成"该写什么、什么时候写"。
 pub(crate) struct LightingScheduler {
     /// 当前应有的有效背光；`None` = 不管灯。
@@ -89,6 +95,13 @@ mod tests {
                 brightness: b,
             }; 4],
         }
+    }
+
+    #[test]
+    fn layer_backlight_only_applies_in_work_mode() {
+        assert!(layer_backlight_allowed(2));
+        assert!(!layer_backlight_allowed(0));
+        assert!(!layer_backlight_allowed(1));
     }
 
     #[test]

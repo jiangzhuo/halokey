@@ -45,8 +45,9 @@ describe("Settings page", () => {
     unmount(app); app = undefined; document.body.innerHTML = "";
     app = mount(Settings, { target: document.body, props: { snapshot, hasBacklight: true } });
     await settle();
-    expect(document.querySelector("button[data-light-mode]")).toBeNull();
-    expect(document.body.textContent).toContain("由分层背光接管");
+    // 有分层背光时三个模式按钮照样可用：全灭 / 全亮 是总开关，工作 才让分层背光生效。
+    expect(q<HTMLButtonElement>("button[data-light-mode='0']").disabled).toBe(false);
+    expect(document.body.textContent).toContain("全灭 / 全亮时忽略分层背光");
   });
   it("writes power and mic settings, and reports a rejected mic write inline", async () => {
     setLang("zh");

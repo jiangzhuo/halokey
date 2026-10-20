@@ -99,8 +99,7 @@ impl LayerLighting {
                 always_on_brightness: effect.brightness,
             };
         }
-        // 有记录就切到工作模式：模式 0 / 1 都会忽略单灯设置，四盏全关也要靠 kind=0 才真的灭。
-        out.mode = 2;
+        // 全局模式不动：它是设置页的总开关，只有"工作"时运行时才会写分层背光。
         out
     }
 }

@@ -134,7 +134,7 @@ fn device_mapping_sets_work_time_255_for_lit_lights_and_keeps_breathe_level() {
         mode: 1,
         ..current.clone()
     };
-    assert_eq!(want.device_lighting(&dark).mode, 2);
+    assert_eq!(want.device_lighting(&dark).mode, 1) // 全局模式不动：总开关归设置页;
     let all_off = LayerLighting {
         lights: [LightEffect {
             mode: LightMode::Off,
