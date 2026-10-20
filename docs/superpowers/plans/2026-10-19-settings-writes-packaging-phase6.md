@@ -792,3 +792,9 @@ Language and appearance are per-machine browser preferences, not part of this fi
 - 类型一致性：`api.*` 名称在 Task 2 定义、Task 3/4 同名；`AppSettings.closeToTray` Rust camelCase 与 TS 一致；`UiSnapshot.version` 两侧同名；`Settings` props `dirty / hasBacklight / onKeymapReplaced` 在 Task 3 声明、Task 4 与 App 同用；`rowError` 键名在模板与函数一致。
 - Review Focus 五项：1 → Task 1 校验先于写入 + Task 4 拒绝测试；2 → Task 3 mic 测试；3 → Task 3 `hasBacklight` 测试；4 → Task 1 `pick_vibe_source` None 测试 + Task 3 拒绝测试；5 → Task 1 `Ok(None)` + Task 4 导出取消测试。
 - 无自动化测试的部分：对话框本体、`pactl` 调用、`.deb` 安装 —— 真机清单 4、6、10。
+
+## 回填（执行后）
+
+- 2026-10-20 本机 GNOME/X11 真机清单 1–10 全部通过（用户实测）。执行中改动了两处设计：全局灯光模式改为总开关（全灭 / 全亮时运行时不碰四盏灯，工作时分层背光生效），三个模式按钮一直可用；"收音"一行整个去掉——`2a` 标志既改不了（访问字节 00 / 02 / 04 都只应答不生效），也不反映麦克风能否录音（标志为 0 时照常能录），见 docs/02 §8。
+- 其它顺手修正：默认键位里键 1 写成"无动作"而不是固件的无效码 0x01；设置页右侧提示不再挤扁控件；键位文件版本固定 6（不再与 olanzi 互通）；`halokey raw` / `halokey mic --access` 两个实验用子命令。
+- 审查修正与 ruling 见提交信息（a7df603..ea73ffc）。
