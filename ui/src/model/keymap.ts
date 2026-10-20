@@ -12,6 +12,9 @@ export type HostAction =
   | { macro: { _0: MacroStep[] } }
   | { library: { _0: string } }
   | { momentaryLayer: { _0: number } }
+  | { toggleLayer: { _0: number } }
+  | { toLayer: { _0: number } }
+  | { oneShotLayer: { _0: number } }
   | { pointerMove: { _0: PointerDelta } }
   | { halo: { _0: string } }
   | { [other: string]: unknown };
@@ -70,3 +73,8 @@ export function effectiveLong(c: ControlActionMap): HostAction | null {
   return c.longPressAction ?? (c.longPress ? { keyboard: { _0: c.longPress } } : null);
 }
 export const isRotation = (index: number) => index === 4 || index === 5;
+
+/** 四种切层动作的键名与显示缩写（QMK 叫法）。 */
+export const LAYER_ACTIONS = { momentaryLayer: "MO", toggleLayer: "TG", toLayer: "TO", oneShotLayer: "OSL" } as const;
+export type LayerActionKind = keyof typeof LAYER_ACTIONS;
+export const isLayerAction = (a: HostAction): boolean => actionKind(a) in LAYER_ACTIONS;

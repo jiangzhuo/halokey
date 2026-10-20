@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import Keymap from "../Keymap.svelte";
 import Palette from "../../components/Palette.svelte";
 import type { HostAction } from "../../model/keymap";
-import { initialDraft, loadSaved, controlAt, type Draft } from "../../model/draft";
+import { initialDraft, loadSaved, controlAt, select, type Draft } from "../../model/draft";
 import type { HostKeymap } from "../../model/keymap";
 import { setLang } from "../../lib/i18n";
 
@@ -44,7 +44,26 @@ describe("Keymap palette", () => {
     flushSync();
     expect(controlAt(draft.v.map!, 0, 4)!.pressAction).toEqual({ pointerMove: { _0: { dx: 20, dy: 0 } } });
   });
-  it("leaves the Layer panel when a rotation or double press gets selected", () => {
+  it("keeps the Layer panel on double press with MO disabled and assigns TG / TO / OSL", () => {
+    setLang("zh");
+    const draft = $state<{ v: Draft }>({ v: select(loadSaved(initialDraft(), load()), { layer: 0, index: 0, gesture: "double" }) });
+    app = mount(Keymap, { target: document.body, props: { get draft() { return draft.v; }, set draft(d: Draft) { draft.v = d; }, snapshot: null } });
+    flushSync();
+    byText("Layer")!.click();
+    flushSync();
+    expect(byText("MO(1)")!.disabled).toBe(true);
+    expect(byText("TO(0)")).toBeTruthy();
+    expect(byText("TG(0)")).toBeUndefined();
+    expect(byText("OSL(0)")).toBeUndefined();
+    byText("TG(2)")!.click();
+    flushSync();
+    expect(controlAt(draft.v.map!, 0, 0)!.doublePressAction).toEqual({ toggleLayer: { _0: 2 } });
+    byText("OSL(3)")!.click();
+    flushSync();
+    expect(controlAt(draft.v.map!, 0, 0)!.doublePressAction).toEqual({ oneShotLayer: { _0: 3 } });
+    expect(document.body.textContent).toContain("按一下开、再按一下关");
+  });
+  it("leaves the Layer panel when a rotation gets selected", () => {
     setLang("zh");
     const draft = $state<{ v: Draft }>({ v: loadSaved(initialDraft(), load()) });
     app = mount(Keymap, { target: document.body, props: { get draft() { return draft.v; }, set draft(d: Draft) { draft.v = d; }, snapshot: null } });

@@ -1,6 +1,6 @@
 import type { Behavior, ControlActionMap, Gesture, Halo, HostAction, HostKeymap, KeyEntry, LayerLighting, LightEffect, NamedHostAction } from "./keymap";
 import { CONTROL_NAMES } from "./labels";
-import { isRotation } from "./keymap";
+import { isLayerAction, isRotation } from "./keymap";
 
 export type Selection = { layer: number; index: number; gesture: Gesture };
 export type Draft = { saved: HostKeymap | null; map: HostKeymap | null; selection: Selection; dirty: boolean };
@@ -64,8 +64,9 @@ export const assignEntries = (d: Draft, entries: KeyEntry[]) => mutate(d, (_m, c
   uninherit(c, g); (c as any)[GKEY[g]] = entries; delete (c as any)[AKEY[g]]; return true;
 });
 export const assignAction = (d: Draft, action: HostAction) => mutate(d, (_m, c, g) => {
-  // MO 只允许按键与旋钮按下的单击 / 长按（与 Rust 校验一致）。
-  if ("momentaryLayer" in action && (isRotation(d.selection.index) || g === "double")) return false;
+  // 切层只能放在按键与旋钮按下上；MO 还不能放在双击（与 Rust 校验一致）。
+  if (isLayerAction(action) && isRotation(d.selection.index)) return false;
+  if ("momentaryLayer" in action && g === "double") return false;
   uninherit(c, g); (c as any)[AKEY[g]] = action; if (g !== "press") delete (c as any)[GKEY[g]]; return true;
 });
 export const clearGesture = (d: Draft) => mutate(d, (_m, c, g) => {
@@ -199,7 +200,7 @@ export function deleteHalo(d: Draft, id: string): { draft: Draft; blockedBy: str
 
 /** 光环选项允许的动作：不能引用功能库、不能切层、不能套自己（与 Rust Halo::validate 一致）。 */
 export function haloActionAllowed(action: HostAction, editingId: string | null): boolean {
-  if ("library" in action || "momentaryLayer" in action) return false;
+  if ("library" in action || isLayerAction(action)) return false;
   if ("halo" in action && (action as { halo: { _0: string } }).halo._0 === editingId) return false;
   return true;
 }

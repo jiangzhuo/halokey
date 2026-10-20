@@ -655,8 +655,14 @@ impl Worker {
                 }
             }
             let now = self.now();
+            let layers_before = self.router.active_layers();
             let transitions = self.router.advance(now);
+            // 长按 MO 到阈值、OSL 的旋钮转动停下都只改活动层、不产生过渡，apply 不会替它刷新。
+            let layers_changed = self.router.active_layers() != layers_before;
             self.apply(transitions);
+            if layers_changed {
+                self.refresh_layers();
+            }
             self.pump_runner(now);
             if !self.paused {
                 if let Some(desired) = self.lighting.due(Instant::now()) {
@@ -787,7 +793,7 @@ impl Worker {
             }
             let transitions = self.router.receive(event, now);
             self.apply(transitions);
-            // MO 层的按下 / 松开本身不产生过渡，活动层集合却变了：这里再刷一次。
+            // 切层（MO 按下 / 松开、TG / TO / OSL）本身不产生过渡，活动层集合却变了：这里再刷一次。
             self.refresh_layers();
             return false;
         }

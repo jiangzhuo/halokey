@@ -8,7 +8,7 @@ const example = (name: string): HostKeymap =>
 
 describe("keymap types", () => {
   it("round-trips every example without losing fields", () => {
-    for (const f of ["knob-moves-pointer.json", "switch-apps-and-macro.json", "halo-menu.json", "layer-backlight.json"]) {
+    for (const f of ["knob-moves-pointer.json", "switch-apps-and-macro.json", "halo-menu.json", "layer-backlight.json", "knob-modes.json"]) {
       const raw = readFileSync(resolve(__dirname, "../../../../docs/examples", f), "utf8");
       const map: HostKeymap = JSON.parse(raw);
       expect(JSON.parse(JSON.stringify(map))).toEqual(JSON.parse(raw));

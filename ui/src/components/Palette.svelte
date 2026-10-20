@@ -6,7 +6,7 @@
   import Icon from "./Icon.svelte";
   import { CATEGORIES, type CategoryId } from "../model/codes";
   import { CONTROL_NAMES } from "../model/labels";
-  import { isRotation, type Behavior, type Halo, type HostAction, type KeyEntry, type NamedHostAction } from "../model/keymap";
+  import { isRotation, LAYER_ACTIONS, type Behavior, type Halo, type HostAction, type KeyEntry, type LayerActionKind, type NamedHostAction } from "../model/keymap";
   import { assignAction, assignEntries, clearGesture, resolvedControl, setBehavior, setTapCount, setTransparent, type Draft } from "../model/draft";
 
   let { draft = $bindable(), halos, apps, macros, mode = "gesture", onAction, excludeHalo = null, onEditHalo, onEditApp, onEditMacro, crumb }: {
@@ -33,9 +33,17 @@
   const count = $derived(!control ? 2 : sel.gesture === "press" ? control.pressTapCount ?? 2 : sel.gesture === "double" ? control.doublePressTapCount ?? 2 : control.longPressTapCount ?? 2);
   const rotation = $derived(isRotation(sel.index));
   const cat = $derived(CATEGORIES.find((c) => c.id === category)!);
-  const layerAllowed = $derived(!actionMode && !rotation && sel.gesture !== "double");
-  // 选中切到旋转 / 双击时 Layer 面板已不适用，退回常用。
+  const layerAllowed = $derived(!actionMode && !rotation);
+  // 选中切到旋转时 Layer 面板已不适用，退回常用。
   $effect(() => { if (!layerAllowed && category === "layer") category = "common"; });
+  // Layer 面板每种切层一行：目标层按钮 + 一句说明。MO 不能放在双击上（与 Rust 校验一致）。
+  const LAYER_ROWS: { kind: LayerActionKind; targets: number[]; desc: string }[] = [
+    { kind: "momentaryLayer", targets: [1, 2, 3], desc: "按住时切到该层，松开回来" },
+    { kind: "toggleLayer", targets: [1, 2, 3], desc: "按一下开、再按一下关" },
+    { kind: "toLayer", targets: [0, 1, 2, 3], desc: "只留该层；TO(0) 回到基础层" },
+    { kind: "oneShotLayer", targets: [1, 2, 3], desc: "只有下一次按键或下一段旋钮转动走该层" },
+  ];
+  const moBlocked = (kind: LayerActionKind) => kind === "momentaryLayer" && sel.gesture === "double";
   const pointer = (dx: number, dy: number) => emitAction({ pointerMove: { _0: { dx, dy } } });
 
   // 右侧键帽区能不能再往下滚：能就显示底部的渐隐 + 提示。
@@ -72,8 +80,15 @@
     {#if cat.keycaps}
       <KeyGrid keycaps={cat.keycaps} current={actionMode ? null : current} onPick={emitEntries} />
     {:else if category === "layer"}
-      <div class="cards">
-        {#each [1, 2, 3] as l}<button onclick={() => (draft = assignAction(draft, { momentaryLayer: { _0: l } }))}>MO({l})</button>{/each}
+      <div class="layers">
+        {#each LAYER_ROWS as row}
+          <div class="lrow">
+            <div class="lbtns">
+              {#each row.targets as l}<button disabled={moBlocked(row.kind)} title={moBlocked(row.kind) ? t("双击不能用 MO") : undefined} onclick={() => (draft = assignAction(draft, { [row.kind]: { _0: l } } as HostAction))}>{LAYER_ACTIONS[row.kind]}({l})</button>{/each}
+            </div>
+            <span class="muted">{t(row.desc)}</span>
+          </div>
+        {/each}
       </div>
     {:else if category === "pointer"}
       <div class="cards">
@@ -152,5 +167,10 @@
   .cards .item.lib .pick { padding: 6px 10px; }
   .cards .item.lib .sub { font-size: 11px; opacity: .7; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cards .item.new { border: 1px dashed var(--muted); background: transparent; color: var(--muted); justify-content: center; }
+  .layers { display: flex; flex-direction: column; gap: 10px; }
+  .lrow { display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; }
+  /* 按 TO 的四个按钮定宽，四行的说明文字对齐。 */
+  .lbtns { display: flex; gap: 8px; width: 312px; flex: none; }
+  .lbtns button { width: 72px; height: 40px; font-family: var(--mono); }
   .muted { color: var(--muted); font-size: 13px; }
 </style>

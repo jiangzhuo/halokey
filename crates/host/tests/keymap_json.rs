@@ -125,6 +125,47 @@ fn rotation_has_no_gestures_and_entries_are_validated() {
 }
 
 #[test]
+fn locking_and_one_shot_layers_fit_any_key_gesture_but_not_rotation() {
+    for action in [
+        HostAction::ToggleLayer(1),
+        HostAction::ToLayer(0),
+        HostAction::ToLayer(3),
+        HostAction::OneShotLayer(3),
+    ] {
+        let mut map = keymap();
+        map.controls[0].press_action = Some(action.clone());
+        map.controls[0].double_press_action = Some(action.clone());
+        map.controls[3].long_press_action = Some(action.clone());
+        assert!(map.validate().is_ok(), "{action:?}");
+        map.controls[5].press_action = Some(action.clone());
+        assert_eq!(map.validate(), Err(Error::InvalidLayerAction), "{action:?}");
+    }
+    for bad in [
+        HostAction::ToggleLayer(0),
+        HostAction::ToggleLayer(4),
+        HostAction::ToLayer(4),
+        HostAction::OneShotLayer(0),
+    ] {
+        let mut map = keymap();
+        map.controls[1].press_action = Some(bad.clone());
+        assert_eq!(map.validate(), Err(Error::InvalidLayerAction), "{bad:?}");
+    }
+    let mut map = keymap();
+    map.controls[0].press_action = Some(HostAction::ToLayer(0));
+    map.controls[1].press_action = Some(HostAction::ToggleLayer(2));
+    map.controls[2].press_action = Some(HostAction::OneShotLayer(3));
+    let json = String::from_utf8(map.to_json().unwrap()).unwrap();
+    for wire in [
+        r#""toLayer":{"_0":0}"#,
+        r#""toggleLayer":{"_0":2}"#,
+        r#""oneShotLayer":{"_0":3}"#,
+    ] {
+        assert!(json.contains(wire), "{wire} in {json}");
+    }
+    assert_eq!(HostKeymap::from_json(json.as_bytes()).unwrap(), map);
+}
+
+#[test]
 fn swift_exported_json_imports_and_round_trips() {
     let json = r#"{
       "version": 6,
@@ -294,11 +335,18 @@ fn halos_are_validated_and_referenced_by_id() {
     map.controls[3].press_action = None;
     map.halos[0].options.clear();
     assert_eq!(map.validate(), Err(Error::InvalidHalo));
-    map.halos[0].options = vec![HaloOption {
-        label: "x".into(),
-        action: HostAction::MomentaryLayer(1),
-    }];
-    assert_eq!(map.validate(), Err(Error::InvalidHalo));
+    for layer_action in [
+        HostAction::MomentaryLayer(1),
+        HostAction::ToggleLayer(1),
+        HostAction::ToLayer(0),
+        HostAction::OneShotLayer(1),
+    ] {
+        map.halos[0].options = vec![HaloOption {
+            label: "x".into(),
+            action: layer_action,
+        }];
+        assert_eq!(map.validate(), Err(Error::InvalidHalo));
+    }
     map.halos[0].options = (0..9)
         .map(|i| HaloOption {
             label: format!("{i}"),
