@@ -24,7 +24,8 @@ let mockInfo: UiDeviceInfo = defaultInfo();
 const defaultPower = (): UiPower => ({ standby: false, standbyDelay: 300, sleepDelay: 3600, micEnabled: false, noiseReduction: 1, errors: [] });
 let mockPower: UiPower = defaultPower();
 const FACTORY: DeviceKeys = [[0, [[2, 0x01]]], [1, [[2, 0x28]]], [2, [[2, 0x29]]], [3, [[2, 0x46]]], [4, [[2, 0x4f]]], [5, [[2, 0x2a]]]];
-const factoryKeymap = (): HostKeymap => ({ version: 6, controls: FACTORY.map(([index, entries]) => ({ index, press: entries.map(([type, code]) => ({ type, code })) })), doublePressWindow: 0.3, longPressThreshold: 0.5 });
+// 与 Rust default_keymap 一致：键 1 的出厂值 0x01（无效码）在主机侧写成无动作（0）。
+const factoryKeymap = (): HostKeymap => ({ version: 6, controls: FACTORY.map(([index, entries]) => ({ index, press: entries.map(([type, code]) => ({ type, code: code === 0x01 ? 0 : code })) })), doublePressWindow: 0.3, longPressThreshold: 0.5 });
 
 export const isTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 

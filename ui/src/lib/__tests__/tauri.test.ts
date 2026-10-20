@@ -45,7 +45,7 @@ describe("tauri bridge (mock mode in jsdom)", () => {
   });
   it("mock keymap file actions replace the stored keymap", async () => {
     const def = await api.loadDefaultKeymap();
-    expect(def.controls.map((c) => c.press[0]!.code)).toEqual([0x01, 0x28, 0x29, 0x46, 0x4f, 0x2a]);
+    expect(def.controls.map((c) => c.press[0]!.code)).toEqual([0x00, 0x28, 0x29, 0x46, 0x4f, 0x2a]); // 键 1 = 无动作，不是固件的无效码
     expect((await api.getKeymap()).halos).toBeUndefined();
     const fromDev = await api.keymapFromDevice();
     expect(fromDev.controls).toHaveLength(6);

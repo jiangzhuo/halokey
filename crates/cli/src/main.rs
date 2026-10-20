@@ -84,6 +84,11 @@ enum Command {
     },
     /// 把设备里的六格表导出为主机键位 JSON（可编辑后用 `run --config` 加载）。
     ExportKeymap,
+    /// 实验用：发一帧明文（十六进制字节），打印 1 秒内收到的所有回复。只用于读命令。
+    Raw {
+        /// 明文字节，如 `01 06 37 01`。
+        bytes: Vec<String>,
+    },
     /// 无界面守护进程：心跳 + 厂商事件 → 手势 → 注入（Linux uinput）。
     Run {
         /// HostProfile 或 HostKeymap JSON；缺省用设备里的六格表。
@@ -317,6 +322,18 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             }
             if heartbeat {
                 println!("共发送心跳 {} 次", transport.heartbeats_sent());
+            }
+        }
+        Command::Raw { bytes } => {
+            let frame: Vec<u8> = bytes
+                .iter()
+                .map(|b| u8::from_str_radix(b.trim_start_matches("0x"), 16))
+                .collect::<Result<_, _>>()?;
+            println!("发送：{}", frame.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" "));
+            let cmd = frame.get(2).copied().unwrap_or(0);
+            match transport.transact(&frame, REPLY_TIMEOUT, |f| f.len() >= 3 && f[2] == cmd) {
+                Ok(f) => println!("回复：{}", describe(&f)),
+                Err(e) => println!("无匹配回复：{e}"),
             }
         }
         Command::ExportKeymap => {

@@ -171,13 +171,18 @@ impl HostKeymap {
         }
     }
 
-    /// 出厂六键的主机映射，作为首次编辑的草稿。
+    /// 出厂六键的主机映射，作为首次编辑的草稿。出厂表里键 1 存的是 ErrorRollOver（0x01，
+    /// Studio 把它当麦克风键），主机侧显示成"无效码"没有意义，这里写成"无动作"；
+    /// 写回设备时空条目仍会映射成 0x01。
     pub fn default_keymap() -> HostKeymap {
         HostKeymap::new(
             halokey_proto::Control::FACTORY_CODES
                 .iter()
                 .enumerate()
-                .map(|(i, code)| ControlActionMap::new(i as u8, vec![KeyEntry::new(*code)]))
+                .map(|(i, code)| {
+                    let code = if *code == 0x01 { 0 } else { *code };
+                    ControlActionMap::new(i as u8, vec![KeyEntry::new(code)])
+                })
                 .collect(),
         )
     }
