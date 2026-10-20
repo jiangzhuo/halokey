@@ -35,7 +35,6 @@ describe("tauri bridge (mock mode in jsdom)", () => {
     expect(await api.setSleepDelay(7200)).toBe(7200);
     expect(await api.setStandbyDelay(120)).toBe(120);
     expect(await api.setNoiseReduction(0)).toBe(0);
-    expect(await api.setMicEnabled(true)).toBe(false); // 硬件应答但读回仍为关
     const info = await api.deviceInfo();
     const lit = await api.setLighting({ ...info.lighting!, mode: 1, brightness: 7 });
     expect(lit.mode).toBe(1);

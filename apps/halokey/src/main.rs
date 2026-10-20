@@ -770,11 +770,6 @@ async fn set_standby_delay(state: State<'_, App>, seconds: u32) -> Result<u32, S
 }
 
 #[tauri::command]
-async fn set_mic_enabled(state: State<'_, App>, enabled: bool) -> Result<bool, String> {
-    ask(&state, |tx| Command::SetMicEnabled(enabled, tx), 15)?
-}
-
-#[tauri::command]
 async fn set_noise_reduction(state: State<'_, App>, level: u8) -> Result<u8, String> {
     ask(&state, |tx| Command::SetNoiseReduction(level, tx), 15)?.map(|n| n.level)
 }
@@ -919,7 +914,6 @@ fn main() {
             power_info,
             set_sleep_delay,
             set_standby_delay,
-            set_mic_enabled,
             set_noise_reduction
         ])
         .setup(move |app| {

@@ -49,7 +49,7 @@ describe("Settings page", () => {
     expect(q<HTMLButtonElement>("button[data-light-mode='0']").disabled).toBe(false);
     expect(document.body.textContent).toContain("全灭 / 全亮时忽略分层背光");
   });
-  it("writes power and mic settings, and reports a rejected mic write inline", async () => {
+  it("writes power and noise settings; the mic state is read-only", async () => {
     setLang("zh");
     const sleep = vi.spyOn(api, "setSleepDelay");
     const standby = vi.spyOn(api, "setStandbyDelay");
@@ -64,11 +64,9 @@ describe("Settings page", () => {
     const noiseSw = q<HTMLInputElement>("input[data-role=noise]");
     noiseSw.click(); await settle();
     expect(noise).toHaveBeenCalledWith(0);
-    const mic = q<HTMLInputElement>("input[data-role=mic]");
-    expect(mic.checked).toBe(false);
-    mic.click(); await settle();
-    expect(mic.checked).toBe(false); // 读回仍为关
-    expect(document.body.textContent).toContain("设备未接受");
+    // 收音只读：没有开关，只显示读到的状态。
+    expect(document.querySelector("input[data-role=mic]")).toBeNull();
+    expect(q<HTMLElement>("[data-role=mic-state]").textContent).toContain("已关闭");
   });
   it("sets the system default input and shows the reason when it fails", async () => {
     setLang("zh");
@@ -150,13 +148,14 @@ describe("Settings page", () => {
   });
   it("reverts a control when the device write fails, and gates device rows on the connection", async () => {
     setLang("zh");
-    vi.spyOn(api, "setMicEnabled").mockRejectedValue("接收器未连接");
+    vi.spyOn(api, "setNoiseReduction").mockRejectedValue("接收器未连接");
     vi.spyOn(api, "setSleepDelay").mockRejectedValue("设备没有在限定时间内回复");
     app = mount(Settings, { target: document.body, props: { snapshot } });
     await settle();
-    const mic = q<HTMLInputElement>("input[data-role=mic]");
-    mic.click(); await settle();
-    expect(mic.checked).toBe(false);
+    const noise = q<HTMLInputElement>("input[data-role=noise]");
+    expect(noise.checked).toBe(true);
+    noise.click(); await settle();
+    expect(noise.checked).toBe(true);
     expect(document.body.textContent).toContain("接收器未连接");
     const sleep = q<HTMLSelectElement>("select[data-role=sleep]");
     change(sleep, "7200"); await settle();
@@ -165,7 +164,7 @@ describe("Settings page", () => {
     unmount(app); app = undefined; document.body.innerHTML = "";
     app = mount(Settings, { target: document.body, props: { snapshot: { ...snapshot, connected: false } } });
     await settle();
-    expect(q<HTMLInputElement>("input[data-role=mic]").disabled).toBe(true);
+    expect(q<HTMLInputElement>("input[data-role=noise]").disabled).toBe(true);
     expect(q<HTMLSelectElement>("select[data-role=sleep]").disabled).toBe(true);
     expect(q<HTMLButtonElement>("button[data-light-mode='1']").disabled).toBe(true);
   });

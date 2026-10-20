@@ -52,6 +52,8 @@ The action byte is stable per control but is not a key code; hosts route by `ind
 
 [CONFIRMED] The standby-state, standby-delay, sleep-delay, microphone-enable and noise-reduction reads listed in vibed's recovered command table answer on firmware 4.4.x as described: `01 01 0d 01` (byte 4), `01 01 2c 01` and `01 01 42 01` (u32 little-endian at offset 4), `01 01 2a 01` (byte 4), `01 01 90 01` (level at 4, low u16 at 5, high u16 at 7). Writing noise reduction with `01 01 90 04 <level> 40 06 e8 03` (Studio's 1600 / 1000 parameters) off and on again read back the new level each time. halokey verifies every one of these writes by read-back instead of parsing an acknowledgement frame.
 
+[CONFIRMED] The microphone-enable **write** is not honoured on firmware 4.4.2 (2026-10-20): `01 01 2a <access> 01` with access `00`, `02` and `04` each gets an acknowledgement that echoes the value (`81 01 2a 10 01`, `81 01 2a 12 01`, `81 01 2a 14 01`), but `01 01 2a 01` keeps reading `00` afterwards; capturing audio from the unit's USB source does not change the flag either. halokey shows the flag read-only.
+
 ## 9. Open questions
 
 - Whether the standard HID interface stays silent while the heartbeat runs on Linux (it does on macOS). Not yet captured on this platform.

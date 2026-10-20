@@ -21,7 +21,6 @@ let mockSettings: AppSettings = defaultSettings();
 export type DeviceKeys = [number, [number, number][]][];
 const defaultInfo = (): UiDeviceInfo => ({ firmware: "4.4.2", dongleFirmware: "4.4.2", noiseReduction: [1, 64, 6, 232], lighting: { mode: 2, brightness: 14, lights: Array.from({ length: 4 }, () => ({ kind: 0, workTime: 10, breatheLevel: 3, breatheBrightness: 14, alwaysOnBrightness: 14 })) }, errors: [] });
 let mockInfo: UiDeviceInfo = defaultInfo();
-// 收音开关的 mock 照抄硬件：写入应答但读回仍为关（2026-10-18 实测）。
 const defaultPower = (): UiPower => ({ standby: false, standbyDelay: 300, sleepDelay: 3600, micEnabled: false, noiseReduction: 1, errors: [] });
 let mockPower: UiPower = defaultPower();
 const FACTORY: DeviceKeys = [[0, [[2, 0x01]]], [1, [[2, 0x28]]], [2, [[2, 0x29]]], [3, [[2, 0x46]]], [4, [[2, 0x4f]]], [5, [[2, 0x2a]]]];
@@ -68,7 +67,6 @@ export const api = {
   setLighting: (lighting: UiLighting): Promise<UiLighting> => { if (isTauri()) return invoke("set_lighting", { lighting }); mockInfo = { ...mockInfo, lighting: JSON.parse(JSON.stringify(lighting)) }; return Promise.resolve(lighting); },
   setSleepDelay: (seconds: number): Promise<number> => { if (isTauri()) return invoke("set_sleep_delay", { seconds }); mockPower.sleepDelay = seconds; return Promise.resolve(seconds); },
   setStandbyDelay: (seconds: number): Promise<number> => { if (isTauri()) return invoke("set_standby_delay", { seconds }); mockPower.standbyDelay = seconds; return Promise.resolve(seconds); },
-  setMicEnabled: (enabled: boolean): Promise<boolean> => { if (isTauri()) return invoke("set_mic_enabled", { enabled }); mockPower.micEnabled = false; return Promise.resolve(false); },
   setNoiseReduction: (level: 0 | 1): Promise<number> => { if (isTauri()) return invoke("set_noise_reduction", { level }); mockPower.noiseReduction = level; return Promise.resolve(level); },
   setDefaultAudioInput: (): Promise<string> => isTauri() ? invoke("set_default_audio_input") : Promise.resolve("alsa_input.usb-AU05_mock-00.analog-stereo"),
   readDeviceKeys: (): Promise<DeviceKeys> => isTauri() ? invoke("read_device_keys") : Promise.resolve(JSON.parse(JSON.stringify(FACTORY))),
