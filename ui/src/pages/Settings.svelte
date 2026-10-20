@@ -55,8 +55,7 @@
   // 下拉：失败时把 DOM 值拨回当前读到的值（Svelte 不会重设没变化的 value）。
   const setSleep = (el: HTMLSelectElement) => write("sleep", () => api.setSleepDelay(Number(el.value)), (v) => { if (power) power = { ...power, sleepDelay: v }; }, () => { el.value = String(power?.sleepDelay ?? ""); });
   const setStandby = (el: HTMLSelectElement) => write("standby", () => api.setStandbyDelay(Number(el.value)), (v) => { if (power) power = { ...power, standbyDelay: v }; }, () => { el.value = String(power?.standbyDelay ?? ""); });
-  // 收音只读：固件对 `2a` 的写入三种访问字节都应答但值不变（2026-10-20 实测），见 docs/02 §8。
-  const onOff = (v: boolean | number | null | undefined) => (v == null ? "—" : v ? `● ${t("已开启")}` : `○ ${t("已关闭")}`);
+  // 没有"收音"一行：`2a` 标志既改不了也不反映麦克风能否录音（2026-10-20 实测），见 docs/02 §8。
   // 开关的 DOM 状态被点击翻转过了，读回后要显式写回，否则读回值没变时界面会停在"开"。
   const setNoise = (el: HTMLInputElement) => write("noise", () => api.setNoiseReduction(el.checked ? 1 : 0), (v) => { el.checked = !!v; if (power) power = { ...power, noiseReduction: v }; }, () => { el.checked = !!power?.noiseReduction; });
   const setDefaultInput = () => write("audio", () => api.setDefaultAudioInput(), (name) => { audioSource = name; });
@@ -124,7 +123,6 @@
     </section>
     <section class="card">
       <h3>{t("麦克风")}</h3>
-      <div class="row"><span class="k">{t("收音")}</span><span class="v" data-role="mic-state">{onOff(power?.micEnabled)}</span><span class="h">{t("固件不接受写入，只读")}</span></div>
       <div class="row"><span class="k">{t("硬件降噪")}</span><span class="v"><input class="switch" type="checkbox" data-role="noise" aria-label={t("硬件降噪")} checked={!!power?.noiseReduction} disabled={!online || power?.noiseReduction == null || busy.noise} onchange={(e) => setNoise(e.target as HTMLInputElement)}></span>{#if rowError.noise}<span class="h bad">{rowError.noise}</span>{/if}</div>
       <div class="row"><span class="k">{t("系统默认输入")}</span><span class="v"><button data-role="default-input" disabled={busy.audio} onclick={setDefaultInput}>{t("设为系统默认输入")}</button></span>{#if rowError.audio}<span class="h bad">{rowError.audio}</span>{:else if audioSource}<span class="h ok" data-role="audio-source" title={audioSource}>✓ {t("已设为系统默认输入")}</span>{/if}</div>
     </section>

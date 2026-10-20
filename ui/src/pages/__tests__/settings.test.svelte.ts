@@ -64,9 +64,9 @@ describe("Settings page", () => {
     const noiseSw = q<HTMLInputElement>("input[data-role=noise]");
     noiseSw.click(); await settle();
     expect(noise).toHaveBeenCalledWith(0);
-    // 收音只读：没有开关，只显示读到的状态。
+    // 麦克风卡里没有"收音"一行：那个标志既改不了也不反映能否录音。
     expect(document.querySelector("input[data-role=mic]")).toBeNull();
-    expect(q<HTMLElement>("[data-role=mic-state]").textContent).toContain("已关闭");
+    expect(document.body.textContent).not.toContain("收音");
   });
   it("sets the system default input and shows the reason when it fails", async () => {
     setLang("zh");
