@@ -121,21 +121,6 @@ impl ControlActionMap {
             .or_else(|| self.long_press.clone().map(HostAction::Keyboard))
     }
 
-    fn uses_non_default_output(&self) -> bool {
-        self.press_behavior != LongPressBehavior::Hold
-            || self.press_tap_count != 2
-            || self.double_press_behavior != LongPressBehavior::Tap
-            || self.double_press_tap_count != 2
-            || !self.inherited_gestures.is_empty()
-    }
-
-    fn actions(&self) -> [&Option<HostAction>; 3] {
-        [
-            &self.press_action,
-            &self.double_press_action,
-            &self.long_press_action,
-        ]
-    }
 }
 
 /// 稀疏层：未配置的控件继续查找较低的活动层，最后回到基础层。
@@ -153,7 +138,7 @@ pub struct HostLayer {
 /// 主机键位表。
 #[derive(Debug, Clone, PartialEq)]
 pub struct HostKeymap {
-    /// 1–5，由内容决定；见 [`HostKeymap::normalize_version`]。
+    /// 固定为 [`HostKeymap::VERSION`]；halokey 自己的格式，不与 olanzi 互通。
     pub version: u32,
     pub controls: Vec<ControlActionMap>,
     pub action_library: Vec<NamedHostAction>,
@@ -174,8 +159,8 @@ impl HostKeymap {
 
     /// 六个控件各一个单键动作，默认时序。
     pub fn new(controls: Vec<ControlActionMap>) -> HostKeymap {
-        let mut map = HostKeymap {
-            version: 1,
+        HostKeymap {
+            version: Self::VERSION,
             controls,
             action_library: Vec::new(),
             layers: Vec::new(),
@@ -183,9 +168,7 @@ impl HostKeymap {
             lighting: None,
             double_press_window: 0.25,
             long_press_threshold: 0.5,
-        };
-        map.normalize_version();
-        map
+        }
     }
 
     /// 出厂六键的主机映射，作为首次编辑的草稿。
@@ -233,78 +216,12 @@ impl HostKeymap {
             .or(self.lighting.as_ref())
     }
 
-    /// 内容所需的最低版本。
-    pub fn required_version(&self) -> u32 {
-        if self.lighting.is_some() || self.layers.iter().any(|l| l.lighting.is_some()) {
-            return 6;
-        }
-        let extended = self.all_controls().any(|c| {
-            c.press
-                .iter()
-                .chain(c.double_press.iter().flatten())
-                .chain(c.long_press.iter().flatten())
-                .any(|e| e.kind != 0x02)
-                || c.actions()
-                    .iter()
-                    .filter_map(|a| a.as_ref())
-                    .any(HostAction::uses_halokey_extensions)
-        }) || self
-            .action_library
-            .iter()
-            .any(|i| i.action.uses_halokey_extensions());
-        if extended {
-            return 6;
-        }
-        if self
-            .all_controls()
-            .any(ControlActionMap::uses_non_default_output)
-        {
-            return 5;
-        }
-        if !self.layers.is_empty()
-            || self.all_controls().any(|c| {
-                c.actions()
-                    .iter()
-                    .any(|a| matches!(a, Some(HostAction::MomentaryLayer(_))))
-            })
-        {
-            return 4;
-        }
-        if !self.action_library.is_empty()
-            || self.controls.iter().any(|c| {
-                c.actions()
-                    .iter()
-                    .any(|a| matches!(a, Some(HostAction::Library(_))))
-            })
-        {
-            return 3;
-        }
-        if self
-            .controls
-            .iter()
-            .any(|c| c.actions().iter().any(|a| a.is_some()))
-        {
-            2
-        } else {
-            1
-        }
-    }
+    /// 键位文件格式版本：只认这一个（没发布过，不保留旧版兼容）。
+    pub const VERSION: u32 = 6;
 
-    /// 支持的最高版本。
-    pub const MAX_VERSION: u32 = 6;
-
-    /// 把版本号对齐到内容；版本已越界时保留原值，由校验报错。
-    pub fn normalize_version(&mut self) {
-        if (1..=Self::MAX_VERSION).contains(&self.version) {
-            self.version = self.required_version();
-        }
-    }
-
-    /// 完整校验，与 olanzi 一致。
+    /// 完整校验。
     pub fn validate(&self) -> Result<(), Error> {
-        if !(1..=Self::MAX_VERSION).contains(&self.version)
-            || self.version < self.required_version()
-        {
+        if self.version != Self::VERSION {
             return Err(Error::UnsupportedVersion);
         }
         if let Some(l) = &self.lighting {
@@ -529,7 +446,7 @@ impl HostKeymap {
             .get("version")
             .and_then(serde_json::Value::as_u64)
             .ok_or(Error::UnsupportedVersion)?;
-        if !(1..=u64::from(Self::MAX_VERSION)).contains(&version) {
+        if version != u64::from(Self::VERSION) {
             return Err(Error::UnsupportedVersion);
         }
         // 背光记录的灯数先在原始 JSON 上检查，这样错误是中文的 InvalidLightingCount 而不是 serde 的英文。
@@ -554,7 +471,7 @@ impl HostKeymap {
             }
         }
         let wire: Wire = serde_json::from_value(value)?;
-        let mut map = HostKeymap {
+        let map = HostKeymap {
             version: wire.version,
             controls: wire.controls,
             action_library: wire.action_library,
@@ -564,8 +481,6 @@ impl HostKeymap {
             double_press_window: wire.double_press_window,
             long_press_threshold: wire.long_press_threshold,
         };
-        // 版本由内容决定：调用方（界面、设备表导出）给的旧版本号先归一，再校验。
-        map.normalize_version();
         map.validate()?;
         Ok(map)
     }
@@ -573,9 +488,7 @@ impl HostKeymap {
     /// 导出 JSON：先校验，空的层与动作库不写出。
     pub fn to_json(&self) -> Result<Vec<u8>, Error> {
         self.validate()?;
-        let mut map = self.clone();
-        map.normalize_version();
-        Ok(serde_json::to_vec(&Wire::from(map))?)
+        Ok(serde_json::to_vec(&Wire::from(self.clone()))?)
     }
 }
 
@@ -614,9 +527,7 @@ impl From<HostKeymap> for Wire {
 impl Serialize for HostKeymap {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         self.validate().map_err(serde::ser::Error::custom)?;
-        let mut map = self.clone();
-        map.normalize_version();
-        Wire::from(map).serialize(serializer)
+        Wire::from(self.clone()).serialize(serializer)
     }
 }
 

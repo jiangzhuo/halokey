@@ -21,7 +21,7 @@ crates/proto     TEA (32 rounds, ECB, little-endian halves), 64-byte frames, com
                  key-config codec, entry types 0x02 / 0x03 / 0x07. No I/O, no platform code.
 crates/hid       hidapi transport. Opens interface 3 (usage page 0xFFFC), writes report ID 0x55
                  + 63 bytes, reads 64-byte replies, runs the heartbeat, polls for hotplug.
-crates/host      HostKeymap model (JSON-compatible with olanzi), gesture router
+crates/host      HostKeymap model (JSON shape derived from olanzi, version 6 only), gesture router
                  (single / double / long press, knob ticks), four layers, QMK-style macros,
                  action runner. Pure logic, deterministic, unit-tested with a fake clock.
 crates/input     trait Injector { key_down, key_up, mouse_button, wheel, pointer_move }

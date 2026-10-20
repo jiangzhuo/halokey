@@ -3,7 +3,7 @@
 
 > 📚 文档集：[README](../README.zh.md) · [01 架构](01-architecture.zh.md) · [02 协议笔记](02-protocol-notes.zh.md) · **03 配置格式**
 
-halokey 只保存一个 JSON 文件，Linux 上在 `~/.config/halokey/keymap.json`。设置窗口编辑它；`halokey run --config` 和 `halokey export-keymap` 用同一种结构。格式是 olanzi 的 `HostKeymap` 加两个 halokey 扩展，所以 olanzi 导出的文件可以原样导入。
+halokey 只保存一个 JSON 文件，Linux 上在 `~/.config/halokey/keymap.json`。设置窗口编辑它；`halokey run --config` 和 `halokey export-keymap` 用同一种结构。结构源自 olanzi 的 `HostKeymap`，但文件是 halokey 自己的：版本固定为 6，不接受 olanzi 的文件。
 
 ---
 
@@ -23,7 +23,7 @@ halokey 只保存一个 JSON 文件，Linux 上在 `~/.config/halokey/keymap.jso
 
 | 字段 | 含义 |
 |---|---|
-| `version` | 1–6，保存时按内容决定。1–5 是 olanzi 的；6 表示用到了 halokey 扩展（`halos`、`halo` 或 `pointerMove` 动作、鼠标页条目）。olanzi 会故意拒绝版本 6。 |
+| `version` | 固定 `6`。其他值一律拒绝（halokey 没发布过，没有需要继续读的旧格式）。 |
 | `controls` | 恰好六项，每个控件一项：0 键 1、1 键 2、2 键 3、3 旋钮按下、4 右拧、5 左拧。 |
 | `layers` | 可选的稀疏覆盖层 1–3，由 `momentaryLayer` 动作激活。 |
 | `actionLibrary` | 可选的可复用应用或宏动作，由 `library` 动作引用。 |

@@ -21,7 +21,7 @@ crates/proto     TEA（32 轮、ECB、小端半字）、64 字节帧、命令表
                  按键配置编解码、条目类型 0x02 / 0x03 / 0x07。无 I/O，无平台代码。
 crates/hid       hidapi 传输。打开接口 3（usage page 0xFFFC），写 report ID 0x55
                  + 63 字节，读 64 字节回复，跑心跳，轮询热插拔。
-crates/host      HostKeymap 模型（与 olanzi 的 JSON 兼容）、手势路由
+crates/host      HostKeymap 模型（JSON 结构源自 olanzi，只认版本 6）、手势路由
                  （单击 / 双击 / 长按、旋钮格数）、四层、QMK 风格宏、
                  动作执行。纯逻辑、确定性，用假时钟做单元测试。
 crates/input     trait Injector { key_down, key_up, mouse_button, wheel, pointer_move }

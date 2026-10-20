@@ -78,7 +78,7 @@ tools/           仓库检查脚本
 
 ## 与其他项目的关系
 
-- [olanzi](https://github.com/MrCroxx/olanzi) 保存着逆向记录和一个原生 macOS 应用；halokey 复用它的协议文档和键位格式。
+- [olanzi](https://github.com/MrCroxx/olanzi) 保存着逆向记录和一个原生 macOS 应用；halokey 复用它的协议文档，键位格式由它衍生（文件不互通）。
 - [vibed](https://github.com/ihavespoons/vibed) 记录了从厂商 SDK 恢复的鼠标页条目类型，halokey 已在真机上确认。
 
 halokey 是独立的社区项目，与 Ulanzi 或 Kehwin 无关联、未获其背书，不包含也不加载任何厂商二进制。

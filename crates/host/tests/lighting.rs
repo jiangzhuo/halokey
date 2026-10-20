@@ -17,7 +17,7 @@ fn files_without_lighting_round_trip_unchanged() {
     assert!(!json.contains("lighting"));
     let back = HostKeymap::from_json(json.as_bytes()).unwrap();
     assert_eq!(back.lighting, None);
-    assert_eq!(back.version, 1);
+    assert_eq!(back.version, HostKeymap::VERSION);
 }
 
 #[test]
@@ -30,7 +30,6 @@ fn lighting_round_trips_and_requires_version_6() {
         controls: Vec::new(),
         lighting: Some(effects(LightMode::Breathe, 20)),
     });
-    map.normalize_version();
     assert_eq!(map.version, 6);
     let json = map.to_json().unwrap();
     let text = String::from_utf8(json.clone()).unwrap();
@@ -44,7 +43,6 @@ fn lighting_round_trips_and_requires_version_6() {
 fn brightness_above_20_is_rejected() {
     let mut map = HostKeymap::default_keymap();
     map.lighting = Some(effects(LightMode::Solid, 21));
-    map.normalize_version();
     assert!(matches!(map.validate(), Err(Error::InvalidLighting)));
     let json = br#"{"version":6,"controls":[],"lighting":{"lights":[{"mode":"solid","brightness":3}]},"doublePressWindow":0.25,"longPressThreshold":0.5}"#;
     assert!(

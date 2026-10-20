@@ -3,7 +3,7 @@
 
 > 📚 Docs set: [README](../README.md) · [01 Architecture](01-architecture.md) · [02 Protocol Notes](02-protocol-notes.md) · **03 Configuration Format**
 
-halokey keeps one JSON file, `~/.config/halokey/keymap.json` on Linux. The settings window edits it; `halokey run --config` and `halokey export-keymap` use the same shape. The format is olanzi's `HostKeymap` with two halokey extensions, so files exported from olanzi import unchanged.
+halokey keeps one JSON file, `~/.config/halokey/keymap.json` on Linux. The settings window edits it; `halokey run --config` and `halokey export-keymap` use the same shape. The shape is derived from olanzi's `HostKeymap` but the file is halokey's own: version is always 6 and olanzi files are not accepted.
 
 ---
 
@@ -23,7 +23,7 @@ halokey keeps one JSON file, `~/.config/halokey/keymap.json` on Linux. The setti
 
 | Field | Meaning |
 |---|---|
-| `version` | 1–6, chosen from the content on save. 1–5 are olanzi's; 6 means halokey extensions are present (`halos`, `halo` or `pointerMove` actions, mouse-page entries). olanzi rejects version 6 on purpose. |
+| `version` | Always `6`. Any other value is rejected (halokey has not shipped, so there is no older format to keep reading). |
 | `controls` | Exactly six, one per control index: 0 key 1, 1 key 2, 2 key 3, 3 knob press, 4 knob right, 5 knob left. |
 | `layers` | Optional sparse overlays 1–3, activated by `momentaryLayer` actions. |
 | `actionLibrary` | Optional reusable application or macro actions referenced by `library` actions. |

@@ -334,7 +334,6 @@ fn momentary_layer_is_immediate_and_release_restores_base() {
         controls: vec![ControlActionMap::new(1, double())],
         lighting: None,
     });
-    m.normalize_version();
     assert!(m.validate().is_ok());
     let mut r = router(m);
     assert_eq!(r.receive(down(0), 0.0), vec![]);

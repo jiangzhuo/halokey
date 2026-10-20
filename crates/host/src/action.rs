@@ -274,18 +274,6 @@ impl HostAction {
     pub const fn is_momentary_layer(&self) -> bool {
         matches!(self, HostAction::MomentaryLayer(_))
     }
-
-    /// 是否用到了 halokey 对 olanzi 格式的扩展（指针移动、鼠标页条目）。
-    pub fn uses_halokey_extensions(&self) -> bool {
-        match self {
-            HostAction::PointerMove(_) | HostAction::Halo(_) => true,
-            HostAction::Keyboard(entries) => entries.iter().any(|e| e.kind != 0x02),
-            HostAction::Macro(steps) => steps
-                .iter()
-                .any(|s| matches!(s, MacroStep::Keyboard(e) if e.iter().any(|k| k.kind != 0x02))),
-            _ => false,
-        }
-    }
 }
 
 /// 动作库中的一项；控件通过 UUID 绑定，改名或改内容不影响绑定。
@@ -363,7 +351,6 @@ mod tests {
         assert_eq!(text, r#"{"pointerMove":{"_0":{"dx":20,"dy":-5}}}"#);
         assert_eq!(serde_json::from_str::<HostAction>(&text).unwrap(), mv);
         assert!(mv.validate().is_ok());
-        assert!(mv.uses_halokey_extensions());
         assert_eq!(
             HostAction::PointerMove(PointerDelta { dx: 0, dy: 0 }).validate(),
             Err(Error::InvalidPointerDelta)

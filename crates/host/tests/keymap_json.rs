@@ -37,7 +37,7 @@ fn device_migration_preserves_combos_and_sorts_controls() {
             map.long_press_threshold,
             map.version
         ),
-        (0.25, 0.5, 1)
+        (0.25, 0.5, 6)
     );
 }
 
@@ -115,21 +115,19 @@ fn rotation_has_no_gestures_and_entries_are_validated() {
     map = keymap();
     map.controls[0].double_press_behavior = LongPressBehavior::Hold;
     // 字段直接改动后要先对齐版本号，校验才会报内容错误而不是版本错误。
-    map.normalize_version();
     assert_eq!(map.validate(), Err(Error::InvalidDoublePressBehavior));
     map = keymap();
     map.controls[0].long_press_tap_count = 21;
     assert_eq!(map.validate(), Err(Error::InvalidLongPressTapCount));
     map = keymap();
     map.controls[4].press_action = Some(HostAction::MomentaryLayer(1));
-    map.normalize_version();
     assert_eq!(map.validate(), Err(Error::InvalidLayerAction));
 }
 
 #[test]
 fn swift_exported_json_imports_and_round_trips() {
     let json = r#"{
-      "version": 5,
+      "version": 6,
       "controls": [
         {"index":0,"press":[{"type":2,"code":1}],"pressAction":{"momentaryLayer":{"_0":1}},"longPress":[{"type":2,"code":41}],
          "pressBehavior":"hold","pressTapCount":2,"doublePressBehavior":"tap","doublePressTapCount":2,
@@ -147,7 +145,7 @@ fn swift_exported_json_imports_and_round_trips() {
       "longPressThreshold": 0.6
     }"#;
     let map = HostKeymap::from_json(json.as_bytes()).unwrap();
-    assert_eq!(map.version, 5);
+    assert_eq!(map.version, 6);
     assert_eq!(
         map.controls[0].effective_press(),
         HostAction::MomentaryLayer(1)
@@ -175,52 +173,41 @@ fn swift_exported_json_imports_and_round_trips() {
 }
 
 #[test]
-fn version_selection_follows_content() {
+fn tap_counts_are_validated_and_extensions_round_trip() {
     let mut map = keymap();
-    assert_eq!(map.version, 1);
+    assert_eq!(map.version, HostKeymap::VERSION);
     map.controls[0].press_action = Some(HostAction::Application(ApplicationTarget {
         bundle_identifier: "a.b".into(),
         path: String::new(),
         name: "A".into(),
     }));
-    map.normalize_version();
-    assert_eq!(map.version, 2);
     map.action_library.push(NamedHostAction {
         id: "123e4567-e89b-12d3-a456-426614174000".into(),
         name: "宏".into(),
         slot: 0,
         action: HostAction::Macro(vec![MacroStep::Delay(0.5)]),
     });
-    map.normalize_version();
-    assert_eq!(map.version, 3);
     map.layers.push(HostLayer {
         id: 2,
         controls: vec![],
         lighting: None,
     });
-    map.normalize_version();
-    assert_eq!(map.version, 4);
     map.controls[1].press_tap_count = 3;
-    map.normalize_version();
-    assert_eq!(map.version, 5);
     assert!(map.validate().is_ok());
     map.controls[1].press_tap_count = 1;
     assert_eq!(map.validate(), Err(Error::InvalidPressTapCount));
     map.controls[1].press_tap_count = 5;
     assert!(map.validate().is_ok());
-    // 版本低于内容所需时拒绝。
+    // 版本号只认 6。
     let mut stale = map.clone();
-    stale.version = 1;
+    stale.version = 5;
     assert_eq!(stale.validate(), Err(Error::UnsupportedVersion));
-    // 未知的未来动作先报版本不兼容。
-    // 指针移动与鼠标页条目是 halokey 扩展，写版本 6。
+    // 指针移动与鼠标页条目照常往返。
     let mut extended = keymap();
     extended.controls[4].press_action = Some(HostAction::PointerMove(halokey_host::PointerDelta {
         dx: 20,
         dy: 0,
     }));
-    extended.normalize_version();
-    assert_eq!(extended.version, 6);
     assert!(extended.validate().is_ok());
     let text = String::from_utf8(extended.to_json().unwrap()).unwrap();
     assert!(
@@ -230,14 +217,13 @@ fn version_selection_follows_content() {
     assert_eq!(HostKeymap::from_json(text.as_bytes()).unwrap(), extended);
     let mut wheel = keymap();
     wheel.controls[5].press = vec![KeyEntry::mouse(halokey_proto::MouseCode::WheelUp)];
-    wheel.normalize_version();
-    assert_eq!(wheel.version, 6);
+    assert!(wheel.validate().is_ok());
     let future = r#"{"version":9,"controls":[],"doublePressWindow":0.25,"longPressThreshold":0.5}"#;
     assert_eq!(
         HostKeymap::from_json(future.as_bytes()),
         Err(Error::UnsupportedVersion)
     );
-    let future_action = r#"{"version":2,"controls":[{"index":0,"press":[],"pressAction":{"futureAction":{"_0":2}}}],"doublePressWindow":0.25,"longPressThreshold":0.5}"#;
+    let future_action = r#"{"version":6,"controls":[{"index":0,"press":[],"pressAction":{"futureAction":{"_0":2}}}],"doublePressWindow":0.25,"longPressThreshold":0.5}"#;
     assert!(matches!(
         HostKeymap::from_json(future_action.as_bytes()),
         Err(Error::Json(_))
@@ -260,7 +246,7 @@ fn profile_round_trip_and_legacy_codes_migration() {
     let legacy = r#"{"id":"123E4567-E89B-12D3-A456-426614174000","version":1,"name":"旧","codes":[1,40,41,70,79,42]}"#;
     let migrated = HostProfile::from_json(legacy.as_bytes()).unwrap();
     assert_eq!(migrated.keymap.controls[3].press, vec![KeyEntry::new(70)]);
-    assert_eq!(migrated.keymap.version, 1);
+    assert_eq!(migrated.keymap.version, 6);
     let bad = r#"{"id":"123E4567-E89B-12D3-A456-426614174000","version":3,"name":"x"}"#;
     assert_eq!(
         HostProfile::from_json(bad.as_bytes()),
@@ -296,7 +282,6 @@ fn halos_are_validated_and_referenced_by_id() {
         ],
     });
     map.controls[3].press_action = Some(HostAction::Halo("apps".into()));
-    map.normalize_version();
     assert_eq!(map.version, 6);
     assert!(map.validate().is_ok());
     let bytes = map.to_json().unwrap();
