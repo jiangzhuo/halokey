@@ -78,6 +78,9 @@ enum Command {
         /// 写入：true 开、false 关；不带则只读。
         #[arg(long)]
         enable: Option<bool>,
+        /// 实验用：写命令的访问字节（默认用 proto 里的编码）。
+        #[arg(long)]
+        access: Option<u8>,
     },
     /// 把设备里的六格表导出为主机键位 JSON（可编辑后用 `run --config` 加载）。
     ExportKeymap,
@@ -253,7 +256,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 );
             }
         }
-        Command::Mic { enable } => {
+        Command::Mic { enable, access } => {
             use halokey_proto::settings;
             let read = |t: &mut Transport| -> Result<bool, Box<dyn std::error::Error>> {
                 let f = t.transact(&settings::MIC_ENABLE_REQUEST, REPLY_TIMEOUT, |f| {
@@ -264,7 +267,15 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             };
             println!("当前收音：{}", read(&mut transport)?);
             if let Some(on) = enable {
-                transport.send(&settings::mic_enable_write(on))?;
+                let mut frame = settings::mic_enable_write(on);
+                if let Some(a) = access {
+                    frame[3] = a;
+                }
+                println!("写入帧：{}", frame.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" "));
+                match transport.transact(&frame, REPLY_TIMEOUT, |f| f.len() >= 4 && f[2] == 0x2A) {
+                    Ok(f) => println!("  (写入应答原始帧) {}", describe(&f)),
+                    Err(e) => println!("  (写入无应答：{e})"),
+                }
                 std::thread::sleep(std::time::Duration::from_millis(150));
                 println!("写入后收音：{}", read(&mut transport)?);
             }
