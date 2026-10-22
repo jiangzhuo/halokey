@@ -6,6 +6,9 @@ export type MacroStep =
   | { application: { _0: ApplicationTarget } }
   | { delay: { _0: number } };
 export type PointerDelta = { dx: number; dy: number };
+/** 滚轮格数，方向同屏幕坐标：dy 正值向下、dx 正值向右；每个方向 1–10。 */
+export type ScrollDelta = { dx: number; dy: number };
+export const MAX_SCROLL_NOTCHES = 10;
 export type HostAction =
   | { keyboard: { _0: KeyEntry[] } }
   | { application: { _0: ApplicationTarget } }
@@ -16,6 +19,7 @@ export type HostAction =
   | { toLayer: { _0: number } }
   | { oneShotLayer: { _0: number } }
   | { pointerMove: { _0: PointerDelta } }
+  | { scroll: { _0: ScrollDelta } }
   | { halo: { _0: string } }
   | { [other: string]: unknown };
 export type Behavior = "hold" | "tap" | "burst";

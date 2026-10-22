@@ -17,7 +17,7 @@ pub mod runner;
 
 pub use action::{
     ApplicationTarget, Halo, HaloOption, HostAction, KeyEntry, MacroStep, NamedHostAction,
-    PointerDelta,
+    PointerDelta, ScrollDelta,
 };
 pub use error::Error;
 pub use gesture::{GestureRouter, Transition};
