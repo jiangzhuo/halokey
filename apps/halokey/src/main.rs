@@ -845,6 +845,12 @@ fn launch_agent_plist(exe: &Path) -> String {
     )
 }
 
+/// macOS 对没移动过的下载应用做 App Translocation：从随机的只读路径运行，下次启动路径就变了。
+fn is_translocated(exe: &Path) -> bool {
+    exe.components()
+        .any(|c| c.as_os_str() == std::ffi::OsStr::new("AppTranslocation"))
+}
+
 #[tauri::command]
 fn get_autostart() -> bool {
     autostart_path().is_ok_and(|p| p.exists())
@@ -863,6 +869,9 @@ fn set_autostart(enabled: bool) -> Result<bool, String> {
     }
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let entry = if cfg!(target_os = "macos") {
+        if is_translocated(&exe) {
+            return Err("halokey 正从临时位置运行（App Translocation），这个路径下次登录就失效了。请先把 halokey 拖进「应用程序」文件夹，再打开它开启登录启动".to_string());
+        }
         launch_agent_plist(&exe)
     } else {
         desktop_entry(&exe)
@@ -1068,6 +1077,16 @@ mod tests {
         let plist =
             super::launch_agent_plist(std::path::Path::new("/Users/a&b/<x>.app/halokey-app"));
         assert!(plist.contains("<string>/Users/a&amp;b/&lt;x&gt;.app/halokey-app</string>"));
+    }
+
+    #[test]
+    fn translocated_paths_are_detected() {
+        assert!(super::is_translocated(std::path::Path::new(
+            "/private/var/folders/xy/abc/T/AppTranslocation/1234-ABCD/d/halokey.app/Contents/MacOS/halokey-app"
+        )));
+        assert!(!super::is_translocated(std::path::Path::new(
+            "/Applications/halokey.app/Contents/MacOS/halokey-app"
+        )));
     }
 
     #[test]
