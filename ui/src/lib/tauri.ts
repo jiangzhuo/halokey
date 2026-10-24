@@ -31,6 +31,8 @@ let mockUpdate: UpdateState = { state: "idle" };
 /** 测试用：设定 mock 的更新状态。 */
 export function setMockUpdate(s: UpdateState) { mockUpdate = s; }
 const mockUpdateHandlers = new Set<(s: UpdateState) => void>();
+/** 测试用：当前通过 `subscribeUpdate` 注册的 mock 处理函数个数。 */
+export function mockUpdateHandlerCount(): number { return mockUpdateHandlers.size; }
 /** 测试用：模拟 Rust 推送一条更新状态给所有 `subscribeUpdate` 订阅者。 */
 export function emitMockUpdate(s: UpdateState) { mockUpdate = s; for (const h of [...mockUpdateHandlers]) h(s); }
 /** 设备六格表：`[index, [[type, code], …]]`。 */

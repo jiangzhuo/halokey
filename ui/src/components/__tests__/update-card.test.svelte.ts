@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { mount, unmount, flushSync } from "svelte";
 import UpdateCard from "../UpdateCard.svelte";
-import { api, resetMocks, setMockUpdate, emitMockUpdate } from "../../lib/tauri";
+import { api, resetMocks, setMockUpdate, emitMockUpdate, mockUpdateHandlerCount } from "../../lib/tauri";
 import { setLang } from "../../lib/i18n";
 
 let app: ReturnType<typeof mount> | undefined;
@@ -123,11 +123,17 @@ describe("update card", () => {
     flushSync();
     expect(text()).toContain("Installing…");
   });
-  it("stops listening after unmount", async () => {
+  it("unsubscribes on unmount", async () => {
     await render();
+    expect(mockUpdateHandlerCount()).toBe(1);
     unmount(app!); app = undefined;
-    expect(() => emitMockUpdate({ state: "upToDate" })).not.toThrow();
-    expect(text()).not.toContain("You're up to date");
+    expect(mockUpdateHandlerCount()).toBe(0);
+  });
+  it("unsubscribes when unmounted before subscribeUpdate resolves", async () => {
+    app = mount(UpdateCard, { target: document.body });
+    unmount(app); app = undefined; // 订阅 promise 还没落定
+    await new Promise((r) => setTimeout(r, 0));
+    expect(mockUpdateHandlerCount()).toBe(0);
   });
   it("shows the error row when checkUpdate rejects", async () => {
     vi.spyOn(api, "checkUpdate").mockRejectedValueOnce("network down");
