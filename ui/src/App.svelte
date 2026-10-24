@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import TopBar from "./components/TopBar.svelte";
   import Keymap from "./pages/Keymap.svelte";
   import Settings from "./pages/Settings.svelte";
@@ -50,6 +50,8 @@
     subscribe((e) => {
       if (e.kind === "connected") api.getKeymap().then((m) => { draft = loadSaved(draft, m); });
       if (e.kind === "layers") activeLayers = e.active;
+      // 托盘菜单 / 通知点击：切到设置页并滚到"更新"一节。
+      if (e.kind === "showUpdates") { editing = null; page = "settings"; tick().then(() => document.getElementById("updates")?.scrollIntoView()); }
     }).then((u) => { un = u; });
     return () => { clearInterval(timer); window.removeEventListener("halokey-lang", relang); un?.(); };
   });

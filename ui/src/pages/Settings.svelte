@@ -3,6 +3,7 @@
   import { t, lang, setLang, colon, type Lang } from "../lib/i18n";
   import { api, type UiSnapshot, type UiDeviceInfo, type UiPower, type HaloSettings, type UiLighting, type DeviceKeys } from "../lib/tauri";
   import Icon from "../components/Icon.svelte";
+  import UpdateCard from "../components/UpdateCard.svelte";
   import { getTheme, setTheme, type Theme } from "../lib/theme";
   import { entriesLabel, CONTROL_NAMES } from "../model/labels";
   import type { HostKeymap } from "../model/keymap";
@@ -166,6 +167,7 @@
     <div class="row"><span class="k">{t("外观")}</span><span class="v"><span class="seg">
       {#each THEMES as [v, name]}<button data-theme-choice={v} class:on={theme === v} onclick={() => { theme = v; setTheme(v); }}>{t(name)}</button>{/each}</span></span></div>
   </section>
+  <section class="card" id="updates"><UpdateCard /></section>
   {#if note}<p class="bad">{note}</p>{/if}
   <p class="about mono">halokey {snapshot?.version ?? "—"} · {snapshot?.configPath ?? "—"}</p>
 </div>

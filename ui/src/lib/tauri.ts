@@ -9,7 +9,15 @@ export type UiEvent =
   | { kind: "battery"; percent: number | null; millivolts: number; charging: boolean | null }
   | { kind: "haloShow"; halo: Halo; selected: number; size?: number } | { kind: "haloSelect"; selected: number } | { kind: "haloHide" }
   | { kind: "error"; text: string } | { kind: "paused" } | { kind: "resumed" } | { kind: "stopped" }
-  | { kind: "layers"; active: number[] };
+  | { kind: "layers"; active: number[] } | { kind: "showUpdates" };
+/** 与 Rust `UpdateState` 的 JSON 一一对应（tag = `state`，camelCase）。 */
+export type UpdateState =
+  | { state: "unsupported"; reason: "fromSource" | "bundle" }
+  | { state: "idle" } | { state: "checking" } | { state: "upToDate" }
+  | { state: "available"; version: string }
+  | { state: "downloading"; downloaded: number; total: number | null }
+  | { state: "installing" } | { state: "cancelled" }
+  | { state: "error"; message: string };
 export type UiLight = { kind: number; workTime: number; breatheLevel: number; breatheBrightness: number; alwaysOnBrightness: number };
 export type UiLighting = { mode: number; brightness: number; lights: UiLight[] };
 export type UiDeviceInfo = { firmware: string | null; dongleFirmware: string | null; noiseReduction: number[] | null; lighting: UiLighting | null; errors: string[] };
@@ -19,6 +27,9 @@ export type UpdateSettings = { autoCheck: boolean; notifiedVersion: string | nul
 export type AppSettings = { idleMinutes: number; halo: HaloSettings; closeToTray: boolean; lang: Lang; updates: UpdateSettings };
 const defaultSettings = (): AppSettings => ({ idleMinutes: 5, halo: { position: "pointer", timeoutSeconds: 4, size: "medium" }, closeToTray: true, lang: "en", updates: { autoCheck: true, notifiedVersion: null } });
 let mockSettings: AppSettings = defaultSettings();
+let mockUpdate: UpdateState = { state: "idle" };
+/** 测试用：设定 mock 的更新状态。 */
+export function setMockUpdate(s: UpdateState) { mockUpdate = s; }
 /** 设备六格表：`[index, [[type, code], …]]`。 */
 export type DeviceKeys = [number, [number, number][]][];
 const defaultInfo = (): UiDeviceInfo => ({ firmware: "4.4.2", dongleFirmware: "4.4.2", noiseReduction: [1, 64, 6, 232], lighting: { mode: 2, brightness: 14, lights: Array.from({ length: 4 }, () => ({ kind: 0, workTime: 10, breatheLevel: 3, breatheBrightness: 14, alwaysOnBrightness: 14 })) }, errors: [] });
@@ -39,7 +50,7 @@ async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T
 // 浏览器里（npm run dev / vitest）没有 Tauri，用内存数据让界面能跑。
 let memory: HostKeymap = JSON.parse(JSON.stringify(example));
 /** 测试用：把内存 mock 全部复位（模块单例，不然用例之间互相污染）。 */
-export function resetMocks() { memory = JSON.parse(JSON.stringify(example)); mockActive = []; mockSettings = defaultSettings(); mockInfo = defaultInfo(); mockPower = defaultPower(); }
+export function resetMocks() { memory = JSON.parse(JSON.stringify(example)); mockActive = []; mockSettings = defaultSettings(); mockInfo = defaultInfo(); mockPower = defaultPower(); mockUpdate = { state: "idle" }; }
 let mockActive: number[] = [];
 const mockSnapshot = (): UiSnapshot => ({ connected: true, online: true, battery: [60, 3791, false], heartbeats: 1024, echoes: 1024, injected: 58, lastError: null, configPath: "~/.config/halokey/keymap.json", paused: false, standby: false, link: true, activeLayers: mockActive, effectiveLighting: null, version: "0.1.0" });
 function mockValidate(map: HostKeymap): void {
@@ -86,6 +97,10 @@ export const api = {
   },
   listWindows: (): Promise<WindowList> => isTauri() ? invoke("list_windows") : Promise.resolve({ windows: JSON.parse(JSON.stringify(MOCK_WINDOWS)), error: null }),
   getAutostart: (): Promise<boolean> => isTauri() ? invoke("get_autostart") : Promise.resolve(false),
+  updateStatus: (): Promise<UpdateState> => isTauri() ? invoke("update_status") : Promise.resolve({ ...mockUpdate }),
+  checkUpdate: (): Promise<UpdateState> => { if (isTauri()) return invoke("check_update"); mockUpdate = { state: "upToDate" }; return Promise.resolve({ ...mockUpdate }); },
+  installUpdate: (): Promise<void> => isTauri() ? invoke("install_update") : Promise.resolve(),
+  openReleaseNotes: (version: string): Promise<void> => isTauri() ? invoke("open_release_notes", { version }) : Promise.resolve(),
   setAutostart: (enabled: boolean): Promise<boolean> => isTauri() ? invoke("set_autostart", { enabled }) : Promise.resolve(enabled),
 };
 
@@ -106,4 +121,11 @@ export async function subscribe(handler: (e: UiEvent) => void): Promise<() => vo
   }
   const { listen } = await import("@tauri-apps/api/event");
   return listen<UiEvent>("halokey", (ev) => handler(ev.payload));
+}
+
+/** 订阅 Rust 推送的更新状态（`halokey-update` 频道）；浏览器里没有事件，返回空取消函数。 */
+export async function subscribeUpdate(handler: (s: UpdateState) => void): Promise<() => void> {
+  if (!isTauri()) return () => {};
+  const { listen } = await import("@tauri-apps/api/event");
+  return listen<UpdateState>("halokey-update", (ev) => handler(ev.payload));
 }
