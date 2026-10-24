@@ -359,9 +359,7 @@ fn notify_once(app: &AppHandle, version: &str) {
         eprintln!("[halokey] 系统通知发送失败：{e}");
     }
     let patch = serde_json::json!({ "updates": { "notifiedVersion": version } });
-    let saved = crate::merge_settings(crate::load_settings_value(config_path), &patch)
-        .and_then(|settings| crate::save_settings(config_path, &settings));
-    if let Err(e) = saved {
+    if let Err(e) = crate::patch_settings(config_path, &patch) {
         eprintln!("[halokey] 记录已通知的版本失败：{e}");
     }
 }

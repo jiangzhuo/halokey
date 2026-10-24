@@ -7,7 +7,7 @@ mod text;
 mod update;
 
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Mutex, PoisonError};
 
 use halokey_host::{HostAction, HostKeymap, HostProfile};
 use halokey_proto::{IndicatorLight, Lighting};
@@ -742,7 +742,25 @@ fn load_settings(config_path: &std::path::Path) -> AppSettings {
     merge_settings(load_settings_value(config_path), &serde_json::json!({})).unwrap_or_default()
 }
 
-/// 把设置写回文件：先合并进原始 JSON，未知键不丢。
+/// settings.json 的读改写（设置页的 `set_settings`、记录已通知的版本）都要先拿这把锁，
+/// 否则两边同时读到旧文件、各写各的，先写的那次改动（例如语言、自动检查开关）会丢。
+/// 只包住文件读写本身：不要持锁跨 await，也不要持锁重建托盘。
+static SETTINGS_IO: Mutex<()> = Mutex::new(());
+
+/// 把一段设置合并进 settings.json 并写回，整个读改写都在 `SETTINGS_IO` 里；返回合并后的设置。
+/// 校验不过时不写文件，返回错误。
+fn patch_settings(
+    config_path: &std::path::Path,
+    patch: &serde_json::Value,
+) -> Result<AppSettings, String> {
+    // 锁里只有一个 ()，中毒了也照常用
+    let _io = SETTINGS_IO.lock().unwrap_or_else(PoisonError::into_inner);
+    let settings = merge_settings(load_settings_value(config_path), patch)?;
+    save_settings(config_path, &settings)?;
+    Ok(settings)
+}
+
+/// 把设置写回文件：先合并进原始 JSON，未知键不丢。调用方要持有 `SETTINGS_IO`（见 `patch_settings`）。
 fn save_settings(config_path: &std::path::Path, settings: &AppSettings) -> Result<(), String> {
     let path = settings_path(config_path);
     if let Some(dir) = path.parent() {
@@ -801,21 +819,24 @@ fn get_settings(state: State<'_, App>) -> AppSettings {
 }
 
 /// 合并一段设置（只覆盖给出的键），写文件并即时生效。
+/// 设备服务不在（例如正在安装更新）时只保存：服务下次启动按文件生效，不算失败，免得设置页把已保存的值拨回去。
 #[tauri::command]
 fn set_settings(
     app: AppHandle,
     state: State<'_, App>,
     patch: serde_json::Value,
 ) -> Result<AppSettings, String> {
-    let settings = merge_settings(load_settings_value(&state.config_path), &patch)?;
-    save_settings(&state.config_path, &settings)?;
+    // 校验不过直接报错，文件不动；锁在这一步结束时就放开，下面重建托盘不持锁
+    let settings = patch_settings(&state.config_path, &patch)?;
     // 语言变了就立刻重建托盘菜单；有可安装的更新时保留"安装更新"项。
     if patch.get("lang").is_some() {
         let available = app.state::<update::Updates>().available_version();
         refresh_tray_menu(&app, available.as_deref());
     }
     let guard = state.service.lock().map_err(|e| e.to_string())?;
-    let service = guard.as_ref().ok_or("服务未运行")?;
+    let Some(service) = guard.as_ref() else {
+        return Ok(settings);
+    };
     let idle = (settings.idle_minutes > 0)
         .then(|| std::time::Duration::from_secs(settings.idle_minutes * 60));
     if !service.send(Command::SetIdleTimeout(idle))
@@ -1214,6 +1235,52 @@ mod tests {
             serde_json::to_value(&off).unwrap()["updates"]["notifiedVersion"],
             serde_json::Value::Null
         );
+    }
+
+    #[test]
+    fn concurrent_settings_patches_do_not_lose_each_other() {
+        // 两条读改写路径（设置页、记录已通知版本）同时写：每一次都要基于最新的文件，
+        // 最后两边的最后一次改动都在，未知键也还在。
+        let dir = std::env::temp_dir().join(format!(
+            "halokey-settings-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let config = dir.join("keymap.json");
+        std::fs::write(settings_path(&config), r#"{ "future": 1 }"#).unwrap();
+        const ROUNDS: u64 = 200;
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                for i in 1..=ROUNDS {
+                    patch_settings(&config, &serde_json::json!({ "idleMinutes": i })).unwrap();
+                }
+            });
+            s.spawn(|| {
+                for i in 1..=ROUNDS {
+                    let patch =
+                        serde_json::json!({ "updates": { "notifiedVersion": format!("0.0.{i}") } });
+                    patch_settings(&config, &patch).unwrap();
+                }
+            });
+        });
+        let raw = load_settings_value(&config);
+        let settings = load_settings(&config);
+        // 校验不过：报错，文件不动
+        let rejected = patch_settings(&config, &serde_json::json!({ "idleMinutes": 99999 }));
+        let after = load_settings_value(&config);
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(settings.idle_minutes, ROUNDS);
+        assert_eq!(
+            settings.updates.notified_version.as_deref(),
+            Some(format!("0.0.{ROUNDS}").as_str())
+        );
+        assert_eq!(raw["future"], 1);
+        assert!(rejected.is_err());
+        assert_eq!(after, raw);
     }
 
     #[test]
