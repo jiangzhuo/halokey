@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { api, isTauri } from "../tauri";
+import { api, isTauri, resetMocks } from "../tauri";
 
 describe("tauri bridge (mock mode in jsdom)", () => {
   it("reports no tauri and serves a keymap", async () => {
@@ -53,5 +53,11 @@ describe("tauri bridge (mock mode in jsdom)", () => {
     expect((await api.importKeymap())!.controls).toHaveLength(6);
     const s = await api.setSettings({ closeToTray: false });
     expect(s.closeToTray).toBe(false);
+  });
+  it("mock settings carry lang and updates defaults", async () => {
+    resetMocks();
+    const s = await api.getSettings();
+    expect(s.lang).toBe("en");
+    expect(s.updates).toEqual({ autoCheck: true, notifiedVersion: null });
   });
 });

@@ -6,6 +6,7 @@
   import HaloEditor from "./pages/HaloEditor.svelte";
   import MacroEditor from "./pages/MacroEditor.svelte";
   import { api, subscribe, type UiSnapshot } from "./lib/tauri";
+  import { lang } from "./lib/i18n";
   import { initialDraft, loadSaved, assignAction, select, type Draft, type Selection } from "./model/draft";
 
   let page = $state<"keymap" | "settings" | "halo" | "macro">("keymap");
@@ -40,7 +41,10 @@
   onMount(() => {
     refresh();
     const timer = setInterval(refresh, 2000);
-    const relang = () => { langTick++; };
+    // 界面语言存进 settings.json，托盘菜单和通知据此显示（失败只记日志，不影响界面）。
+    const syncLang = () => { api.setSettings({ lang: lang() }).catch((e) => console.error(e)); };
+    const relang = () => { langTick++; syncLang(); };
+    syncLang();
     window.addEventListener("halokey-lang", relang);
     let un: (() => void) | undefined;
     subscribe((e) => {

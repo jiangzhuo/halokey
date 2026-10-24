@@ -1,3 +1,4 @@
+import type { Lang } from "./i18n";
 import type { HostKeymap, Halo, LayerLighting } from "../model/keymap";
 import example from "../../../docs/examples/halo-menu.json";
 
@@ -14,8 +15,9 @@ export type UiLighting = { mode: number; brightness: number; lights: UiLight[] }
 export type UiDeviceInfo = { firmware: string | null; dongleFirmware: string | null; noiseReduction: number[] | null; lighting: UiLighting | null; errors: string[] };
 export type UiPower = { standby: boolean | null; standbyDelay: number | null; sleepDelay: number | null; micEnabled: boolean | null; noiseReduction: number | null; errors: string[] };
 export type HaloSettings = { position: "pointer" | "center"; timeoutSeconds: number; size: "small" | "medium" | "large" };
-export type AppSettings = { idleMinutes: number; halo: HaloSettings; closeToTray: boolean };
-const defaultSettings = (): AppSettings => ({ idleMinutes: 5, halo: { position: "pointer", timeoutSeconds: 4, size: "medium" }, closeToTray: true });
+export type UpdateSettings = { autoCheck: boolean; notifiedVersion: string | null };
+export type AppSettings = { idleMinutes: number; halo: HaloSettings; closeToTray: boolean; lang: Lang; updates: UpdateSettings };
+const defaultSettings = (): AppSettings => ({ idleMinutes: 5, halo: { position: "pointer", timeoutSeconds: 4, size: "medium" }, closeToTray: true, lang: "en", updates: { autoCheck: true, notifiedVersion: null } });
 let mockSettings: AppSettings = defaultSettings();
 /** 设备六格表：`[index, [[type, code], …]]`。 */
 export type DeviceKeys = [number, [number, number][]][];
@@ -77,9 +79,9 @@ export const api = {
   loadDefaultKeymap: (): Promise<HostKeymap> => { if (isTauri()) return invoke("load_default_keymap"); memory = factoryKeymap(); return Promise.resolve(JSON.parse(JSON.stringify(memory))); },
   keymapFromDevice: (): Promise<HostKeymap> => { if (isTauri()) return invoke("keymap_from_device"); memory = factoryKeymap(); return Promise.resolve(JSON.parse(JSON.stringify(memory))); },
   getSettings: (): Promise<AppSettings> => isTauri() ? invoke("get_settings") : Promise.resolve(JSON.parse(JSON.stringify(mockSettings))),
-  setSettings: (patch: { idleMinutes?: number; closeToTray?: boolean; halo?: Partial<HaloSettings> }): Promise<AppSettings> => {
+  setSettings: (patch: { idleMinutes?: number; closeToTray?: boolean; halo?: Partial<HaloSettings>; lang?: Lang; updates?: Partial<Pick<UpdateSettings, "autoCheck">> }): Promise<AppSettings> => {
     if (isTauri()) return invoke("set_settings", { patch });
-    mockSettings = { ...mockSettings, ...patch, halo: { ...mockSettings.halo, ...(patch.halo ?? {}) } };
+    mockSettings = { ...mockSettings, ...patch, halo: { ...mockSettings.halo, ...(patch.halo ?? {}) }, updates: { ...mockSettings.updates, ...(patch.updates ?? {}) } };
     return Promise.resolve(JSON.parse(JSON.stringify(mockSettings)));
   },
   listWindows: (): Promise<WindowList> => isTauri() ? invoke("list_windows") : Promise.resolve({ windows: JSON.parse(JSON.stringify(MOCK_WINDOWS)), error: null }),
