@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- macOS 26 原生图标的前景层：ui/icon.svg 去掉底板后按 1024/824 放大（底色由 icon.json 的 fill 铺满整个圆角方块）。 -->
+  <circle cx="512" cy="512" r="373" fill="none" stroke="#f2c9b5" stroke-width="37"/>
+  <circle cx="512" cy="512" r="288" fill="#f5f5f7" stroke="#e3d5cd" stroke-width="12"/>
+  <circle cx="512" cy="298" r="37" fill="#a85a32"/>
+</svg>

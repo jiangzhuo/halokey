@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <!-- 应用图标源文件。apps/halokey/icons 下的各尺寸用 `cargo tauri icon ui/icon.svg -o <临时目录>` 生成，只拷回桌面端用到的文件（不要 android/、ios/）。 -->
+  <!-- macOS 26 的原生图标另有一份 apps/halokey/icons/AppIcon.icon（前景层是本文件去掉底板后放大到铺满）。改了这里要同步改它，再跑 tools/build_macos_icon.sh 重新生成 Assets.car。 -->
   <!-- 陶土色底板，四周留 100 的边距（macOS 图标网格）。 -->
   <rect x="100" y="100" width="824" height="824" rx="185" fill="#d98f6c"/>
   <!-- 光环 -->
