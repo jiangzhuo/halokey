@@ -5,7 +5,7 @@
 </script>
 <div class="bar">
   <span class="muted">Layer</span>
-  <div class="seg">{#each [0, 1, 2, 3] as l}<button class:on={layer === l} class:held={active.includes(l)} onclick={() => onSelect(l)}>{l}{#if active.includes(l)}<i class="live" title={t("设备当前按住的层")}></i>{/if}</button>{/each}</div>
+  <div class="seg">{#each [0, 1, 2, 3] as l}<button class:on={layer === l} class:held={active.includes(l)} onclick={() => onSelect(l)}>{l}{#if active.includes(l)}<i class="live" title={t("当前活动的层")}></i>{/if}</button>{/each}</div>
   <div class="right">{@render right?.()}</div>
 </div>
 <style>
@@ -16,7 +16,7 @@
   .seg button { padding: 5px 14px; background: none; font-family: var(--mono); position: relative; }
   .seg button:hover { background: var(--card-on); }
   .seg button.on { background: var(--card-on); color: var(--accent-ink); }
-  /* 设备正按住的层：数字变绿，右上角一个小点；绝对定位，不改变按钮宽度。 */
+  /* 当前活动的层（按住的 MO、锁定的 TG / TO、一次性的 OSL）：数字变绿，右上角一个小点；绝对定位，不改变按钮宽度。 */
   .seg button.held { color: var(--ok); }
   .live { position: absolute; top: 3px; right: 4px; width: 5px; height: 5px; border-radius: 50%; background: var(--ok); }
   .right { margin-left: auto; }

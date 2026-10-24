@@ -358,3 +358,194 @@ fn momentary_layer_is_immediate_and_release_restores_base() {
     r.receive(up(0), 1.2);
     assert_eq!(r.receive(down(4), 1.3), pulse(single(), 4));
 }
+
+// ---- 锁定层（TG / TO）与一次性层（OSL）：halokey 扩展，olanzi 没有 ----
+
+fn with_layer(mut m: HostKeymap, id: u8, controls: Vec<ControlActionMap>) -> HostKeymap {
+    m.layers.push(halokey_host::HostLayer {
+        id,
+        controls,
+        lighting: None,
+    });
+    m
+}
+
+#[test]
+fn toggle_layer_flips_on_each_press_and_survives_release() {
+    use halokey_host::HostAction;
+    let mut m = map(false, false, HOLD);
+    m.controls[0].press_action = Some(HostAction::ToggleLayer(1));
+    let m = with_layer(m, 1, vec![ControlActionMap::new(1, double())]);
+    assert!(m.validate().is_ok());
+    let mut r = router(m);
+    assert_eq!(r.receive(down(0), 0.0), vec![]);
+    assert_eq!(r.active_layers(), vec![1]);
+    assert_eq!(r.receive(up(0), 0.1), vec![]);
+    assert_eq!(r.active_layers(), vec![1]);
+    assert_eq!(r.receive(down(1), 0.2), vec![begin(1, double())]);
+    assert_eq!(r.receive(up(1), 0.3), vec![end(1)]);
+    // 第二次按下关掉；Layer 1 没覆盖键 1，所以它继承基础层的 TG(1)。
+    r.receive(down(0), 0.4);
+    r.receive(up(0), 0.5);
+    assert_eq!(r.active_layers(), Vec::<u8>::new());
+    assert_eq!(r.receive(down(1), 0.6), vec![begin(1, single())]);
+}
+
+#[test]
+fn to_layer_replaces_locked_layers_keeps_held_momentary_and_to_zero_returns_to_base() {
+    use halokey_host::HostAction;
+    let mut m = map(false, false, HOLD);
+    m.controls[0].press_action = Some(HostAction::ToggleLayer(1));
+    m.controls[1].press_action = Some(HostAction::ToLayer(2));
+    m.controls[2].press_action = Some(HostAction::MomentaryLayer(3));
+    m.controls[3].press_action = Some(HostAction::ToLayer(0));
+    let mut r = router(m);
+    r.receive(down(0), 0.0);
+    r.receive(up(0), 0.1);
+    assert_eq!(r.active_layers(), vec![1]);
+    r.receive(down(1), 0.2);
+    r.receive(up(1), 0.3);
+    assert_eq!(r.active_layers(), vec![2]);
+    // 按住中的 MO 归按住的键所有，TO 不收回它。
+    r.receive(down(2), 0.4);
+    r.receive(down(0), 0.5);
+    assert_eq!(r.active_layers(), vec![1, 2, 3]);
+    r.receive(up(0), 0.6);
+    r.receive(down(1), 0.7);
+    assert_eq!(r.active_layers(), vec![2, 3]);
+    r.receive(up(1), 0.8);
+    r.receive(up(2), 0.9);
+    assert_eq!(r.active_layers(), vec![2]);
+    r.receive(down(3), 1.0);
+    r.receive(up(3), 1.1);
+    assert_eq!(r.active_layers(), Vec::<u8>::new());
+}
+
+#[test]
+fn one_shot_layer_applies_to_the_next_press_only() {
+    use halokey_host::HostAction;
+    let mut m = map(false, false, HOLD);
+    m.controls[0].press_action = Some(HostAction::OneShotLayer(1));
+    let m = with_layer(m, 1, vec![ControlActionMap::new(1, double())]);
+    let mut r = router(m);
+    r.receive(down(0), 0.0);
+    assert_eq!(r.receive(up(0), 0.1), vec![]);
+    assert_eq!(r.active_layers(), vec![1]);
+    assert_eq!(r.receive(down(1), 5.0), vec![begin(1, double())]);
+    assert_eq!(r.active_layers(), Vec::<u8>::new());
+    assert_eq!(r.receive(up(1), 5.1), vec![end(1)]);
+    assert_eq!(r.receive(down(1), 5.2), vec![begin(1, single())]);
+}
+
+#[test]
+fn one_shot_layer_covers_a_continuous_knob_turn_then_drops_after_a_pause() {
+    use halokey_host::HostAction;
+    let mut m = map(false, false, HOLD);
+    m.controls[0].press_action = Some(HostAction::OneShotLayer(2));
+    let m = with_layer(m, 2, vec![ControlActionMap::new(4, long())]);
+    let mut r = router(m);
+    r.receive(down(0), 0.0);
+    r.receive(up(0), 0.1);
+    assert_eq!(r.receive(down(4), 1.0), pulse(long(), 4));
+    assert_eq!(r.receive(down(4), 1.9), pulse(long(), 4));
+    assert_eq!(r.advance(2.899), vec![]);
+    assert_eq!(r.active_layers(), vec![2]);
+    assert_eq!(r.advance(2.9), vec![]);
+    assert_eq!(r.active_layers(), Vec::<u8>::new());
+    assert_eq!(r.receive(down(4), 3.0), pulse(single(), 4));
+    // 转动中按键：一次性层已被这段转动用掉，按键走基础层。
+    r.receive(down(0), 4.0);
+    r.receive(up(0), 4.1);
+    assert_eq!(r.receive(down(4), 4.2), pulse(long(), 4));
+    assert_eq!(r.receive(down(1), 4.3), vec![begin(1, single())]);
+    assert_eq!(r.active_layers(), Vec::<u8>::new());
+}
+
+#[test]
+fn layer_switches_on_double_and_long_press_fire_when_the_gesture_resolves() {
+    use halokey_host::HostAction;
+    let mut m = map(false, false, HOLD);
+    m.controls[0].double_press_action = Some(HostAction::ToggleLayer(1));
+    m.controls[0].long_press_action = Some(HostAction::ToLayer(3));
+    let mut r = router(m);
+    r.receive(down(0), 0.0);
+    r.receive(up(0), 0.1);
+    r.receive(down(0), 0.2);
+    assert_eq!(r.active_layers(), Vec::<u8>::new());
+    assert_eq!(r.receive(up(0), 0.3), vec![]);
+    assert_eq!(r.active_layers(), vec![1]);
+    r.receive(down(0), 1.0);
+    assert_eq!(r.advance(1.5), vec![]);
+    assert_eq!(r.active_layers(), vec![3]);
+    assert_eq!(r.receive(up(0), 2.0), vec![]);
+    assert_eq!(r.active_layers(), vec![3]);
+}
+
+#[test]
+fn cancel_keeps_locked_layers_drops_one_shot_and_new_configuration_resets_both() {
+    use halokey_host::HostAction;
+    let mut m = map(false, false, HOLD);
+    m.controls[0].press_action = Some(HostAction::ToggleLayer(1));
+    m.controls[1].press_action = Some(HostAction::OneShotLayer(2));
+    let mut r = router(m.clone());
+    r.receive(down(0), 0.0);
+    r.receive(up(0), 0.1);
+    r.receive(down(1), 0.2);
+    r.receive(up(1), 0.3);
+    assert_eq!(r.active_layers(), vec![1, 2]);
+    r.cancel(false);
+    assert_eq!(r.active_layers(), vec![1]);
+    // 同一份配置不算换配置。
+    assert_eq!(r.configure(Some(m.clone())), vec![]);
+    assert_eq!(r.active_layers(), vec![1]);
+    let mut changed = m;
+    changed.controls[2].press = double();
+    r.configure(Some(changed));
+    assert_eq!(r.active_layers(), Vec::<u8>::new());
+}
+
+#[test]
+fn example_knob_modes_cycles_with_knob_press_and_one_shot_tabs() {
+    use halokey_host::LightMode;
+    let m =
+        HostKeymap::from_json(include_bytes!("../../../docs/examples/knob-modes.json")).unwrap();
+    let wheel_down = vec![KeyEntry::mouse(halokey_proto::MouseCode::WheelDown)];
+    let right = vec![KeyEntry::new(0x4F)];
+    let redo = vec![
+        KeyEntry::new(0xE0),
+        KeyEntry::new(0xE1),
+        KeyEntry::new(0x1D),
+    ];
+    let next_tab = vec![KeyEntry::new(0xE0), KeyEntry::new(0x2B)];
+    let mut r = router(m.clone());
+    assert_eq!(r.receive(down(4), 0.0), pulse(wheel_down.clone(), 4));
+    for (t, layers, turn) in [
+        (1.0, vec![1], right.clone()),
+        (2.0, vec![2], redo),
+        (3.0, vec![], wheel_down),
+    ] {
+        r.receive(down(3), t);
+        r.receive(up(3), t + 0.1);
+        assert_eq!(r.active_layers(), layers);
+        assert_eq!(r.receive(down(4), t + 0.2), pulse(turn, 4));
+    }
+    // Layer 1 上按键 1：一次性 Layer 3 盖在上面，这段转动切标签，停转后回到 Layer 1。
+    r.receive(down(3), 10.0);
+    r.receive(up(3), 10.1);
+    r.receive(down(0), 11.0);
+    r.receive(up(0), 11.1);
+    assert_eq!(r.active_layers(), vec![1, 3]);
+    assert_eq!(r.receive(down(4), 12.0), pulse(next_tab.clone(), 4));
+    assert_eq!(r.receive(down(4), 12.5), pulse(next_tab, 4));
+    r.advance(13.5);
+    assert_eq!(r.active_layers(), vec![1]);
+    assert_eq!(r.receive(down(4), 14.0), pulse(right, 4));
+    assert_eq!(
+        m.effective_lighting(&[]).unwrap().lights[3].mode,
+        LightMode::Off
+    );
+    assert_eq!(
+        m.effective_lighting(&[1, 3]).unwrap().lights[1].mode,
+        LightMode::Solid
+    );
+}

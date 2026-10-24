@@ -1,7 +1,8 @@
 //! 手势状态机：把六个控件的按下 / 松开事件变成动作。
 //!
 //! 单调时间由调用者注入，不读系统时钟、不访问设备、不发事件。
-//! 逐行对应 olanzi 的 `GestureRouter`，行为由同一套测试保证。
+//! 逐行对应 olanzi 的 `GestureRouter`，行为由同一套测试保证；锁定层（TG / TO）与
+//! 一次性层（OSL）是 halokey 扩展。
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -52,6 +53,26 @@ struct Playback {
 const BURST_DOWN: f64 = 0.04;
 const BURST_GAP: f64 = 0.08;
 
+/// 一次性层被旋钮转动用上后，停转多久算这段转动结束（秒）。
+const ONE_SHOT_TURN_GAP: f64 = 1.0;
+
+/// 一次性层（OSL）的状态。
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum OneShot {
+    /// 等下一次按键或下一段旋钮转动。
+    Armed(u8),
+    /// 正被一段旋钮转动使用：每转一格顺延，到 `until` 回落。
+    Turning { layer: u8, until: f64 },
+}
+
+impl OneShot {
+    const fn layer(self) -> u8 {
+        match self {
+            OneShot::Armed(layer) | OneShot::Turning { layer, .. } => layer,
+        }
+    }
+}
+
 /// 手势路由器。
 #[derive(Debug, Default)]
 pub struct GestureRouter {
@@ -60,6 +81,9 @@ pub struct GestureRouter {
     // 每轮手势固定动作快照，层变化不改写按住、双击等待或连按队列。
     snapshots: BTreeMap<u8, ControlActionMap>,
     layer_owners: BTreeMap<u8, u8>,
+    // TG / TO 锁定的层，不归任何按住的键所有；断线、空闲都保留，换配置才清空。
+    locked: BTreeSet<u8>,
+    one_shot: Option<OneShot>,
     phases: BTreeMap<u8, Phase>,
     playback: BTreeMap<u8, Playback>,
     queues: BTreeMap<u8, Vec<KeyboardJob>>,
@@ -78,25 +102,31 @@ impl GestureRouter {
         GestureRouter::default()
     }
 
-    /// 当前活动的层（按编号升序）。
+    /// 当前活动的层（按编号升序）：按住的 MO、锁定的 TG / TO、一次性的 OSL 取并集。
     pub fn active_layers(&self) -> Vec<u8> {
-        let mut layers: Vec<u8> = self.layer_owners.values().copied().collect();
-        layers.sort_unstable();
-        layers.dedup();
-        layers
+        let layers: BTreeSet<u8> = self
+            .layer_owners
+            .values()
+            .copied()
+            .chain(self.locked.iter().copied())
+            .chain(self.one_shot.map(OneShot::layer))
+            .collect();
+        layers.into_iter().collect()
     }
 
-    /// 切换配置：相同配置不动；否则取消所有进行中的动作并隔离仍按住的控件。
+    /// 切换配置：相同配置不动；否则取消所有进行中的动作、清掉锁定层并隔离仍按住的控件。
     pub fn configure(&mut self, configuration: Option<HostKeymap>) -> Vec<Transition> {
         if self.configuration == configuration {
             return Vec::new();
         }
         let releases = self.cancel(true);
+        self.locked.clear();
         self.configuration = configuration;
         releases
     }
 
     /// 取消一切进行中的动作；`quarantine` 为真时，仍按住的物理键必须先松开才接受新动作。
+    /// 锁定层保留，一次性层丢弃。
     pub fn cancel(&mut self, quarantine: bool) -> Vec<Transition> {
         let releases: Vec<Transition> = self
             .playback
@@ -107,6 +137,7 @@ impl GestureRouter {
         self.phases.clear();
         self.snapshots.clear();
         self.layer_owners.clear();
+        self.one_shot = None;
         self.playback.clear();
         self.queues.clear();
         if quarantine {
@@ -150,6 +181,9 @@ impl GestureRouter {
         let Some(configuration) = self.configuration.clone() else {
             return Vec::new();
         };
+        if matches!(self.one_shot, Some(OneShot::Turning { until, .. }) if time >= until) {
+            self.one_shot = None;
+        }
         let mut transitions = Vec::new();
         let indices: Vec<u8> = self.phases.keys().copied().collect();
         for index in indices {
@@ -176,6 +210,12 @@ impl GestureRouter {
                         HostAction::MomentaryLayer(target) => {
                             self.layer_owners.insert(index, target);
                             self.phases.insert(index, Phase::Layer(target));
+                        }
+                        layer @ (HostAction::ToggleLayer(_)
+                        | HostAction::ToLayer(_)
+                        | HostAction::OneShotLayer(_)) => {
+                            self.phases.insert(index, Phase::Completed);
+                            self.switch_layer(layer);
                         }
                         HostAction::Keyboard(entries) => {
                             if control.long_press_behavior == LongPressBehavior::Hold {
@@ -272,6 +312,13 @@ impl GestureRouter {
         }
         if event.control.is_rotation() {
             if event.pressed {
+                // 一次性层由这段转动使用：每一格都顺延，停转后由 advance 收回。
+                if let Some(one_shot) = self.one_shot {
+                    self.one_shot = Some(OneShot::Turning {
+                        layer: one_shot.layer(),
+                        until: time + ONE_SHOT_TURN_GAP,
+                    });
+                }
                 if let Some(control) = self.selected_control(index) {
                     transitions.extend(self.trigger(
                         index,
@@ -301,9 +348,14 @@ impl GestureRouter {
             {
                 snapshot.clone()
             } else {
+                // 新一轮手势：转动中的一次性层到此结束，等待中的一次性层由这一下用掉。
+                if matches!(self.one_shot, Some(OneShot::Turning { .. })) {
+                    self.one_shot = None;
+                }
                 let Some(selected) = self.selected_control(index) else {
                     return transitions;
                 };
+                self.one_shot = None;
                 self.snapshots.insert(index, selected.clone());
                 selected
             };
@@ -411,6 +463,12 @@ impl GestureRouter {
     ) -> Vec<Transition> {
         match action {
             HostAction::MomentaryLayer(_) => Vec::new(),
+            layer @ (HostAction::ToggleLayer(_)
+            | HostAction::ToLayer(_)
+            | HostAction::OneShotLayer(_)) => {
+                self.switch_layer(layer);
+                Vec::new()
+            }
             // 已松开的单/双击和旋转无法持续保持；旧 hold 设置继续解释为一次短按。
             HostAction::Keyboard(entries) => {
                 let count = if behavior == LongPressBehavior::Burst {
@@ -540,10 +598,29 @@ impl GestureRouter {
         self.snapshots.remove(&index);
     }
 
+    /// TG / TO / OSL：只改锁定层或一次性层，不产生过渡。TO 不收回按住中的 MO。
+    fn switch_layer(&mut self, action: HostAction) {
+        match action {
+            HostAction::ToggleLayer(layer) => {
+                if !self.locked.remove(&layer) {
+                    self.locked.insert(layer);
+                }
+            }
+            HostAction::ToLayer(layer) => {
+                self.locked.clear();
+                self.one_shot = None;
+                if layer != 0 {
+                    self.locked.insert(layer);
+                }
+            }
+            HostAction::OneShotLayer(layer) => self.one_shot = Some(OneShot::Armed(layer)),
+            _ => {}
+        }
+    }
+
     fn selected_control(&self, index: u8) -> Option<ControlActionMap> {
         let configuration = self.configuration.as_ref()?;
-        let active: Vec<u8> = self.layer_owners.values().copied().collect();
-        let mut resolved = configuration.resolved_control(index, &active)?;
+        let mut resolved = configuration.resolved_control(index, &self.active_layers())?;
         let press = resolved.effective_press();
         resolved.press_action = Some(configuration.resolve(&press).unwrap_or(press));
         resolved.double_press_action = resolved

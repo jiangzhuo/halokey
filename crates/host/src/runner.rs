@@ -183,9 +183,12 @@ impl<L: Launcher> ActionRunner<L> {
             HostAction::Application(target) => vec![MacroStep::Application(target)],
             HostAction::Macro(steps) => steps,
             HostAction::Library(_) => return Err(Error::MissingLibraryAction),
-            HostAction::MomentaryLayer(_) | HostAction::PointerMove(_) | HostAction::Halo(_) => {
-                return Err(Error::NotQueueable)
-            }
+            HostAction::MomentaryLayer(_)
+            | HostAction::ToggleLayer(_)
+            | HostAction::ToLayer(_)
+            | HostAction::OneShotLayer(_)
+            | HostAction::PointerMove(_)
+            | HostAction::Halo(_) => return Err(Error::NotQueueable),
         };
         self.queue.push(Work { index, steps });
         Ok(true)
@@ -502,10 +505,14 @@ mod tests {
             runner.enqueue(9, HostAction::Library("id".into())),
             Err(Error::MissingLibraryAction)
         ));
-        assert!(matches!(
-            runner.enqueue(9, HostAction::MomentaryLayer(1)),
-            Err(Error::NotQueueable)
-        ));
+        for layer in [
+            HostAction::MomentaryLayer(1),
+            HostAction::ToggleLayer(1),
+            HostAction::ToLayer(0),
+            HostAction::OneShotLayer(1),
+        ] {
+            assert!(matches!(runner.enqueue(9, layer), Err(Error::NotQueueable)));
+        }
         for index in 0..8u8 {
             assert!(
                 runner

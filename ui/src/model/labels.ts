@@ -1,4 +1,4 @@
-import { actionKind, actionValue, type HostAction, type KeyEntry, type Halo, type ApplicationTarget, type PointerDelta, type NamedHostAction } from "./keymap";
+import { actionKind, actionValue, LAYER_ACTIONS, type LayerActionKind, type HostAction, type KeyEntry, type Halo, type ApplicationTarget, type PointerDelta, type NamedHostAction } from "./keymap";
 import { t, pick } from "../lib/i18n";
 
 // 本文件的中文片段都经 t() 查表；英文表见 lib/i18n.ts。
@@ -54,7 +54,8 @@ export function actionLabel(a: HostAction | null, entries?: KeyEntry[] | null, h
       if ("application" in item.action) return switchTo(item.name);
       return pick({ zh: `宏「${item.name}」`, en: `Macro “${item.name}”`, ja: `マクロ「${item.name}」` });
     }
-    case "momentaryLayer": return `MO(${actionValue<number>(a)})`;
+    case "momentaryLayer": case "toggleLayer": case "toLayer": case "oneShotLayer":
+      return `${LAYER_ACTIONS[actionKind(a) as LayerActionKind]}(${actionValue<number>(a)})`;
     case "pointerMove": {
       const { dx, dy } = actionValue<PointerDelta>(a);
       const parts = [dx ? `${dx > 0 ? "→" : "←"}${Math.abs(dx)}` : "", dy ? `${dy > 0 ? "↓" : "↑"}${Math.abs(dy)}` : ""].filter(Boolean);

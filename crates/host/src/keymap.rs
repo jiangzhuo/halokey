@@ -2,7 +2,7 @@
 //!
 //! Layer 0 是完整的六控件基础映射；Layer 1–3 是稀疏覆盖，未记录的控件或标记为
 //! 透明继承的手势从较低的活动层继承。版本号由内容决定：使用了哪些特性就写哪个版本。
-//! 版本 6 是 halokey 扩展（指针移动、鼠标页条目），olanzi 会拒绝，这正是想要的。
+//! 版本 6 是 halokey 扩展（指针移动、鼠标页条目、TG / TO / OSL 切层），olanzi 会拒绝，这正是想要的。
 
 use std::collections::{BTreeSet, HashSet};
 
@@ -308,6 +308,10 @@ impl HostKeymap {
                 if control.index >= 4 || !(1..=3).contains(&target) {
                     return Err(Error::InvalidLayerAction);
                 }
+            }
+            // TG / TO / OSL 是一次性触发，任何手势都行；旋转一格一触发，切层没有意义。
+            if control.index >= 4 && press.is_layer_switch() {
+                return Err(Error::InvalidLayerAction);
             }
             if !(2..=20).contains(&control.press_tap_count)
                 || !(2..=20).contains(&control.double_press_tap_count)

@@ -1,4 +1,4 @@
-//! 主机动作：键盘条目、切换应用、宏、动作库引用、临时切层。
+//! 主机动作：键盘条目、切换应用、宏、动作库引用、切层（MO / TG / TO / OSL）。
 //!
 //! JSON 编码沿用 Swift Codable 的外部标签形式：`{"keyboard": {"_0": [...]}}`。
 
@@ -173,6 +173,12 @@ pub enum HostAction {
     Library(String),
     /// 按住期间激活 Layer 1–3。
     MomentaryLayer(u8),
+    /// 开 / 关 Layer 1–3，松开后保持（QMK `TG`）。halokey 扩展，配置版本 6。
+    ToggleLayer(u8),
+    /// 只留 Layer 0–3 这一层锁定，`0` = 回到基础层（QMK `TO`）。halokey 扩展，配置版本 6。
+    ToLayer(u8),
+    /// 下一次按键或下一段旋钮转动走 Layer 1–3（QMK `OSL`）。halokey 扩展，配置版本 6。
+    OneShotLayer(u8),
     /// 每次触发把指针移动给定像素；旋钮每格一次。halokey 扩展，配置版本 6。
     PointerMove(PointerDelta),
     /// 打开一个光环菜单（按 id 引用配置里的 `halos`）。halokey 扩展，配置版本 6。
@@ -187,6 +193,9 @@ enum HostActionWire {
     Macro(Arg<Vec<MacroStep>>),
     Library(Arg<String>),
     MomentaryLayer(Arg<u8>),
+    ToggleLayer(Arg<u8>),
+    ToLayer(Arg<u8>),
+    OneShotLayer(Arg<u8>),
     PointerMove(Arg<PointerDelta>),
     Halo(Arg<String>),
 }
@@ -199,6 +208,9 @@ impl From<HostActionWire> for HostAction {
             HostActionWire::Macro(a) => HostAction::Macro(a.value),
             HostActionWire::Library(a) => HostAction::Library(a.value),
             HostActionWire::MomentaryLayer(a) => HostAction::MomentaryLayer(a.value),
+            HostActionWire::ToggleLayer(a) => HostAction::ToggleLayer(a.value),
+            HostActionWire::ToLayer(a) => HostAction::ToLayer(a.value),
+            HostActionWire::OneShotLayer(a) => HostAction::OneShotLayer(a.value),
             HostActionWire::PointerMove(a) => HostAction::PointerMove(a.value),
             HostActionWire::Halo(a) => HostAction::Halo(a.value),
         }
@@ -213,6 +225,9 @@ impl From<HostAction> for HostActionWire {
             HostAction::Macro(v) => HostActionWire::Macro(Arg { value: v }),
             HostAction::Library(v) => HostActionWire::Library(Arg { value: v }),
             HostAction::MomentaryLayer(v) => HostActionWire::MomentaryLayer(Arg { value: v }),
+            HostAction::ToggleLayer(v) => HostActionWire::ToggleLayer(Arg { value: v }),
+            HostAction::ToLayer(v) => HostActionWire::ToLayer(Arg { value: v }),
+            HostAction::OneShotLayer(v) => HostActionWire::OneShotLayer(Arg { value: v }),
             HostAction::PointerMove(v) => HostActionWire::PointerMove(Arg { value: v }),
             HostAction::Halo(v) => HostActionWire::Halo(Arg { value: v }),
         }
@@ -248,6 +263,20 @@ impl HostAction {
                     Err(Error::InvalidLayer)
                 }
             }
+            HostAction::ToggleLayer(layer) | HostAction::OneShotLayer(layer) => {
+                if (1..=3).contains(layer) {
+                    Ok(())
+                } else {
+                    Err(Error::InvalidLayerAction)
+                }
+            }
+            HostAction::ToLayer(layer) => {
+                if *layer <= 3 {
+                    Ok(())
+                } else {
+                    Err(Error::InvalidLayerAction)
+                }
+            }
             HostAction::Keyboard(entries) => validate_entries(entries),
             HostAction::Application(target) => target.validate(),
             HostAction::Macro(steps) => {
@@ -273,6 +302,17 @@ impl HostAction {
     /// 是否为临时切层。
     pub const fn is_momentary_layer(&self) -> bool {
         matches!(self, HostAction::MomentaryLayer(_))
+    }
+
+    /// 是否为任意一种切层（MO / TG / TO / OSL）。
+    pub const fn is_layer_switch(&self) -> bool {
+        matches!(
+            self,
+            HostAction::MomentaryLayer(_)
+                | HostAction::ToggleLayer(_)
+                | HostAction::ToLayer(_)
+                | HostAction::OneShotLayer(_)
+        )
     }
 }
 
@@ -445,7 +485,7 @@ impl Halo {
     /// 每个光环最多的选项数。
     pub const MAX_OPTIONS: usize = 8;
 
-    /// 标识与名称非空且不超过 80 字，1–8 个选项，每个选项的动作合法且不能是库引用或切层。
+    /// 标识与名称非空且不超过 80 字，1–8 个选项，每个选项的动作合法且不能是库引用或任何切层。
     pub fn validate(&self) -> Result<(), Error> {
         let text_ok =
             |t: &str| !t.trim().is_empty() && t.chars().count() <= 80 && !t.contains('\0');
@@ -460,12 +500,10 @@ impl Halo {
             if !text_ok(&option.label) {
                 return Err(Error::InvalidHalo);
             }
-            match option.action {
-                HostAction::Library(_) | HostAction::MomentaryLayer(_) => {
-                    return Err(Error::InvalidHalo)
-                }
-                _ => option.action.validate()?,
+            if matches!(option.action, HostAction::Library(_)) || option.action.is_layer_switch() {
+                return Err(Error::InvalidHalo);
             }
+            option.action.validate()?;
         }
         Ok(())
     }

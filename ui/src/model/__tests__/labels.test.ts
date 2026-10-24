@@ -14,6 +14,10 @@ describe("labels", () => {
     expect(actionLabel(null, [{ type: 2, code: 0xe3 }, { type: 2, code: 0x04 }])).toBe("⌘A");
     expect(actionLabel(null, [{ type: 2, code: 0 }])).toBe("无");
     expect(actionLabel({ pointerMove: { _0: { dx: 0, dy: 40 } } })).toBe("指针 ↓40");
+    expect(actionLabel({ momentaryLayer: { _0: 1 } })).toBe("MO(1)");
+    expect(actionLabel({ toggleLayer: { _0: 2 } })).toBe("TG(2)");
+    expect(actionLabel({ toLayer: { _0: 0 } })).toBe("TO(0)");
+    expect(actionLabel({ oneShotLayer: { _0: 3 } })).toBe("OSL(3)");
     expect(actionLabel({ halo: { _0: "main" } }, null, [{ id: "main", name: "主菜单", options: [] }])).toBe("光环「主菜单」");
     expect(actionLabel({ futureAction: { _0: 1 } } as any)).toBe("复杂动作");
   });

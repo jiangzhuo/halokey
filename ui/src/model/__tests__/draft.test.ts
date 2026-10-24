@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { initialDraft, loadSaved, select, assignEntries, assignAction, clearGesture, setTransparent, setBehavior, setTapCount, revert, markSaved, controlAt, resolvedControl, effectiveLighting, hasOwnLighting, setLightEffect, setFollowBase, clearBaseLighting, newHaloId, upsertHalo, deleteHalo, haloReferences, haloActionAllowed, newUuid, nextSlot, upsertLibraryItem, deleteLibraryItem, libraryReferences, libraryItems } from "../draft";
-import type { NamedHostAction } from "../keymap";
+import type { HostAction, NamedHostAction } from "../keymap";
 import type { HostKeymap } from "../keymap";
 
 const load = (): HostKeymap => JSON.parse(readFileSync(resolve(__dirname, "../../../../docs/examples/halo-menu.json"), "utf8"));
@@ -72,6 +72,20 @@ describe("draft reducer", () => {
     expect(d.dirty).toBe(false);
     d = assignAction(select(d, { layer: 0, index: 0, gesture: "long" }), { momentaryLayer: { _0: 2 } });
     expect(controlAt(d.map!, 0, 0)!.longPressAction).toEqual({ momentaryLayer: { _0: 2 } });
+  });
+  it("allows TG / TO / OSL on any key gesture but refuses them on rotation", () => {
+    let d = loadSaved(initialDraft(), load());
+    const before = JSON.stringify(d.map);
+    for (const a of [{ toggleLayer: { _0: 1 } }, { toLayer: { _0: 0 } }, { oneShotLayer: { _0: 3 } }] as HostAction[]) {
+      d = assignAction(select(d, { layer: 0, index: 5, gesture: "press" }), a);
+    }
+    expect(JSON.stringify(d.map)).toBe(before);
+    d = assignAction(select(d, { layer: 0, index: 0, gesture: "double" }), { toggleLayer: { _0: 1 } });
+    expect(controlAt(d.map!, 0, 0)!.doublePressAction).toEqual({ toggleLayer: { _0: 1 } });
+    d = assignAction(select(d, { layer: 1, index: 3, gesture: "press" }), { toLayer: { _0: 0 } });
+    expect(controlAt(d.map!, 1, 3)!.pressAction).toEqual({ toLayer: { _0: 0 } });
+    d = assignAction(select(d, { layer: 0, index: 2, gesture: "long" }), { oneShotLayer: { _0: 2 } });
+    expect(controlAt(d.map!, 0, 2)!.longPressAction).toEqual({ oneShotLayer: { _0: 2 } });
   });
 });
 
@@ -159,6 +173,9 @@ describe("draft halos", () => {
     expect(haloActionAllowed({ halo: { _0: "y" } }, "x")).toBe(true);
     expect(haloActionAllowed({ library: { _0: "a" } }, null)).toBe(false);
     expect(haloActionAllowed({ momentaryLayer: { _0: 1 } }, null)).toBe(false);
+    expect(haloActionAllowed({ toggleLayer: { _0: 1 } }, null)).toBe(false);
+    expect(haloActionAllowed({ toLayer: { _0: 0 } }, null)).toBe(false);
+    expect(haloActionAllowed({ oneShotLayer: { _0: 1 } }, null)).toBe(false);
     expect(haloActionAllowed({ pointerMove: { _0: { dx: 1, dy: 0 } } }, null)).toBe(true);
   });
 });

@@ -25,7 +25,7 @@ halokey 只保存一个 JSON 文件，Linux 上在 `~/.config/halokey/keymap.jso
 |---|---|
 | `version` | 固定 `6`。其他值一律拒绝（halokey 没发布过，没有需要继续读的旧格式）。 |
 | `controls` | 恰好六项，每个控件一项：0 键 1、1 键 2、2 键 3、3 旋钮按下、4 右拧、5 左拧。 |
-| `layers` | 可选的稀疏覆盖层 1–3，由 `momentaryLayer` 动作激活。 |
+| `layers` | 可选的稀疏覆盖层 1–3，由 §3 的切层动作（`momentaryLayer`、`toggleLayer`、`toLayer`、`oneShotLayer`）激活。 |
 | `actionLibrary` | 可选的可复用应用或宏动作，由 `library` 动作引用。 |
 | `halos` | 可选的环形菜单，见 §4。 |
 | `lighting` | 可选的分层背光：`{ "lights": [ { "mode": "off|solid|breathe", "brightness": 0–20 } ×4 ] }`，顺序为键 1、键 2、键 3、旋钮。`layers[]` 里的每一层也可以带。运行时把编号最高的活动层的记录（没有则用顶层的）写进设备四盏指示灯，亮着的灯的 `work_time` 写成 255（工作模式下灯效显示 `work_time` 秒，255 即常显），`breathe_level` 与全局亮度保持不动。分层背光只在设备全局灯光模式为"工作"时写入；"全灭"和"全亮"（在设置页选择）是总开关，运行时不会覆盖。AU05 的键 1 没有可见的灯，所以只有键 2、键 3 和旋钮会显示。固件 4.4.2 上亮度 2 与 20 肉眼差别明显（2026-10-18 实测）。每次按层写入都会给亮着的灯重发 `kind` 与 `work_time`，因为固件只让这次写到的灯（重新）开始显示，没写到的会被打断。全部缺省 = 从不碰灯。需要版本 6。 |
@@ -68,9 +68,14 @@ halokey 只保存一个 JSON 文件，Linux 上在 `~/.config/halokey/keymap.jso
 | `application` | `{ "bundleIdentifier", "path", "name" }` | Linux X11：`bundleIdentifier` 匹配 `WM_CLASS`，也作为 `gtk-launch` 的桌面文件 id；`path` 是可执行文件。macOS：bundle id / `.app` 路径 / 名称。Windows：可执行文件名 / 路径。 |
 | `macro` | 步骤列表 | 步骤为 `keyboard`、`application` 或 `delay`（`{ "delay": { "_0": 0.3 } }`，0.05–10 秒），1–32 步。 |
 | `library` | UUID 字符串 | 引用 `actionLibrary`。 |
-| `momentaryLayer` | 1–3 | 只限按键与旋钮按下的单击或长按。 |
+| `momentaryLayer` | 1–3 | QMK 的 `MO`。控件按住期间生效。只限按键与旋钮按下的单击或长按。 |
+| `toggleLayer` | 1–3 | halokey 扩展，QMK 的 `TG`。该层没开就打开，开着就关掉；松开后保持。按键与旋钮按下的任何手势。 |
+| `toLayer` | 0–3 | halokey 扩展，QMK 的 `TO`。只留这一层锁定（`0` = 回到 Layer 0），并丢掉还没用的一次性层；`momentaryLayer` 按住的层保留到那个键松开。按键与旋钮按下的任何手势。 |
+| `oneShotLayer` | 1–3 | halokey 扩展，QMK 的 `OSL`。下一次按键或旋钮按下走该层，之后回落。如果先转旋钮，整段连续转动都走该层，最后一格之后 1 秒或下一次按下时回落。按键与旋钮按下的任何手势。 |
 | `pointerMove` | `{ "dx", "dy" }` | halokey 扩展。每次触发的像素位移，各不超过 ±1000，不能同时为零。 |
 | `halo` | 光环 id | halokey 扩展。打开该菜单。 |
+
+活动层是三者的并集：`momentaryLayer` 按住的层、`toggleLayer` / `toLayer` 锁定的层、还没用掉的一次性层；几层都定义了同一手势时，编号高的层优先。锁定层在空闲交还和重连后保留，保存新键位时清空；一次性层在空闲、断线和保存时丢弃。AU05 没有屏幕，给每个锁定层配自己的 `lighting` 才看得出当前在哪层；Layer 0 也要有记录，否则切回 Layer 0 后灯会停在上一层的效果。
 
 设置窗口通过 APP 编辑器与宏编辑器维护 `actionLibrary`（APP 编辑器可借 `list_windows` 从当前 X11 窗口里挑 WM_CLASS / 可执行文件），组合键从真实键盘录制（修饰键 `0xE0`–`0xE7` 在前、主键在后）。宏步骤内联复制应用，不引用功能库。
 
@@ -87,7 +92,7 @@ halokey 只保存一个 JSON 文件，Linux 上在 `~/.config/halokey/keymap.jso
 }
 ```
 
-一到八个选项；文字与 id 为 1–80 字；选项动作可以是除 `library` 和 `momentaryLayer` 之外的任何动作。光环打开时，旋钮旋转选择、旋钮按下确认、任意按键取消、空闲几秒自动关闭（默认 4 秒，设置窗口可改）。
+一到八个选项；文字与 id 为 1–80 字；选项动作可以是除 `library` 和切层动作（`momentaryLayer`、`toggleLayer`、`toLayer`、`oneShotLayer`）之外的任何动作。光环打开时，旋钮旋转选择、旋钮按下确认、任意按键取消、空闲几秒自动关闭（默认 4 秒，设置窗口可改）。
 
 设置窗口里的光环编辑器只写有动作的槽位，顺序即槽位顺序。屏幕上转盘的出现位置、超时与大小放在 `settings.json`（`halo` 段），不在键位文件里。
 
@@ -97,6 +102,7 @@ halokey 只保存一个 JSON 文件，Linux 上在 `~/.config/halokey/keymap.jso
 - [`examples/switch-apps-and-macro.json`](examples/switch-apps-and-macro.json)：按键切换应用，旋钮按下跑宏。
 - [`examples/halo-menu.json`](examples/halo-menu.json)：旋钮按下上的两级光环。
 - [`examples/layer-backlight.json`](examples/layer-backlight.json)：按住键 1 让三个键呼吸（分层背光）。
+- [`examples/knob-modes.json`](examples/knob-modes.json)：旋钮按下用 `toLayer` 让旋钮在滚动、方向键、撤销 / 重做之间轮换（旋钮灯显示当前模式）；键 1 是 `oneShotLayer`，接下来的那段旋钮转动切换浏览器标签页。
 
 ## 6. settings.json
 

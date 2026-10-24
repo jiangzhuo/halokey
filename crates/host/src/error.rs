@@ -42,7 +42,7 @@ impl fmt::Display for Error {
             Error::UnsupportedVersion => f.write_str("配置版本不受支持。"),
             Error::InvalidControls => f.write_str("配置必须包含且仅包含六个控件，每个控件只能出现一次。"),
             Error::InvalidLayer => f.write_str("Layer 编号必须为 1–3 且不能重复，每层控件索引必须唯一且在 0–5 之间。"),
-            Error::InvalidLayerAction => f.write_str("切层动作仅支持按键或旋钮按下的单击和长按，目标层必须为 1–3；单击切层时不能同时设置双击。"),
+            Error::InvalidLayerAction => f.write_str("切层动作只能放在按键或旋钮按下上，不能放在旋钮转动上；MO 只支持单击和长按，单击 MO 时不能同时设置双击；MO / TG / OSL 的目标层为 1–3，TO 为 0–3。"),
             Error::InvalidTiming => f.write_str("双击间隔应为 0.15–0.5 秒，长按阈值应为 0.3–2 秒，且长按阈值必须大于双击间隔。"),
             Error::InvalidInheritedGestures => f.write_str("基础层不能继承其他层的动作。"),
             Error::InvalidPressTapCount => f.write_str("单击和双击的连按次数应为 2–20 次。"),
