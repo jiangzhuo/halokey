@@ -4,6 +4,7 @@
 #![forbid(unsafe_code)]
 
 mod text;
+mod update;
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -976,6 +977,9 @@ fn main() {
             config_path: path,
         })
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             snapshot,
             get_keymap,
@@ -1213,5 +1217,20 @@ mod tests {
         // PNG 的 IHDR 紧跟 8 字节签名：长度 4 + 类型 4，宽度在第 16..20 字节（大端）。
         let width = u32::from_be_bytes(png[16..20].try_into().unwrap());
         assert!(width >= 128, "{first_png} 只有 {width}px");
+    }
+
+    #[test]
+    fn updater_is_configured_for_github_releases() {
+        let conf = tauri_conf();
+        assert_eq!(conf["bundle"]["createUpdaterArtifacts"], true);
+        let up = &conf["plugins"]["updater"];
+        assert_eq!(
+            up["endpoints"],
+            serde_json::json!([
+                "https://github.com/jiangzhuo/halokey/releases/latest/download/latest.json"
+            ])
+        );
+        assert_eq!(up["windows"]["installMode"], "passive");
+        assert!(up["pubkey"].as_str().is_some_and(|k| k.len() > 40));
     }
 }
