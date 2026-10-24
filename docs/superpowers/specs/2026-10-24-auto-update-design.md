@@ -1,6 +1,6 @@
 # halokey 自动更新 · 设计文档
 
-> 2026-10-24 · 依据 #halokey 里与 jiangzhuo 的讨论：更新方式按"提醒 → 用户确认 → 下载安装并重启"；更新签名密钥由 Halo 在 LittleBlack 上生成；Linux 只做 deb 的自动更新。
+> 2026-10-24 · 依据 #halokey 里与 jiangzhuo 的讨论：更新方式按"提醒 → 用户确认 → 下载安装并重启"；更新签名密钥由 Halo 在 LittleBlack 上生成；Linux 只发 deb 包、只做 deb 的自动更新，发布里去掉 AppImage。
 > 本文是实施计划的依据；内部工作文档，只有中文版。
 
 ## 1. 目标与范围
@@ -17,7 +17,7 @@
 **非目标（本期不做）**
 
 - 完全静默安装（Linux deb 本来就需要授权；也不符合"确认后安装"的约定）。
-- AppImage 和 rpm 的自动更新。
+- AppImage 包（发布里去掉；它不能安装 udev 规则、自启路径会变、启动的子程序会继承它打包的库路径，见 #halokey 讨论）和 rpm。
 - macOS 公证、macOS / Windows 代码签名（另一项工作，不影响更新本身）。
 - 更新通道（beta / stable）、增量更新、回滚界面。
 - 从源码运行（`cargo run`、直接跑 `target/*/halokey-app`）时的自动更新：这种运行方式不检查更新，设置页写明"从源码运行，不自动更新"。
@@ -93,7 +93,7 @@
 
 - **去掉 `--no-sign`**：tauri-cli 2.12.3 的 `src/bundle.rs` 里，这个参数会让更新签名一起跳过（"Updater signing is skipped due to --no-sign flag."）。构建时通过 secrets 提供 `TAURI_SIGNING_PRIVATE_KEY` 和 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`；拿不到私钥时 tauri-cli 会直接报错，构建失败。
 - **构建矩阵**：
-  - `linux-x86_64`：`ubuntu-22.04`，产出 deb
+  - `linux-x86_64`：`ubuntu-22.04`，只产出 deb（去掉现在的 AppImage）
   - `linux-aarch64`（新增）：`ubuntu-22.04-arm`，产出 deb。在 22.04 上打包是为了不抬高 glibc 要求
   - `macos-arm64`、`macos-x86_64`：产出 dmg（首次安装用）和 `.app.tar.gz`（更新用）
   - `windows-x86_64`：产出 NSIS 安装包和 MSI，自动更新走 NSIS
@@ -144,9 +144,8 @@
 - MSI 安装也支持自动更新，`latest.json` 写 `windows-x86_64-msi`。
 - 手动 `workflow_dispatch` 只做演练，不创建 Release。
 - arm64 的 deb 必须由 CI 构建；缺了就不发版。
-- 如果保留 AppImage，只在 x86_64 上构建，和现在一样。
 
 ## 8. 待 jiangzhuo 确认
 
 - 系统通知和托盘菜单用什么语言。界面语言现在只存在设置窗口的 localStorage 里，Rust 端读不到，所以托盘菜单一直写死中文。建议把界面语言也存进 `settings.json`，托盘菜单和通知都跟着界面语言走（顺带修好托盘只有中文的问题）。
-- 发布流程里的 AppImage：去掉，还是保留为手动下载、不参与自动更新。本文按"不参与自动更新"写，两种选择都不影响其余部分。
+- ~~发布流程里的 AppImage~~：已定，去掉（2026-10-24）。
