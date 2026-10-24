@@ -198,6 +198,8 @@ impl Backends {
 struct InjectorRetry {
     factory: InjectorFactory,
     last_attempt: Instant,
+    /// 打开失败时写进 `last_error` 的文本；恢复后只清掉这一条，不覆盖之后的其他错误。
+    error: String,
 }
 
 impl InjectorRetry {
@@ -210,6 +212,13 @@ impl InjectorRetry {
         }
         self.last_attempt = now;
         Some((self.factory)())
+    }
+}
+
+/// `last_error` 仍是 `text` 时才清掉；之后又出了别的错就保留那条。
+fn clear_error_if(snapshot: &mut Snapshot, text: &str) {
+    if snapshot.last_error.as_deref() == Some(text) {
+        snapshot.last_error = None;
     }
 }
 
@@ -377,8 +386,9 @@ impl Worker {
                 self.bridge.release_all(old.as_mut());
             }
             self.injector = Some(injector);
-            self.injector_retry = None;
-            self.update(|s| s.last_error = None);
+            if let Some(retry) = self.injector_retry.take() {
+                self.update(|s| clear_error_if(s, &retry.error));
+            }
         }
     }
 
@@ -396,10 +406,12 @@ impl Worker {
                 match (backends.injector)() {
                     Ok(i) => i,
                     Err(e) => {
-                        self.fail(format!("输入注入不可用，改为只记录：{e}"));
+                        let error = format!("输入注入不可用，改为只记录：{e}");
+                        self.fail(error.clone());
                         self.injector_retry = Some(InjectorRetry {
                             factory: backends.injector,
                             last_attempt: Instant::now(),
+                            error,
                         });
                         Box::new(RecordingInjector::default())
                     }
@@ -1304,6 +1316,19 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     #[test]
+    fn injector_recovery_keeps_a_newer_error() {
+        let mut s = Snapshot {
+            last_error: Some("注入器".into()),
+            ..Snapshot::default()
+        };
+        clear_error_if(&mut s, "注入器");
+        assert_eq!(s.last_error, None);
+        s.last_error = Some("键位读取失败".into());
+        clear_error_if(&mut s, "注入器");
+        assert_eq!(s.last_error.as_deref(), Some("键位读取失败"));
+    }
+
+    #[test]
     fn injector_retry_waits_for_the_interval_then_calls_the_factory() {
         let calls = Arc::new(AtomicUsize::new(0));
         let counter = calls.clone();
@@ -1318,6 +1343,7 @@ mod tests {
                 }
             }),
             last_attempt: start,
+            error: String::new(),
         };
         assert!(retry.attempt(start + Duration::from_millis(500)).is_none());
         assert_eq!(calls.load(Ordering::SeqCst), 0, "间隔内不调用工厂");
