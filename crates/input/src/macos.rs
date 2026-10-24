@@ -58,13 +58,11 @@ extern "C" {
 
 /// 当前进程是否已有辅助功能权限；`prompt` 为真且没有权限时，系统会弹出授权提示。
 pub fn accessibility_trusted(prompt: bool) -> bool {
-    // SAFETY：kAXTrustedCheckOptionPrompt 是框架导出的常量 CFString，按 get rule 包装不转移所有权；
-    // 字典在调用期间一直存活。
-    unsafe {
-        let key = CFString::wrap_under_get_rule(kAXTrustedCheckOptionPrompt);
-        let options = CFDictionary::from_CFType_pairs(&[(key, CFBoolean::from(prompt))]);
-        AXIsProcessTrustedWithOptions(options.as_concrete_TypeRef())
-    }
+    // SAFETY：kAXTrustedCheckOptionPrompt 是框架导出的常量 CFString，按 get rule 包装不转移所有权。
+    let key = unsafe { CFString::wrap_under_get_rule(kAXTrustedCheckOptionPrompt) };
+    let options = CFDictionary::from_CFType_pairs(&[(key, CFBoolean::from(prompt))]);
+    // SAFETY：传入的字典在调用期间一直存活。
+    unsafe { AXIsProcessTrustedWithOptions(options.as_concrete_TypeRef()) }
 }
 
 impl CgEventInjector {

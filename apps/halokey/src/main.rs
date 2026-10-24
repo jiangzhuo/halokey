@@ -790,19 +790,20 @@ async fn set_noise_reduction(state: State<'_, App>, level: u8) -> Result<u8, Str
 }
 
 /// 登录启动条目的位置：Linux 是 XDG autostart，macOS 是用户级 LaunchAgent。
-fn autostart_path() -> PathBuf {
+/// macOS 上没有 HOME 时报错，不退回当前目录（否则 plist 会写到 `./Library/LaunchAgents`）。
+fn autostart_path() -> Result<PathBuf, String> {
     let home = std::env::var_os("HOME").map(PathBuf::from);
     if cfg!(target_os = "macos") {
-        return home
-            .unwrap_or_else(|| PathBuf::from("."))
+        let home = home.ok_or("没有 HOME 环境变量，找不到 ~/Library/LaunchAgents")?;
+        return Ok(home
             .join("Library/LaunchAgents")
-            .join(format!("{LAUNCH_AGENT_LABEL}.plist"));
+            .join(format!("{LAUNCH_AGENT_LABEL}.plist")));
     }
     let base = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .or_else(|| home.map(|h| h.join(".config")))
         .unwrap_or_else(|| PathBuf::from("."));
-    base.join("autostart").join("halokey.desktop")
+    Ok(base.join("autostart").join("halokey.desktop"))
 }
 
 /// LaunchAgent 的 Label，与 bundle identifier 一致。
@@ -846,13 +847,13 @@ fn launch_agent_plist(exe: &Path) -> String {
 
 #[tauri::command]
 fn get_autostart() -> bool {
-    autostart_path().exists()
+    autostart_path().is_ok_and(|p| p.exists())
 }
 
 /// 登录启动：写 / 删登录启动条目（Linux 为 XDG autostart，macOS 为 LaunchAgent），指向当前可执行文件。
 #[tauri::command]
 fn set_autostart(enabled: bool) -> Result<bool, String> {
-    let path = autostart_path();
+    let path = autostart_path()?;
     if !enabled {
         match std::fs::remove_file(&path) {
             Ok(()) => return Ok(false),
