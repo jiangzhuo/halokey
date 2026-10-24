@@ -28,7 +28,7 @@ cargo run -p halokey-app --no-default-features   # 托盘应用（开发：加�
 
 `docs/examples/halo-menu.json` 把一个两级光环菜单放在旋钮按下上；复制到 `~/.config/halokey/keymap.json`，或粘贴进设置窗口。
 
-Debian/Ubuntu 安装：在 `apps/halokey` 里 `cargo tauri build --bundles deb`，然后 `sudo dpkg -i target/release/bundle/deb/halokey_*.deb`，重新插拔接收器让自带的 udev 规则生效。
+Debian/Ubuntu 安装：用 GitHub Releases 里的 `.deb`（x86_64 和 arm64），或本地构建：在 `apps/halokey` 里 `cargo tauri build --bundles deb --no-sign`，然后 `sudo dpkg -i target/release/bundle/deb/halokey_*.deb`，重新插拔接收器让自带的 udev 规则生效。不再构建 AppImage：它装不了 udev 规则。
 
 ![设置页](docs/screenshots/settings-en.png)
 
@@ -51,7 +51,17 @@ Ulanzi Studio 只支持 Windows 和 macOS。目前所有社区项目要么只做
 | 主机侧动作：键盘、鼠标按键、滚轮、指针移动、切换应用、宏、shell | 除 shell 命令外都已在 Linux X11 上通过 `halokey run` 可用；shell 命令计划中 |
 | 环形"光环"菜单：由旋钮驱动的八选项悬浮层 | **已完成**（Linux）：键位里的 `halos`，支持多级，在 GNOME/X11 上验证 |
 | 灯光、降噪、待机时间、电量读取 | **已完成**：灯光、降噪、麦克风开关、待机与休眠延时、电量、版本；另有空闲交还让本体真能待机 |
-| 托盘 / 菜单栏图标、登录启动、自动更新 | 托盘图标、设置窗口和登录启动已完成（`apps/halokey`，Tauri 2）；自动更新计划中 |
+| 托盘 / 菜单栏图标、登录启动、自动更新 | **已完成**（`apps/halokey`，Tauri 2）：托盘图标、设置窗口、登录启动；安装版会检查更新、提醒，确认后自动安装 |
+
+## 更新与发版
+
+安装版（Linux deb、macOS .app、Windows NSIS/MSI）在启动 30 秒后以及之后每 6 小时检查一次 `https://github.com/jiangzhuo/halokey/releases/latest/download/latest.json`。默认开启，可在设置里关闭（"Check for updates automatically"）；也可点 "Check for updates" 手动检查。新版本只提醒一次：系统通知、托盘里的 "Install update vX.Y.Z…" 项，以及设置页的更新区（带发布说明链接）。确认后 halokey 下载更新、校验签名、安装并重启。从源码运行的版本（`cargo run`、`target/*/halokey-app`）从不检查更新。托盘菜单和通知跟随界面语言。
+
+- Linux deb 更新会要求输入一次管理员密码（系统授权对话框）。如果取消，更新插件可能再次以备用提示询问，最后报告安装失败，而不是"已取消"。
+- macOS 构建是临时（ad-hoc）签名，不是 Developer ID：每次更新签名都会变，更新后 macOS 可能要求重新授予辅助功能权限。
+- 第一个带更新功能的版本是基线；更早安装的版本需要手动更新一次。
+
+发版（维护者）：修改 `apps/halokey/tauri.conf.json` 与根 `Cargo.toml` 的版本，提交，推 `vX.Y.Z` 标签。CI 会构建已签名的 deb（x86_64、arm64）、macOS .app/.dmg（arm64、x86_64）和 Windows NSIS/MSI，生成 `latest.json` 并创建草稿 release。在 GitHub 上检查草稿并发布；发布之后用户才会收到更新。因为开启了更新产物，本地 `cargo tauri build` 没有 `TAURI_SIGNING_PRIVATE_KEY` 会失败；本地构建加 `--no-sign`（跳过更新签名，本地使用没问题）。
 
 ## 平台矩阵
 
