@@ -3,6 +3,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![forbid(unsafe_code)]
 
+mod text;
+
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -622,6 +624,28 @@ struct AppSettings {
     halo: HaloSettings,
     /// 关闭设置窗口时留在托盘（true）还是退出（false）。
     close_to_tray: bool,
+    /// 界面语言：`en` / `zh` / `ja`。存成字符串，未知取值按英文处理，不会让其他设置失效。
+    lang: String,
+    updates: UpdateSettings,
+}
+
+/// 自动更新相关设置。
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase", default)]
+struct UpdateSettings {
+    /// 是否自动检查更新。
+    auto_check: bool,
+    /// 已经弹过通知的版本，避免重复打扰。
+    notified_version: Option<String>,
+}
+
+impl Default for UpdateSettings {
+    fn default() -> Self {
+        UpdateSettings {
+            auto_check: true,
+            notified_version: None,
+        }
+    }
 }
 
 impl Default for AppSettings {
@@ -630,6 +654,8 @@ impl Default for AppSettings {
             idle_minutes: 5,
             halo: HaloSettings::default(),
             close_to_tray: true,
+            lang: "en".into(),
+            updates: UpdateSettings::default(),
         }
     }
 }
@@ -699,6 +725,41 @@ fn save_settings(config_path: &std::path::Path, settings: &AppSettings) -> Resul
     .map_err(|e| e.to_string())
 }
 
+/// 按界面语言构建托盘菜单；`update` 为新版本号时多一项"安装更新"。
+fn build_tray_menu(
+    app: &AppHandle,
+    lang: text::Lang,
+    update: Option<&str>,
+) -> tauri::Result<Menu<tauri::Wry>> {
+    let t = text::tray_text(lang);
+    let open = MenuItem::with_id(app, "open", t.open, true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", t.quit, true, None::<&str>)?;
+    match update {
+        Some(version) => {
+            let label = text::install_update_label(lang, version);
+            let install = MenuItem::with_id(app, "install-update", label, true, None::<&str>)?;
+            Menu::with_items(app, &[&open, &install, &quit])
+        }
+        None => Menu::with_items(app, &[&open, &quit]),
+    }
+}
+
+/// 读设置里的语言，给托盘换上新菜单。
+fn refresh_tray_menu(app: &AppHandle, update: Option<&str>) {
+    let lang = text::resolve_lang(&load_settings(&app.state::<App>().config_path).lang);
+    let Some(tray) = app.tray_by_id("tray") else {
+        return;
+    };
+    match build_tray_menu(app, lang, update) {
+        Ok(menu) => {
+            if let Err(e) = tray.set_menu(Some(menu)) {
+                eprintln!("更新托盘菜单失败：{e}");
+            }
+        }
+        Err(e) => eprintln!("构建托盘菜单失败：{e}"),
+    }
+}
+
 #[tauri::command]
 fn get_settings(state: State<'_, App>) -> AppSettings {
     load_settings(&state.config_path)
@@ -706,9 +767,17 @@ fn get_settings(state: State<'_, App>) -> AppSettings {
 
 /// 合并一段设置（只覆盖给出的键），写文件并即时生效。
 #[tauri::command]
-fn set_settings(state: State<'_, App>, patch: serde_json::Value) -> Result<AppSettings, String> {
+fn set_settings(
+    app: AppHandle,
+    state: State<'_, App>,
+    patch: serde_json::Value,
+) -> Result<AppSettings, String> {
     let settings = merge_settings(load_settings_value(&state.config_path), &patch)?;
     save_settings(&state.config_path, &settings)?;
+    // 语言变了就立刻重建托盘菜单。
+    if patch.get("lang").is_some() {
+        refresh_tray_menu(&app, None);
+    }
     let guard = state.service.lock().map_err(|e| e.to_string())?;
     let service = guard.as_ref().ok_or("服务未运行")?;
     let idle = (settings.idle_minutes > 0)
@@ -951,9 +1020,8 @@ fn main() {
             );
             *app.state::<App>().service.lock().expect("state lock") = Some(service);
 
-            let open = MenuItem::with_id(app, "open", "打开设置", true, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&open, &quit])?;
+            let lang = text::resolve_lang(&load_settings(&app.state::<App>().config_path).lang);
+            let menu = build_tray_menu(app.handle(), lang, None)?;
             TrayIconBuilder::with_id("tray")
                 .icon(TRAY_ICON)
                 .icon_as_template(cfg!(target_os = "macos"))
@@ -1081,6 +1149,29 @@ mod tests {
         )
         .is_err());
         assert_eq!(HaloSettings::default().size_px(), 360);
+    }
+
+    #[test]
+    fn old_settings_files_keep_their_values_and_gain_defaults() {
+        let merged = merge_settings(
+            serde_json::json!({ "idleMinutes": 10, "lang": "fr" }),
+            &serde_json::json!({}),
+        )
+        .unwrap();
+        assert_eq!(merged.idle_minutes, 10);
+        assert!(matches!(text::resolve_lang(&merged.lang), text::Lang::En));
+        assert!(merged.updates.auto_check);
+        assert_eq!(merged.updates.notified_version, None);
+        let off = merge_settings(
+            serde_json::json!({}),
+            &serde_json::json!({ "updates": { "autoCheck": false } }),
+        )
+        .unwrap();
+        assert!(!off.updates.auto_check);
+        assert_eq!(
+            serde_json::to_value(&off).unwrap()["updates"]["notifiedVersion"],
+            serde_json::Value::Null
+        );
     }
 
     #[test]
