@@ -58,7 +58,7 @@ halokey keeps one JSON file, `~/.config/halokey/keymap.json` on Linux. The setti
 
 ## 3. Entries and actions
 
-A keyboard entry is `{ "type": 2, "code": <HID usage> }`; modifiers are `0xE0`–`0xE7`; code `0` means no action. A mouse-page entry is `{ "type": 7, "code": n }` with `0`–`4` for buttons 1–5 and `5` / `6` for wheel up / down.
+A keyboard entry is `{ "type": 2, "code": <HID usage> }`; modifiers are `0xE0`–`0xE7`; code `0` means no action. A mouse-page entry is `{ "type": 7, "code": n }` with `0`–`4` for buttons 1–5 and `5` / `6` for wheel up / down, one notch per trigger (use the `scroll` action for more).
 
 Actions use olanzi's tagged form `{ "<kind>": { "_0": <value> } }`:
 
@@ -73,6 +73,7 @@ Actions use olanzi's tagged form `{ "<kind>": { "_0": <value> } }`:
 | `toLayer` | 0–3 | halokey extension, QMK `TO`. Leaves only this layer locked (`0` = back to Layer 0) and drops a pending one-shot layer; layers held by `momentaryLayer` keys stay until those keys are released. Keys and knob press, any gesture. |
 | `oneShotLayer` | 1–3 | halokey extension, QMK `OSL`. The next key or knob press uses the layer, then it drops. If the knob turns first, the whole continuous turn uses it; the layer drops 1 s after the last tick or at the next press. Keys and knob press, any gesture. |
 | `pointerMove` | `{ "dx", "dy" }` | halokey extension. Pixels per trigger, each within ±1000, not both zero. |
+| `scroll` | `{ "dx", "dy" }` | halokey extension. Wheel notches per trigger in screen directions (`dy` > 0 scrolls down, `dx` > 0 right), each within ±10, not both zero. A knob tick sends them as one event, so fast turns do not queue up the way `burst` does; how far one notch scrolls is still up to the system and each app. |
 | `halo` | halo id | halokey extension. Opens that menu. |
 
 The active layers are the union of layers held by `momentaryLayer`, layers locked by `toggleLayer` / `toLayer`, and the pending one-shot layer; where several define the same gesture, the higher-numbered layer wins. Locked layers survive the idle hand-back and reconnects and are cleared when a new keymap is saved; the one-shot layer is dropped on idle, disconnect and save. The AU05 has no screen, so give each locked layer its own `lighting` to see which one is on, and give Layer 0 a record too, or the lights keep the last layer's effect after returning to it.

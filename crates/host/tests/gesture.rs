@@ -359,6 +359,24 @@ fn momentary_layer_is_immediate_and_release_restores_base() {
     assert_eq!(r.receive(down(4), 1.3), pulse(single(), 4));
 }
 
+#[test]
+fn scroll_on_the_knob_executes_once_per_tick_even_with_burst() {
+    use halokey_host::{HostAction, ScrollDelta};
+    let fast = HostAction::Scroll(ScrollDelta { dx: 0, dy: 4 });
+    let mut m = map(false, false, HOLD);
+    m.controls[4].press_action = Some(fast.clone());
+    m.controls[4].press_behavior = LongPressBehavior::Burst;
+    m.controls[4].press_tap_count = 5;
+    let mut r = router(m);
+    let execute = vec![Transition::Execute {
+        index: 4,
+        action: fast,
+    }];
+    assert_eq!(r.receive(down(4), 0.0), execute);
+    assert_eq!(r.receive(down(4), 0.005), execute);
+    assert_eq!(r.advance(1.0), vec![]);
+}
+
 // ---- 锁定层（TG / TO）与一次性层（OSL）：halokey 扩展，olanzi 没有 ----
 
 fn with_layer(mut m: HostKeymap, id: u8, controls: Vec<ControlActionMap>) -> HostKeymap {

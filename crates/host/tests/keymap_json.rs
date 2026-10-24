@@ -256,6 +256,29 @@ fn tap_counts_are_validated_and_extensions_round_trip() {
             && text.contains(r#""pointerMove":{"_0":{"dx":20,"dy":0}}"#)
     );
     assert_eq!(HostKeymap::from_json(text.as_bytes()).unwrap(), extended);
+    // 滚动：旋钮每格一次发 N 格，也可以放进光环选项。
+    let mut fast = keymap();
+    fast.controls[4].press_action = Some(HostAction::Scroll(halokey_host::ScrollDelta {
+        dx: 0,
+        dy: 5,
+    }));
+    fast.halos = vec![halokey_host::Halo {
+        id: "h".into(),
+        name: "h".into(),
+        options: vec![halokey_host::HaloOption {
+            label: "up".into(),
+            action: HostAction::Scroll(halokey_host::ScrollDelta { dx: 0, dy: -5 }),
+        }],
+    }];
+    assert!(fast.validate().is_ok());
+    let text = String::from_utf8(fast.to_json().unwrap()).unwrap();
+    assert!(text.contains(r#""scroll":{"_0":{"dx":0,"dy":5}}"#));
+    assert_eq!(HostKeymap::from_json(text.as_bytes()).unwrap(), fast);
+    fast.controls[5].press_action = Some(HostAction::Scroll(halokey_host::ScrollDelta {
+        dx: 0,
+        dy: 0,
+    }));
+    assert_eq!(fast.validate(), Err(Error::InvalidScrollDelta));
     let mut wheel = keymap();
     wheel.controls[5].press = vec![KeyEntry::mouse(halokey_proto::MouseCode::WheelUp)];
     assert!(wheel.validate().is_ok());

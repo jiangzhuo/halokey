@@ -188,6 +188,7 @@ impl<L: Launcher> ActionRunner<L> {
             | HostAction::ToLayer(_)
             | HostAction::OneShotLayer(_)
             | HostAction::PointerMove(_)
+            | HostAction::Scroll(_)
             | HostAction::Halo(_) => return Err(Error::NotQueueable),
         };
         self.queue.push(Work { index, steps });
@@ -510,6 +511,7 @@ mod tests {
             HostAction::ToggleLayer(1),
             HostAction::ToLayer(0),
             HostAction::OneShotLayer(1),
+            HostAction::Scroll(crate::ScrollDelta { dx: 0, dy: 1 }),
         ] {
             assert!(matches!(runner.enqueue(9, layer), Err(Error::NotQueueable)));
         }

@@ -177,6 +177,7 @@ describe("draft halos", () => {
     expect(haloActionAllowed({ toLayer: { _0: 0 } }, null)).toBe(false);
     expect(haloActionAllowed({ oneShotLayer: { _0: 1 } }, null)).toBe(false);
     expect(haloActionAllowed({ pointerMove: { _0: { dx: 1, dy: 0 } } }, null)).toBe(true);
+    expect(haloActionAllowed({ scroll: { _0: { dx: 0, dy: 3 } } }, null)).toBe(true);
   });
 });
 

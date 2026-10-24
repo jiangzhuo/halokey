@@ -14,6 +14,8 @@ describe("labels", () => {
     expect(actionLabel(null, [{ type: 2, code: 0xe3 }, { type: 2, code: 0x04 }])).toBe("⌘A");
     expect(actionLabel(null, [{ type: 2, code: 0 }])).toBe("无");
     expect(actionLabel({ pointerMove: { _0: { dx: 0, dy: 40 } } })).toBe("指针 ↓40");
+    expect(actionLabel({ scroll: { _0: { dx: 0, dy: 3 } } })).toBe("滚动 ↓3");
+    expect(actionLabel({ scroll: { _0: { dx: -2, dy: 0 } } })).toBe("滚动 ←2");
     expect(actionLabel({ momentaryLayer: { _0: 1 } })).toBe("MO(1)");
     expect(actionLabel({ toggleLayer: { _0: 2 } })).toBe("TG(2)");
     expect(actionLabel({ toLayer: { _0: 0 } })).toBe("TO(0)");
@@ -49,6 +51,7 @@ describe("labels", () => {
       expect(keyName({ type: 2, code: 0x01 })).toBe("Invalid");
       expect(actionLabel(null, [{ type: 2, code: 0 }])).toBe("None");
       expect(actionLabel({ pointerMove: { _0: { dx: 0, dy: 40 } } })).toBe("Pointer ↓40");
+      expect(actionLabel({ scroll: { _0: { dx: 0, dy: -5 } } })).toBe("Scroll ↑5");
       expect(actionLabel({ halo: { _0: "main" } }, null, [{ id: "main", name: "主菜单", options: [] }])).toBe("Halo “主菜单”");
       expect(actionLabel({ macro: { _0: [1, 2] } } as any)).toBe("Macro (2 steps)");
       expect(actionLabel({ application: { _0: { name: "Chrome", path: "", bundleIdentifier: "" } } })).toBe("Switch to Chrome");

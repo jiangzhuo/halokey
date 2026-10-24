@@ -901,6 +901,14 @@ impl Worker {
                     }
                 }
             }
+            HostAction::Scroll(delta) => {
+                if let Some(injector) = self.injector.as_mut() {
+                    // 注入接口的垂直正值向上，配置里 dy 正值向下。
+                    if let Err(e) = injector.wheel(-delta.dy, delta.dx) {
+                        self.fail(format!("光环选项滚动失败：{e}"));
+                    }
+                }
+            }
             HostAction::Halo(id) => self.open_halo(&id),
             other => {
                 if let Some(runner) = self.runner.as_mut() {
@@ -932,6 +940,12 @@ impl Worker {
                 HostAction::PointerMove(delta) => {
                     if let Err(e) = injector.pointer_move(delta.dx, delta.dy) {
                         errors.push(format!("控件 {index} 指针移动失败：{e}"));
+                    }
+                }
+                HostAction::Scroll(delta) => {
+                    // 一格旋钮一次注入 N 格，不走连按队列，转得快也不积压。
+                    if let Err(e) = injector.wheel(-delta.dy, delta.dx) {
+                        errors.push(format!("控件 {index} 滚动失败：{e}"));
                     }
                 }
                 other => {

@@ -6,7 +6,7 @@
   import Icon from "./Icon.svelte";
   import { CATEGORIES, type CategoryId } from "../model/codes";
   import { CONTROL_NAMES } from "../model/labels";
-  import { isRotation, LAYER_ACTIONS, type Behavior, type Halo, type HostAction, type KeyEntry, type LayerActionKind, type NamedHostAction } from "../model/keymap";
+  import { isRotation, LAYER_ACTIONS, MAX_SCROLL_NOTCHES, type Behavior, type Halo, type HostAction, type KeyEntry, type LayerActionKind, type NamedHostAction } from "../model/keymap";
   import { assignAction, assignEntries, clearGesture, resolvedControl, setBehavior, setTapCount, setTransparent, type Draft } from "../model/draft";
 
   let { draft = $bindable(), halos, apps, macros, mode = "gesture", onAction, excludeHalo = null, onEditHalo, onEditApp, onEditMacro, crumb }: {
@@ -45,6 +45,12 @@
   ];
   const moBlocked = (kind: LayerActionKind) => kind === "momentaryLayer" && sel.gesture === "double";
   const pointer = (dx: number, dy: number) => emitAction({ pointerMove: { _0: { dx, dy } } });
+  // 快速滚动：一次触发滚 N 格（1–10），越界输入按边界发出。
+  let notches = $state(3);
+  const scroll = (dx: number, dy: number) => {
+    const n = Math.min(MAX_SCROLL_NOTCHES, Math.max(1, Math.round(notches) || 1));
+    emitAction({ scroll: { _0: { dx: dx * n, dy: dy * n } } });
+  };
 
   // 右侧键帽区能不能再往下滚：能就显示底部的渐隐 + 提示。
   let pal = $state<HTMLDivElement | null>(null);
@@ -79,6 +85,14 @@
     </div>
     {#if cat.keycaps}
       <KeyGrid keycaps={cat.keycaps} current={actionMode ? null : current} onPick={emitEntries} />
+      {#if category === "mouse"}
+        <div class="cards scroll">
+          <span class="muted">{t("快速滚动")}</span>
+          <button onclick={() => scroll(0, -1)}>↑</button><button onclick={() => scroll(0, 1)}>↓</button>
+          <button onclick={() => scroll(-1, 0)}>←</button><button onclick={() => scroll(1, 0)}>→</button>
+          <label>{t("每次滚动格数")} <input type="number" data-role="scroll-notches" min="1" max={MAX_SCROLL_NOTCHES} bind:value={notches}></label>
+        </div>
+      {/if}
     {:else if category === "layer"}
       <div class="layers">
         {#each LAYER_ROWS as row}
@@ -167,6 +181,8 @@
   .cards .item.lib .pick { padding: 6px 10px; }
   .cards .item.lib .sub { font-size: 11px; opacity: .7; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cards .item.new { border: 1px dashed var(--muted); background: transparent; color: var(--muted); justify-content: center; }
+  .cards.scroll { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .cards.scroll input { width: 56px; }
   .layers { display: flex; flex-direction: column; gap: 10px; }
   .lrow { display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; }
   /* 按 TO 的四个按钮定宽，四行的说明文字对齐。 */

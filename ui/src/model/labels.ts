@@ -1,4 +1,4 @@
-import { actionKind, actionValue, LAYER_ACTIONS, type LayerActionKind, type HostAction, type KeyEntry, type Halo, type ApplicationTarget, type PointerDelta, type NamedHostAction } from "./keymap";
+import { actionKind, actionValue, LAYER_ACTIONS, type LayerActionKind, type HostAction, type KeyEntry, type Halo, type ApplicationTarget, type PointerDelta, type ScrollDelta, type NamedHostAction } from "./keymap";
 import { t, pick } from "../lib/i18n";
 
 // 本文件的中文片段都经 t() 查表；英文表见 lib/i18n.ts。
@@ -37,6 +37,10 @@ export function entriesLabel(entries: KeyEntry[]): string {
   return mods && rest ? `${mods}${rest}` : mods || rest;
 }
 
+/** 位移写成方向箭头加数值，如 `→20 ↓5`；指针移动与滚动共用。 */
+const arrows = ({ dx, dy }: { dx: number; dy: number }) =>
+  [dx ? `${dx > 0 ? "→" : "←"}${Math.abs(dx)}` : "", dy ? `${dy > 0 ? "↓" : "↑"}${Math.abs(dy)}` : ""].filter(Boolean).join(" ");
+
 /** 动作的显示文字；`halos` / `library` 用来把引用解析成名字。 */
 /** "切换到 X"：日文语序是"X に切替"。 */
 export const switchTo = (name: string) => pick({ zh: `切换到 ${name}`, en: `Switch to ${name}`, ja: `${name} に切替` });
@@ -56,11 +60,8 @@ export function actionLabel(a: HostAction | null, entries?: KeyEntry[] | null, h
     }
     case "momentaryLayer": case "toggleLayer": case "toLayer": case "oneShotLayer":
       return `${LAYER_ACTIONS[actionKind(a) as LayerActionKind]}(${actionValue<number>(a)})`;
-    case "pointerMove": {
-      const { dx, dy } = actionValue<PointerDelta>(a);
-      const parts = [dx ? `${dx > 0 ? "→" : "←"}${Math.abs(dx)}` : "", dy ? `${dy > 0 ? "↓" : "↑"}${Math.abs(dy)}` : ""].filter(Boolean);
-      return `${t("指针")} ${parts.join(" ")}`;
-    }
+    case "pointerMove": return `${t("指针")} ${arrows(actionValue<PointerDelta>(a))}`;
+    case "scroll": return `${t("滚动")} ${arrows(actionValue<ScrollDelta>(a))}`;
     case "halo": { const id = actionValue<string>(a); const name = halos?.find((h) => h.id === id)?.name ?? id; return pick({ zh: `光环「${name}」`, en: `Halo “${name}”`, ja: `ハロー「${name}」` }); }
     default: return t("复杂动作");
   }

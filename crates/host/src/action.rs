@@ -159,6 +159,18 @@ impl PointerDelta {
     pub const MAX_STEP: i32 = 1000;
 }
 
+/// 滚轮格数，方向同屏幕坐标：`dy` 正值向下、`dx` 正值向右。halokey 扩展，olanzi 不识别。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ScrollDelta {
+    pub dx: i32,
+    pub dy: i32,
+}
+
+impl ScrollDelta {
+    /// 单次触发的格数绝对值上限。
+    pub const MAX_STEP: i32 = 10;
+}
+
 /// 控件可绑定的动作。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(from = "HostActionWire", into = "HostActionWire")]
@@ -181,6 +193,8 @@ pub enum HostAction {
     OneShotLayer(u8),
     /// 每次触发把指针移动给定像素；旋钮每格一次。halokey 扩展，配置版本 6。
     PointerMove(PointerDelta),
+    /// 每次触发一次性滚动给定格数；旋钮每格一次。halokey 扩展，配置版本 6。
+    Scroll(ScrollDelta),
     /// 打开一个光环菜单（按 id 引用配置里的 `halos`）。halokey 扩展，配置版本 6。
     Halo(String),
 }
@@ -197,6 +211,7 @@ enum HostActionWire {
     ToLayer(Arg<u8>),
     OneShotLayer(Arg<u8>),
     PointerMove(Arg<PointerDelta>),
+    Scroll(Arg<ScrollDelta>),
     Halo(Arg<String>),
 }
 
@@ -212,6 +227,7 @@ impl From<HostActionWire> for HostAction {
             HostActionWire::ToLayer(a) => HostAction::ToLayer(a.value),
             HostActionWire::OneShotLayer(a) => HostAction::OneShotLayer(a.value),
             HostActionWire::PointerMove(a) => HostAction::PointerMove(a.value),
+            HostActionWire::Scroll(a) => HostAction::Scroll(a.value),
             HostActionWire::Halo(a) => HostAction::Halo(a.value),
         }
     }
@@ -229,6 +245,7 @@ impl From<HostAction> for HostActionWire {
             HostAction::ToLayer(v) => HostActionWire::ToLayer(Arg { value: v }),
             HostAction::OneShotLayer(v) => HostActionWire::OneShotLayer(Arg { value: v }),
             HostAction::PointerMove(v) => HostActionWire::PointerMove(Arg { value: v }),
+            HostAction::Scroll(v) => HostActionWire::Scroll(Arg { value: v }),
             HostAction::Halo(v) => HostActionWire::Halo(Arg { value: v }),
         }
     }
@@ -254,6 +271,16 @@ impl HostAction {
                     Ok(())
                 } else {
                     Err(Error::InvalidPointerDelta)
+                }
+            }
+            HostAction::Scroll(delta) => {
+                if delta.dx.abs() <= ScrollDelta::MAX_STEP
+                    && delta.dy.abs() <= ScrollDelta::MAX_STEP
+                    && (delta.dx, delta.dy) != (0, 0)
+                {
+                    Ok(())
+                } else {
+                    Err(Error::InvalidScrollDelta)
                 }
             }
             HostAction::MomentaryLayer(layer) => {
@@ -399,6 +426,29 @@ mod tests {
             HostAction::PointerMove(PointerDelta { dx: 1001, dy: 0 }).validate(),
             Err(Error::InvalidPointerDelta)
         );
+    }
+
+    #[test]
+    fn scroll_is_whole_notches_up_to_ten_per_trigger() {
+        let down = HostAction::Scroll(ScrollDelta { dx: 0, dy: 3 });
+        let text = serde_json::to_string(&down).unwrap();
+        assert_eq!(text, r#"{"scroll":{"_0":{"dx":0,"dy":3}}}"#);
+        assert_eq!(serde_json::from_str::<HostAction>(&text).unwrap(), down);
+        assert!(down.validate().is_ok());
+        assert!(HostAction::Scroll(ScrollDelta { dx: -10, dy: 0 })
+            .validate()
+            .is_ok());
+        for bad in [(0, 0), (0, 11), (-11, 0)] {
+            assert_eq!(
+                HostAction::Scroll(ScrollDelta {
+                    dx: bad.0,
+                    dy: bad.1
+                })
+                .validate(),
+                Err(Error::InvalidScrollDelta),
+                "{bad:?}"
+            );
+        }
     }
 
     #[test]

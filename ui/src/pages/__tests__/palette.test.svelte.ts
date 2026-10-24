@@ -63,6 +63,29 @@ describe("Keymap palette", () => {
     expect(controlAt(draft.v.map!, 0, 0)!.doublePressAction).toEqual({ oneShotLayer: { _0: 3 } });
     expect(document.body.textContent).toContain("按一下开、再按一下关");
   });
+  it("assigns a fast scroll with the chosen notches from the Mouse panel", () => {
+    setLang("zh");
+    const draft = $state<{ v: Draft }>({ v: select(loadSaved(initialDraft(), load()), { layer: 0, index: 4, gesture: "press" }) });
+    app = mount(Keymap, { target: document.body, props: { get draft() { return draft.v; }, set draft(d: Draft) { draft.v = d; }, snapshot: null } });
+    flushSync();
+    byText("鼠标")!.click();
+    flushSync();
+    expect(document.body.textContent).toContain("快速滚动");
+    const input = document.querySelector<HTMLInputElement>("input[data-role=scroll-notches]")!;
+    input.value = "5";
+    input.dispatchEvent(new Event("input"));
+    flushSync();
+    byText("↓")!.click();
+    flushSync();
+    expect(controlAt(draft.v.map!, 0, 4)!.pressAction).toEqual({ scroll: { _0: { dx: 0, dy: 5 } } });
+    // 超出 1–10 的输入按边界发出，不会写出 Rust 会拒绝的值。
+    input.value = "40";
+    input.dispatchEvent(new Event("input"));
+    flushSync();
+    byText("←")!.click();
+    flushSync();
+    expect(controlAt(draft.v.map!, 0, 4)!.pressAction).toEqual({ scroll: { _0: { dx: -10, dy: 0 } } });
+  });
   it("leaves the Layer panel when a rotation gets selected", () => {
     setLang("zh");
     const draft = $state<{ v: Draft }>({ v: loadSaved(initialDraft(), load()) });
