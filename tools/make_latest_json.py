@@ -38,7 +38,11 @@ def check_version(requested: str, conf_version: str, cargo_version: str) -> str:
 
 def build_manifest(version: str, artifacts: Path) -> dict:
     """为每个平台找到唯一产物及其 .sig；任何缺失或歧义都汇总后抛 ValueError。"""
-    names = sorted(p.name for p in artifacts.iterdir() if p.is_file())
+    # 只认文件名以当前版本开头的产物，旧版本残留不会被误用
+    prefix = f"halokey_{version}_"
+    names = sorted(
+        p.name for p in artifacts.iterdir() if p.is_file() and p.name.startswith(prefix)
+    )
     platforms = {}
     problems = []
     for key, pattern in PLATFORMS.items():

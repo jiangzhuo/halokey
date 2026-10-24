@@ -61,10 +61,26 @@ class MakeLatestJson(unittest.TestCase):
 
     def test_ambiguous_platform_fails(self):
         d = fake_artifacts(self, "0.2.0")
-        (d / "halokey_0.2.1_amd64.deb").write_bytes(b"x")
-        (d / "halokey_0.2.1_amd64.deb.sig").write_text("s")
+        # 同版本的第二个文件也匹配 amd64.deb 的正则
+        (d / "halokey_0.2.0_extra_amd64.deb").write_bytes(b"x")
+        (d / "halokey_0.2.0_extra_amd64.deb.sig").write_text("s")
         with self.assertRaisesRegex(ValueError, "linux-x86_64-deb"):
             build_manifest("0.2.0", d)
+
+    def test_stale_version_artifacts_ignored(self):
+        # 目录里只有旧版本产物: 不能拿来生成新版本清单
+        d = fake_artifacts(self, "0.1.9")
+        with self.assertRaises(ValueError) as cm:
+            build_manifest("0.2.0", d)
+        for key in PLATFORMS:
+            self.assertIn(key, str(cm.exception))
+
+    def test_stale_files_do_not_shadow_current(self):
+        d = fake_artifacts(self, "0.2.0")
+        (d / "halokey_0.1.9_amd64.deb").write_bytes(b"x")
+        (d / "halokey_0.1.9_amd64.deb.sig").write_text("s")
+        m = build_manifest("0.2.0", d)
+        self.assertIn("0.2.0", m["platforms"]["linux-x86_64-deb"]["url"])
 
     def test_version_must_match_everywhere(self):
         self.assertEqual(check_version("v0.2.0", "0.2.0", "0.2.0"), "0.2.0")
