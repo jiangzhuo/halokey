@@ -2,10 +2,13 @@
 //!
 //! 修饰键按住期间，后续普通键的事件要带上对应的 flags，否则系统不把它们当组合键。
 //! 没有辅助功能权限时 CGEvent 会被系统静默丢弃，所以 [`CgEventInjector::open`] 先检查权限，
-//! 没有就弹出系统授权提示并报错，而不是装作成功。
+//! 没有就报错，而不是装作成功。系统授权提示只在进程里第一次检查时弹出；runtime 之后会重试 `open`，
+//! 用户授权后无需重启。
 
 // 只有调用 AXIsProcessTrustedWithOptions 这一处 FFI 需要 unsafe。
 #![allow(unsafe_code)]
+
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use core_foundation::base::TCFType;
 use core_foundation::boolean::CFBoolean;
@@ -66,11 +69,13 @@ pub fn accessibility_trusted(prompt: bool) -> bool {
 }
 
 impl CgEventInjector {
-    /// 检查辅助功能权限并创建事件源。没有权限时弹出系统提示并返回错误。
+    /// 检查辅助功能权限并创建事件源。没有权限时返回错误；第一次检查会弹出系统授权提示。
     pub fn open() -> Result<CgEventInjector, Error> {
-        if !accessibility_trusted(true) {
+        static PROMPTED: AtomicBool = AtomicBool::new(false);
+        let prompt = !PROMPTED.swap(true, Ordering::Relaxed);
+        if !accessibility_trusted(prompt) {
             return Err(io_err(
-                "没有辅助功能权限：请在「系统设置 → 隐私与安全性 → 辅助功能」里允许 halokey，然后重启 halokey",
+                "没有辅助功能权限：请在「系统设置 → 隐私与安全性 → 辅助功能」里允许 halokey，授权后按一下键即可生效",
             ));
         }
         let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
