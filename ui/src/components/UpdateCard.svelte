@@ -38,7 +38,8 @@
   async function toggleAuto(e: Event) {
     const want = (e.target as HTMLInputElement).checked;
     try { autoCheck = (await api.setSettings({ updates: { autoCheck: want } })).updates.autoCheck; err = ""; }
-    catch (x) { autoCheck = !want; err = String(x); }
+    // 单向绑定下 autoCheck 没变 Svelte 不会动 DOM，所以显式把复选框拨回去。
+    catch (x) { autoCheck = !want; (e.target as HTMLInputElement).checked = autoCheck; err = String(x); }
   }
 </script>
 

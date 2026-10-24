@@ -30,6 +30,9 @@ let mockSettings: AppSettings = defaultSettings();
 let mockUpdate: UpdateState = { state: "idle" };
 /** 测试用：设定 mock 的更新状态。 */
 export function setMockUpdate(s: UpdateState) { mockUpdate = s; }
+const mockUpdateHandlers = new Set<(s: UpdateState) => void>();
+/** 测试用：模拟 Rust 推送一条更新状态给所有 `subscribeUpdate` 订阅者。 */
+export function emitMockUpdate(s: UpdateState) { mockUpdate = s; for (const h of [...mockUpdateHandlers]) h(s); }
 /** 设备六格表：`[index, [[type, code], …]]`。 */
 export type DeviceKeys = [number, [number, number][]][];
 const defaultInfo = (): UiDeviceInfo => ({ firmware: "4.4.2", dongleFirmware: "4.4.2", noiseReduction: [1, 64, 6, 232], lighting: { mode: 2, brightness: 14, lights: Array.from({ length: 4 }, () => ({ kind: 0, workTime: 10, breatheLevel: 3, breatheBrightness: 14, alwaysOnBrightness: 14 })) }, errors: [] });
@@ -50,7 +53,7 @@ async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T
 // 浏览器里（npm run dev / vitest）没有 Tauri，用内存数据让界面能跑。
 let memory: HostKeymap = JSON.parse(JSON.stringify(example));
 /** 测试用：把内存 mock 全部复位（模块单例，不然用例之间互相污染）。 */
-export function resetMocks() { memory = JSON.parse(JSON.stringify(example)); mockActive = []; mockSettings = defaultSettings(); mockInfo = defaultInfo(); mockPower = defaultPower(); mockUpdate = { state: "idle" }; }
+export function resetMocks() { memory = JSON.parse(JSON.stringify(example)); mockActive = []; mockSettings = defaultSettings(); mockInfo = defaultInfo(); mockPower = defaultPower(); mockUpdate = { state: "idle" }; mockUpdateHandlers.clear(); }
 let mockActive: number[] = [];
 const mockSnapshot = (): UiSnapshot => ({ connected: true, online: true, battery: [60, 3791, false], heartbeats: 1024, echoes: 1024, injected: 58, lastError: null, configPath: "~/.config/halokey/keymap.json", paused: false, standby: false, link: true, activeLayers: mockActive, effectiveLighting: null, version: "0.1.0" });
 function mockValidate(map: HostKeymap): void {
@@ -125,7 +128,7 @@ export async function subscribe(handler: (e: UiEvent) => void): Promise<() => vo
 
 /** 订阅 Rust 推送的更新状态（`halokey-update` 频道）；浏览器里没有事件，返回空取消函数。 */
 export async function subscribeUpdate(handler: (s: UpdateState) => void): Promise<() => void> {
-  if (!isTauri()) return () => {};
+  if (!isTauri()) { mockUpdateHandlers.add(handler); return () => { mockUpdateHandlers.delete(handler); }; }
   const { listen } = await import("@tauri-apps/api/event");
   return listen<UpdateState>("halokey-update", (ev) => handler(ev.payload));
 }

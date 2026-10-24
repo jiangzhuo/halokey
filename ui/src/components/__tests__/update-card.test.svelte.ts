@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { mount, unmount, flushSync } from "svelte";
 import UpdateCard from "../UpdateCard.svelte";
-import { api, resetMocks, setMockUpdate } from "../../lib/tauri";
+import { api, resetMocks, setMockUpdate, emitMockUpdate } from "../../lib/tauri";
 import { setLang } from "../../lib/i18n";
 
 let app: ReturnType<typeof mount> | undefined;
@@ -91,5 +91,50 @@ describe("update card", () => {
     flushSync();
     expect(check).toHaveBeenCalledOnce();
     expect(text()).toContain("You're up to date");
+  });
+  it("auto-check toggle rolls the checkbox back and shows the error when saving fails", async () => {
+    vi.spyOn(api, "setSettings").mockRejectedValueOnce("boom");
+    await render();
+    const box = document.querySelector('input[type=checkbox][aria-label="Check for updates automatically"]') as HTMLInputElement;
+    click(box);
+    await new Promise((r) => setTimeout(r, 0));
+    flushSync();
+    expect(box.checked).toBe(true);
+    expect(text()).toContain("boom");
+  });
+  it("follows pushed states (progress, then installing)", async () => {
+    await render();
+    emitMockUpdate({ state: "downloading", downloaded: 1048576, total: 4194304 });
+    flushSync();
+    expect(text()).toMatch(/1\.0 \/ 4\.0 MB/);
+    emitMockUpdate({ state: "installing" });
+    flushSync();
+    expect(text()).toContain("Installing…");
+    expect(text()).not.toMatch(/4\.0 MB/);
+  });
+  it("a push arriving before updateStatus resolves is not overwritten by it", async () => {
+    let resolve!: (s: Awaited<ReturnType<typeof api.updateStatus>>) => void;
+    vi.spyOn(api, "updateStatus").mockReturnValueOnce(new Promise((r) => { resolve = r; }));
+    app = mount(UpdateCard, { target: document.body });
+    await new Promise((r) => setTimeout(r, 0)); // 等订阅注册
+    emitMockUpdate({ state: "installing" });
+    resolve({ state: "idle" });
+    await new Promise((r) => setTimeout(r, 0));
+    flushSync();
+    expect(text()).toContain("Installing…");
+  });
+  it("stops listening after unmount", async () => {
+    await render();
+    unmount(app!); app = undefined;
+    expect(() => emitMockUpdate({ state: "upToDate" })).not.toThrow();
+    expect(text()).not.toContain("You're up to date");
+  });
+  it("shows the error row when checkUpdate rejects", async () => {
+    vi.spyOn(api, "checkUpdate").mockRejectedValueOnce("network down");
+    await render();
+    click(button("Check for updates")!);
+    await new Promise((r) => setTimeout(r, 0));
+    flushSync();
+    expect(text()).toContain("network down");
   });
 });
