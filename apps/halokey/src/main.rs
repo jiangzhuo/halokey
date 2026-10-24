@@ -16,6 +16,7 @@ use serde::Serialize;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_notification::NotificationExt;
 
 /// 托盘图标（源文件在 `icons/tray*.svg`）。macOS 菜单栏用模板图，由系统按明暗主题着色；
 /// 其他平台用自带陶土色圆底的小图，深色、浅色任务栏上都看得清。
@@ -988,6 +989,14 @@ fn show_main(app: &AppHandle) {
     }
 }
 
+/// 打开设置窗口并定位到"更新"一节：托盘"安装更新"和点更新通知都走这里。
+fn show_updates(app: &AppHandle) {
+    show_main(app);
+    if let Err(e) = app.emit("halokey", UiEvent::ShowUpdates) {
+        eprintln!("[halokey] 发送 showUpdates 失败：{e}");
+    }
+}
+
 fn main() {
     // NVIDIA 上 WebKitGTK 的 DMA-BUF 渲染会出现空白窗口；未显式设置时关掉它。
     #[cfg(target_os = "linux")]
@@ -1050,12 +1059,7 @@ fn main() {
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "open" => show_main(app),
-                    "install-update" => {
-                        show_main(app);
-                        if let Err(e) = app.emit("halokey", UiEvent::ShowUpdates) {
-                            eprintln!("[halokey] 发送 showUpdates 失败：{e}");
-                        }
-                    }
+                    "install-update" => show_updates(app),
                     "quit" => quit_app(app),
                     _ => {}
                 })
@@ -1069,6 +1073,16 @@ fn main() {
                     }
                 })
                 .build(app)?;
+            // 点更新通知（应用只发这一种通知）与点托盘"安装更新"相同。插件只给注册之后发出的通知
+            // 报告点击，所以在后台检查开始前注册；平台不报告点击时通知照常显示，只是点了没反应。
+            let handle = app.handle().clone();
+            if let Err(e) = app.notification().on_action(move |action| {
+                if action.action_id() == "tap" {
+                    show_updates(&handle);
+                }
+            }) {
+                eprintln!("[halokey] 注册通知点击回调失败：{e}");
+            }
             // 托盘建好之后再开始后台检查，发现新版本时才有托盘可改。
             update::spawn_loop(app.handle().clone());
             Ok(())

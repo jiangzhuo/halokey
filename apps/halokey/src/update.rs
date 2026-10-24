@@ -1,6 +1,7 @@
 //! 应用内更新：状态与纯逻辑、后台检查循环、系统通知、下载安装，以及给设置页的命令。
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
@@ -84,6 +85,19 @@ pub fn after_check_error(manual: bool, message: String) -> UpdateState {
     }
 }
 
+/// 一次检查失败后的状态。之前已经发现的新版本保留（托盘项、安装按钮和 pending 都还在），
+/// 后台、手动检查都一样；其余照 `after_check_error`。
+pub fn state_after_check_error(
+    previous: &UpdateState,
+    manual: bool,
+    message: String,
+) -> UpdateState {
+    match previous {
+        UpdateState::Available { .. } => previous.clone(),
+        _ => after_check_error(manual, message),
+    }
+}
+
 /// 只有发现新版本之后才能开始安装。
 pub fn can_install(state: &UpdateState) -> bool {
     matches!(state, UpdateState::Available { .. })
@@ -126,15 +140,20 @@ fn tray_needs_refresh(old: &UpdateState, new: &UpdateState) -> bool {
     available_version(old) != available_version(new)
 }
 
+/// 正在下载或安装。
+fn install_running(state: &UpdateState) -> bool {
+    matches!(
+        state,
+        UpdateState::Downloading { .. } | UpdateState::Installing
+    )
+}
+
 /// 能否开始一次检查：不支持时不联网；正在检查、下载、安装时不打断，免得覆盖进行中的状态。
 fn can_check(state: &UpdateState) -> bool {
     !matches!(
         state,
-        UpdateState::Unsupported { .. }
-            | UpdateState::Checking
-            | UpdateState::Downloading { .. }
-            | UpdateState::Installing
-    )
+        UpdateState::Unsupported { .. } | UpdateState::Checking
+    ) && !install_running(state)
 }
 
 /// 下载进度节流：总大小已知时百分比每变一个整数才报一次，未知时每 256 KiB 报一次。
@@ -168,10 +187,20 @@ impl Progress {
     }
 }
 
-/// 应用里的更新状态；`pending` 是检查到、还没安装的更新。
+/// 应用里的更新状态；`checking` 为真时有一次检查在跑；`pending` 是检查到、还没安装的更新。
 pub struct Updates {
     state: Mutex<UpdateState>,
+    checking: AtomicBool,
     pending: tauri::async_runtime::Mutex<Option<tauri_plugin_updater::Update>>,
+}
+
+/// 一次检查进行中；丢掉时（检查结束、出错或 panic）放开，下一次检查才能开始。
+struct CheckRunning<'a>(&'a AtomicBool);
+
+impl Drop for CheckRunning<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Release);
+    }
 }
 
 impl Default for Updates {
@@ -184,6 +213,7 @@ impl Default for Updates {
         let reason = unsupported_reason(tauri::utils::platform::bundle_type(), &exe);
         Updates {
             state: Mutex::new(initial_state(reason)),
+            checking: AtomicBool::new(false),
             pending: Default::default(),
         }
     }
@@ -223,6 +253,27 @@ impl Updates {
             Err(state.clone())
         }
     }
+
+    /// 开始一次检查，返回检查前的状态；不支持、正在下载安装、已有检查在跑时不开始，返回 `Err(当前状态)`。
+    /// 手动检查把状态换成 `Checking`；后台检查不改状态，托盘项和安装按钮保持原样。
+    fn begin_check(&self, manual: bool) -> Result<(UpdateState, CheckRunning<'_>), UpdateState> {
+        let mut state = self.lock();
+        if !can_check(&state) || self.checking.swap(true, Ordering::AcqRel) {
+            return Err(state.clone());
+        }
+        let running = CheckRunning(&self.checking);
+        let previous = if manual {
+            std::mem::replace(&mut *state, UpdateState::Checking)
+        } else {
+            state.clone()
+        };
+        Ok((previous, running))
+    }
+
+    /// 写入检查结果并返回旧状态。后台检查不占状态，期间用户可能已经开始安装：那时不覆盖，返回 `Err(当前状态)`。
+    fn finish_check(&self, result: UpdateState) -> Result<UpdateState, UpdateState> {
+        self.transition(|state| !install_running(state), result)
+    }
 }
 
 /// 换上新状态并通知设置窗口。
@@ -247,33 +298,52 @@ async fn find_update(
     app.updater()?.check().await
 }
 
-/// 检查一次更新并返回检查后的状态。`manual` 为用户点了"检查更新"：失败才报错，后台检查失败只写日志。
+/// 检查一次更新并返回检查后的状态。`manual` 为用户点了"检查更新"：显示"正在检查"，失败才报错；
+/// 后台检查不显示过程，失败只写日志。已经发现的新版本不会因为检查失败而丢掉（见 `state_after_check_error`）。
 /// 不支持或正在检查、下载、安装时什么也不做，直接返回当前状态。
 pub async fn check(app: &AppHandle, manual: bool) -> UpdateState {
     let updates = app.state::<Updates>();
-    let previous = match updates.transition(can_check, UpdateState::Checking) {
-        Ok(previous) => previous,
+    let (previous, _running) = match updates.begin_check(manual) {
+        Ok(started) => started,
         Err(current) => return current,
     };
-    publish(app, &previous, &UpdateState::Checking);
-    let state = match find_update(app).await {
-        Ok(Some(update)) => {
-            let version = update.version.clone();
-            *updates.pending.lock().await = Some(update);
-            UpdateState::Available { version }
-        }
-        Ok(None) => UpdateState::UpToDate,
+    if manual {
+        publish(app, &previous, &UpdateState::Checking);
+    }
+    let (result, found) = match find_update(app).await {
+        Ok(Some(update)) => (
+            UpdateState::Available {
+                version: update.version.clone(),
+            },
+            Some(update),
+        ),
+        Ok(None) => (UpdateState::UpToDate, None),
         Err(e) => {
             eprintln!("[halokey] 检查更新失败：{e}");
-            after_check_error(manual, e.to_string())
+            (
+                state_after_check_error(&previous, manual, e.to_string()),
+                None,
+            )
         }
     };
-    // 先设状态（托盘项、设置页提示），再发通知
-    set_state(app, state.clone());
-    if let UpdateState::Available { version } = &state {
+    // 拿着 pending 的锁写结果：pending 与状态一致，安装要先拿到这把锁才能取走更新包
+    let mut pending = updates.pending.lock().await;
+    let old = match updates.finish_check(result.clone()) {
+        Ok(old) => old,
+        Err(current) => return current,
+    };
+    if let Some(update) = found {
+        *pending = Some(update);
+    }
+    drop(pending);
+    // 状态真的变了才通知设置页、重建托盘；先设状态（托盘项、设置页提示），再发通知
+    if old != result {
+        publish(app, &old, &result);
+    }
+    if let UpdateState::Available { version } = &result {
         notify_once(app, version);
     }
-    state
+    result
 }
 
 /// 每个版本只发一次系统通知，然后把版本号记进设置文件。
@@ -308,7 +378,8 @@ pub async fn install(app: &AppHandle) -> Result<(), String> {
         .transition(can_install, starting.clone())
         .map_err(|_| "没有可安装的更新".to_string())?;
     publish(app, &previous, &starting);
-    let pending = updates.pending.lock().await.take();
+    // 复制而不取走：安装失败后，进行中的后台检查可能把 `Available` 恢复回来，那时更新包还要在
+    let pending = updates.pending.lock().await.clone();
     let Some(update) = pending else {
         // 不会发生：进入 Available 之前总是先存好 pending
         let message = "没有可安装的更新".to_string();
@@ -573,14 +644,103 @@ mod tests {
         }
     }
 
+    fn updates_in(state: UpdateState) -> Updates {
+        Updates {
+            state: Mutex::new(state),
+            checking: AtomicBool::new(false),
+            pending: Default::default(),
+        }
+    }
+
+    #[test]
+    fn a_failed_check_keeps_a_known_update() {
+        let available = UpdateState::Available {
+            version: "0.2.0".into(),
+        };
+        // 已经发现的新版本：后台、手动检查失败都保留（托盘项和安装按钮不消失）
+        assert_eq!(
+            state_after_check_error(&available, false, "offline".into()),
+            available
+        );
+        assert_eq!(
+            state_after_check_error(&available, true, "offline".into()),
+            available
+        );
+        // 其余照旧：后台静默回到 Idle，手动报错
+        assert_eq!(
+            state_after_check_error(&UpdateState::Idle, false, "offline".into()),
+            UpdateState::Idle
+        );
+        for previous in [UpdateState::Idle, UpdateState::UpToDate] {
+            assert_eq!(
+                state_after_check_error(&previous, true, "offline".into()),
+                UpdateState::Error {
+                    message: "offline".into()
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn background_checks_keep_the_state_and_only_one_check_runs_at_a_time() {
+        let available = UpdateState::Available {
+            version: "0.2.0".into(),
+        };
+        let updates = updates_in(available.clone());
+        let (previous, running) = updates.begin_check(false).unwrap();
+        assert_eq!(previous, available);
+        assert_eq!(updates.current(), available, "后台检查不显示 Checking");
+        // 检查还在跑：再来一次（手动或后台）不开始，状态不变
+        assert_eq!(updates.begin_check(true).err(), Some(available.clone()));
+        assert_eq!(updates.begin_check(false).err(), Some(available.clone()));
+        assert_eq!(updates.current(), available);
+        drop(running);
+        // 上一次结束后，手动检查显示 Checking
+        let (previous, _running) = updates.begin_check(true).unwrap();
+        assert_eq!(previous, available);
+        assert_eq!(updates.current(), UpdateState::Checking);
+        // 不支持、正在下载时不检查
+        let downloading = UpdateState::Downloading {
+            downloaded: 1,
+            total: None,
+        };
+        assert_eq!(
+            updates_in(downloading.clone()).begin_check(false).err(),
+            Some(downloading)
+        );
+    }
+
+    #[test]
+    fn a_check_result_never_overwrites_a_running_install() {
+        // 后台检查期间用户点了安装：结果作废，下载状态不动
+        let downloading = UpdateState::Downloading {
+            downloaded: 5,
+            total: Some(9),
+        };
+        let updates = updates_in(downloading.clone());
+        assert_eq!(
+            updates.finish_check(UpdateState::UpToDate),
+            Err(downloading.clone())
+        );
+        assert_eq!(updates.current(), downloading);
+        let updates = updates_in(UpdateState::Installing);
+        assert_eq!(
+            updates.finish_check(UpdateState::UpToDate),
+            Err(UpdateState::Installing)
+        );
+        let updates = updates_in(UpdateState::Checking);
+        assert_eq!(
+            updates.finish_check(UpdateState::UpToDate),
+            Ok(UpdateState::Checking)
+        );
+        assert_eq!(updates.current(), UpdateState::UpToDate);
+    }
+
     #[test]
     fn install_can_only_be_started_once() {
-        let updates = Updates {
-            state: Mutex::new(UpdateState::Available {
-                version: "0.2.0".into(),
-            }),
-            pending: Default::default(),
-        };
+        let updates = updates_in(UpdateState::Available {
+            version: "0.2.0".into(),
+        });
         let starting = UpdateState::Downloading {
             downloaded: 0,
             total: None,
