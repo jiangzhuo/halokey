@@ -1,7 +1,16 @@
 //! macOS：用 CGEvent 合成键盘、鼠标事件。需要"辅助功能"权限。
 //!
 //! 修饰键按住期间，后续普通键的事件要带上对应的 flags，否则系统不把它们当组合键。
+//! 没有辅助功能权限时 CGEvent 会被系统静默丢弃，所以 [`CgEventInjector::open`] 先检查权限，
+//! 没有就弹出系统授权提示并报错，而不是装作成功。
 
+// 只有调用 AXIsProcessTrustedWithOptions 这一处 FFI 需要 unsafe。
+#![allow(unsafe_code)]
+
+use core_foundation::base::TCFType;
+use core_foundation::boolean::CFBoolean;
+use core_foundation::dictionary::{CFDictionary, CFDictionaryRef};
+use core_foundation::string::{CFString, CFStringRef};
 use core_graphics::event::{
     CGEvent, CGEventFlags, CGEventTapLocation, CGEventType, CGMouseButton, ScrollEventUnit,
 };
@@ -41,9 +50,31 @@ fn modifier_flag(usage: u8) -> CGEventFlags {
     }
 }
 
+#[link(name = "ApplicationServices", kind = "framework")]
+extern "C" {
+    static kAXTrustedCheckOptionPrompt: CFStringRef;
+    fn AXIsProcessTrustedWithOptions(options: CFDictionaryRef) -> bool;
+}
+
+/// 当前进程是否已有辅助功能权限；`prompt` 为真且没有权限时，系统会弹出授权提示。
+pub fn accessibility_trusted(prompt: bool) -> bool {
+    // SAFETY：kAXTrustedCheckOptionPrompt 是框架导出的常量 CFString，按 get rule 包装不转移所有权；
+    // 字典在调用期间一直存活。
+    unsafe {
+        let key = CFString::wrap_under_get_rule(kAXTrustedCheckOptionPrompt);
+        let options = CFDictionary::from_CFType_pairs(&[(key, CFBoolean::from(prompt))]);
+        AXIsProcessTrustedWithOptions(options.as_concrete_TypeRef())
+    }
+}
+
 impl CgEventInjector {
-    /// 创建事件源。
+    /// 检查辅助功能权限并创建事件源。没有权限时弹出系统提示并返回错误。
     pub fn open() -> Result<CgEventInjector, Error> {
+        if !accessibility_trusted(true) {
+            return Err(io_err(
+                "没有辅助功能权限：请在「系统设置 → 隐私与安全性 → 辅助功能」里允许 halokey，然后重启 halokey",
+            ));
+        }
         let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
             .map_err(|()| io_err("无法创建 CGEventSource"))?;
         Ok(CgEventInjector {

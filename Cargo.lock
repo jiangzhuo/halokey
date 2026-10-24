@@ -1392,6 +1392,7 @@ dependencies = [
 name = "halokey-input"
 version = "0.1.0"
 dependencies = [
+ "core-foundation",
  "core-graphics",
  "evdev",
  "halokey-host",
