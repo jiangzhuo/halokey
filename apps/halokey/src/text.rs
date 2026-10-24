@@ -47,8 +47,6 @@ pub fn install_update_label(lang: Lang, version: &str) -> String {
 }
 
 /// 发现新版本时的系统通知：（标题，正文）。
-// 更新检查（后续任务）接入前暂未被调用。
-#[allow(dead_code)]
 pub fn update_notification(lang: Lang, version: &str) -> (String, String) {
     match lang {
         Lang::En => (

@@ -66,6 +66,8 @@ enum UiEvent {
     Layers {
         active: Vec<u8>,
     },
+    /// 托盘"安装更新"：设置窗口切到设置页的"更新"一节。
+    ShowUpdates,
 }
 
 #[derive(Serialize, Clone)]
@@ -806,9 +808,10 @@ fn set_settings(
 ) -> Result<AppSettings, String> {
     let settings = merge_settings(load_settings_value(&state.config_path), &patch)?;
     save_settings(&state.config_path, &settings)?;
-    // 语言变了就立刻重建托盘菜单。
+    // 语言变了就立刻重建托盘菜单；有可安装的更新时保留"安装更新"项。
     if patch.get("lang").is_some() {
-        refresh_tray_menu(&app, None);
+        let available = app.state::<update::Updates>().available_version();
+        refresh_tray_menu(&app, available.as_deref());
     }
     let guard = state.service.lock().map_err(|e| e.to_string())?;
     let service = guard.as_ref().ok_or("服务未运行")?;
@@ -996,6 +999,7 @@ fn main() {
             service: Mutex::new(None),
             config_path: config_path(),
         })
+        .manage(update::Updates::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
@@ -1022,7 +1026,11 @@ fn main() {
             power_info,
             set_sleep_delay,
             set_standby_delay,
-            set_noise_reduction
+            set_noise_reduction,
+            update::update_status,
+            update::check_update,
+            update::install_update,
+            update::open_release_notes
         ])
         .setup(|app| {
             // 调试用：HALOKEY_SHOW_MAIN=1 时启动即显示设置窗口，省去点托盘。
@@ -1042,6 +1050,12 @@ fn main() {
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "open" => show_main(app),
+                    "install-update" => {
+                        show_main(app);
+                        if let Err(e) = app.emit("halokey", UiEvent::ShowUpdates) {
+                            eprintln!("[halokey] 发送 showUpdates 失败：{e}");
+                        }
+                    }
                     "quit" => quit_app(app),
                     _ => {}
                 })
@@ -1055,6 +1069,8 @@ fn main() {
                     }
                 })
                 .build(app)?;
+            // 托盘建好之后再开始后台检查，发现新版本时才有托盘可改。
+            update::spawn_loop(app.handle().clone());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -1183,6 +1199,14 @@ mod tests {
         assert_eq!(
             serde_json::to_value(&off).unwrap()["updates"]["notifiedVersion"],
             serde_json::Value::Null
+        );
+    }
+
+    #[test]
+    fn show_updates_event_matches_the_frontend_contract() {
+        assert_eq!(
+            serde_json::to_value(UiEvent::ShowUpdates).unwrap(),
+            serde_json::json!({ "kind": "showUpdates" })
         );
     }
 
