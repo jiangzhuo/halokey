@@ -8,8 +8,10 @@
   let version = $state("—");
   let autoCheck = $state(true);
   let err = $state("");
+  /** 点了"下载并安装"、调用还没结束：按钮立刻禁用，不等 Rust 推送下载状态，连点也只发一次。 */
+  let starting = $state(false);
 
-  const busy = $derived(us.state === "checking" || us.state === "downloading" || us.state === "installing");
+  const busy = $derived(starting || us.state === "checking" || us.state === "downloading" || us.state === "installing");
   /** 字节 → MB，保留一位小数。 */
   const mb = (n: number) => (n / 1048576).toFixed(1);
   const progress = (s: Extract<UpdateState, { state: "downloading" }>) =>
@@ -31,9 +33,11 @@
     err = "";
     try { us = await api.checkUpdate(); } catch (e) { err = String(e); }
   }
+  /** 失败时 Rust 已把状态恢复成"有新版本"（按钮回来，可直接重试），原因只在下面的错误行显示一次。 */
   async function install() {
     err = "";
-    try { await api.installUpdate(); } catch (e) { err = String(e); }
+    starting = true;
+    try { await api.installUpdate(); } catch (e) { err = String(e); } finally { starting = false; }
   }
   async function toggleAuto(e: Event) {
     const want = (e.target as HTMLInputElement).checked;
@@ -56,14 +60,13 @@
     {:else if us.state === "available"}{t("有新版本")}{colon()}<span class="mono">{us.version}</span>
     {:else if us.state === "downloading"}{t("正在下载")} <span class="mono">{progress(us)}</span>
     {:else if us.state === "installing"}{t("正在安装…")}
-    {:else if us.state === "cancelled"}{t("已取消授权，可以稍后再试")}
     {:else if us.state === "error"}<span class="bad">{us.message}</span>{/if}
   </span>
 </div>
 {#if us.state === "available"}
   <div class="row"><span class="k"></span><span class="v">
     <button data-role="release-notes" onclick={() => { if (us.state === "available") api.openReleaseNotes(us.version).catch((e) => { err = String(e); }); }}>{t("发布说明")}</button>
-    <button data-role="install-update" onclick={install}>{t("下载并安装")}</button>
+    <button data-role="install-update" disabled={busy} onclick={install}>{t("下载并安装")}</button>
   </span></div>
 {/if}
 {#if err}<div class="row"><span class="k"></span><span class="h bad">{err}</span></div>{/if}

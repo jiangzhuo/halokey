@@ -25,7 +25,6 @@ pub enum UpdateState {
     Available { version: String },
     Downloading { downloaded: u64, total: Option<u64> },
     Installing,
-    Cancelled,
     Error { message: String },
 }
 
@@ -43,6 +42,9 @@ pub enum UnsupportedReason {
 pub const FIRST_CHECK_DELAY: Duration = Duration::from_secs(30);
 /// 两次后台检查的间隔。
 pub const CHECK_INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
+/// 一次检查（取 `latest.json`）最多等多久。插件默认不设超时，对端卡住时检查会一直占着
+/// `checking`，之后的手动、后台检查都开始不了。只用于检查，下载不受它限制。
+const CHECK_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// 状态变化时发给设置窗口的事件，载荷是 `UpdateState` 的 JSON。
 const UPDATE_EVENT: &str = "halokey-update";
@@ -71,9 +73,15 @@ pub fn unsupported_reason(bundle: Option<BundleType>, exe: &Path) -> Option<Unsu
     }
 }
 
-/// 同一个版本只通知一次。
+/// 同一个版本只通知一次：还没记下的版本才需要处理（记进设置文件，后台检查时还要弹通知）。
 pub fn should_notify(available: &str, notified: Option<&str>) -> bool {
     notified != Some(available)
+}
+
+/// 是否弹系统通知：只有后台检查才弹。手动检查时用户就在设置页上看结果，
+/// 只把版本号记下（见 `should_notify`），之后的后台检查也不再为这个版本弹通知。
+pub fn should_show_notification(manual: bool, available: &str, notified: Option<&str>) -> bool {
+    !manual && should_notify(available, notified)
 }
 
 /// 检查失败后的状态：后台检查静默回到 `Idle`，手动检查才报错。
@@ -98,19 +106,32 @@ pub fn state_after_check_error(
     }
 }
 
-/// 只有发现新版本之后才能开始安装。
-pub fn can_install(state: &UpdateState) -> bool {
-    matches!(state, UpdateState::Available { .. })
+/// 点"下载并安装"时的判断结果（见 `Updates::begin_install`）。
+#[derive(Debug, PartialEq)]
+enum InstallStart {
+    /// 已从 `Available` 换成下载中；下载或安装失败后回到这个版本的 `Available`。
+    Started { version: String },
+    /// 已经在下载或安装（连点两次）：这次什么也不做，也不算错误。
+    AlreadyRunning,
+    /// 没有可安装的更新。
+    NothingToInstall,
 }
 
-/// 安装出错后的状态：用户取消系统授权不算错误。
-pub fn state_after_install_error(err: &tauri_plugin_updater::Error) -> UpdateState {
+/// 下载或安装失败后的状态：回到发现新版本时的 `Available`。pending 一直没被取走，
+/// 安装按钮和托盘项都还在，直接再点一次就能重试，不用先手动检查。
+fn state_after_install_error(version: &str) -> UpdateState {
+    UpdateState::Available {
+        version: version.to_string(),
+    }
+}
+
+/// 下载或安装失败时交给设置页的错误文字（只在错误行显示一次）。
+/// 用户取消系统授权时给一句按界面语言的说明，其余用插件的错误原文。
+fn install_error_message(err: &tauri_plugin_updater::Error, lang: text::Lang) -> String {
     match err {
-        tauri_plugin_updater::Error::AuthenticationFailed => UpdateState::Cancelled,
-        // 枚举是 non_exhaustive，其余一律当作错误展示
-        other => UpdateState::Error {
-            message: other.to_string(),
-        },
+        tauri_plugin_updater::Error::AuthenticationFailed => text::install_cancelled(lang).into(),
+        // 枚举是 non_exhaustive，其余一律照原文
+        other => other.to_string(),
     }
 }
 
@@ -240,7 +261,7 @@ impl Updates {
     }
 
     /// `allowed(当前状态)` 为真时换成 `next` 并返回 `Ok(旧状态)`，否则不动并返回 `Err(当前状态)`。
-    /// 判断和替换在同一把锁里：连点两次"下载并安装"也只会下载一份。
+    /// 判断和替换在同一把锁里，中间不会被别的线程插进来。
     fn transition(
         &self,
         allowed: fn(&UpdateState) -> bool,
@@ -274,6 +295,24 @@ impl Updates {
     fn finish_check(&self, result: UpdateState) -> Result<UpdateState, UpdateState> {
         self.transition(|state| !install_running(state), result)
     }
+
+    /// 开始安装：只有 `Available` 才换成下载中。判断和替换在同一把锁里，
+    /// 连点两次"下载并安装"也只会下载一份，第二次得到 `AlreadyRunning`。
+    fn begin_install(&self) -> InstallStart {
+        let mut state = self.lock();
+        match &*state {
+            UpdateState::Available { version } => {
+                let version = version.clone();
+                *state = UpdateState::Downloading {
+                    downloaded: 0,
+                    total: None,
+                };
+                InstallStart::Started { version }
+            }
+            running if install_running(running) => InstallStart::AlreadyRunning,
+            _ => InstallStart::NothingToInstall,
+        }
+    }
 }
 
 /// 换上新状态并通知设置窗口。
@@ -295,7 +334,11 @@ fn publish(app: &AppHandle, old: &UpdateState, new: &UpdateState) {
 async fn find_update(
     app: &AppHandle,
 ) -> tauri_plugin_updater::Result<Option<tauri_plugin_updater::Update>> {
-    app.updater()?.check().await
+    app.updater_builder()
+        .timeout(CHECK_TIMEOUT)
+        .build()?
+        .check()
+        .await
 }
 
 /// 检查一次更新并返回检查后的状态。`manual` 为用户点了"检查更新"：显示"正在检查"，失败才报错；
@@ -341,54 +384,71 @@ pub async fn check(app: &AppHandle, manual: bool) -> UpdateState {
         publish(app, &old, &result);
     }
     if let UpdateState::Available { version } = &result {
-        notify_once(app, version);
+        notify_once(app, version, manual);
     }
     result
 }
 
-/// 每个版本只发一次系统通知，然后把版本号记进设置文件。
+/// 每个版本只处理一次：把版本号记进设置文件；后台检查发现的还要弹系统通知
+/// （手动检查不弹，见 `should_show_notification`）。
 /// 没有通知服务时发送会失败：只写日志，托盘项和设置页提示不受影响。
-fn notify_once(app: &AppHandle, version: &str) {
+fn notify_once(app: &AppHandle, version: &str, manual: bool) {
     let config_path = &app.state::<App>().config_path;
     let settings = crate::load_settings(config_path);
-    if !should_notify(version, settings.updates.notified_version.as_deref()) {
+    let notified = settings.updates.notified_version.as_deref();
+    if !should_notify(version, notified) {
         return;
     }
-    let (title, body) = text::update_notification(text::resolve_lang(&settings.lang), version);
-    if let Err(e) = app.notification().builder().title(title).body(body).show() {
-        eprintln!("[halokey] 系统通知发送失败：{e}");
-    }
+    let show = should_show_notification(manual, version, notified);
     let patch = serde_json::json!({ "updates": { "notifiedVersion": version } });
     if let Err(e) = crate::patch_settings(config_path, &patch) {
         eprintln!("[halokey] 记录已通知的版本失败：{e}");
     }
+    if show {
+        let (title, body) = text::update_notification(text::resolve_lang(&settings.lang), version);
+        if let Err(e) = app.notification().builder().title(title).body(body).show() {
+            eprintln!("[halokey] 系统通知发送失败：{e}");
+        }
+    }
+}
+
+/// 设置里的界面语言（错误提示等按它显示）。
+fn ui_lang(app: &AppHandle) -> text::Lang {
+    text::resolve_lang(&crate::load_settings(&app.state::<App>().config_path).lang)
 }
 
 /// 下载并安装当前可用的版本。成功后重启应用（Windows 由安装程序退出并重启应用），不会返回。
-/// 下载或安装失败、用户取消授权时设备服务照常运行，状态行显示原因，返回 `Err`。
+/// 已经在下载或安装时直接返回 `Ok`，不再开始第二次。
+/// 下载或安装失败（含用户取消授权）时设备服务照常运行，状态回到 `Available`（可以直接重试），
+/// 原因作为 `Err` 交给设置页显示。
 pub async fn install(app: &AppHandle) -> Result<(), String> {
     let updates = app.state::<Updates>();
-    let starting = UpdateState::Downloading {
-        downloaded: 0,
-        total: None,
+    let version = match updates.begin_install() {
+        InstallStart::Started { version } => version,
+        InstallStart::AlreadyRunning => return Ok(()),
+        InstallStart::NothingToInstall => return Err("没有可安装的更新".to_string()),
     };
-    let previous = updates
-        .transition(can_install, starting.clone())
-        .map_err(|_| "没有可安装的更新".to_string())?;
-    publish(app, &previous, &starting);
-    // 复制而不取走：安装失败后，进行中的后台检查可能把 `Available` 恢复回来，那时更新包还要在
+    // begin_install 已把 Available 换成下载中：通知设置页、拿掉托盘项
+    publish(
+        app,
+        &UpdateState::Available {
+            version: version.clone(),
+        },
+        &UpdateState::Downloading {
+            downloaded: 0,
+            total: None,
+        },
+    );
+    // 复制而不取走：安装失败后回到 `Available`，那时更新包还要在
     let pending = updates.pending.lock().await.clone();
-    let Some(update) = pending else {
-        // 不会发生：进入 Available 之前总是先存好 pending
-        let message = "没有可安装的更新".to_string();
-        set_state(
-            app,
-            UpdateState::Error {
-                message: message.clone(),
-            },
-        );
-        return Err(message);
+    let Some(mut update) = pending else {
+        // 不会发生：进入 Available 之前总是先存好 pending。回到 Idle，下次检查重新取
+        set_state(app, UpdateState::Idle);
+        return Err("没有可安装的更新".to_string());
     };
+    // 检查的超时（CHECK_TIMEOUT）不能截断下载：插件 2.14 本来就不把它带进 `Update`，
+    // 这里再显式清掉，换插件版本也不会变成"大包下载 30 秒就断"。
+    update.timeout = None;
 
     let mut progress = Progress::default();
     let downloaded = update
@@ -404,10 +464,10 @@ pub async fn install(app: &AppHandle) -> Result<(), String> {
     let bytes = match downloaded {
         Ok(bytes) => bytes,
         Err(e) => {
-            // 设备服务还没停，只需报告
+            // 设备服务还没停，只需回到可安装状态并报告
             eprintln!("[halokey] 下载更新失败：{e}");
-            set_state(app, state_after_install_error(&e));
-            return Err(e.to_string());
+            set_state(app, state_after_install_error(&version));
+            return Err(install_error_message(&e, ui_lang(app)));
         }
     };
 
@@ -420,19 +480,19 @@ pub async fn install(app: &AppHandle) -> Result<(), String> {
         update.install(bytes)
     })
     .await;
-    let (state, message) = match installed {
+    let message = match installed {
         Ok(Ok(())) => app.restart(),
-        Ok(Err(e)) => (state_after_install_error(&e), e.to_string()),
-        Err(e) => (
-            UpdateState::Error {
-                message: e.to_string(),
-            },
-            e.to_string(),
-        ),
+        Ok(Err(e)) => {
+            eprintln!("[halokey] 安装更新失败：{e}");
+            install_error_message(&e, ui_lang(app))
+        }
+        Err(e) => {
+            eprintln!("[halokey] 安装更新失败：{e}");
+            e.to_string()
+        }
     };
-    eprintln!("[halokey] 安装更新失败：{message}");
     restore_service(app);
-    set_state(app, state);
+    set_state(app, state_after_install_error(&version));
     Err(message)
 }
 
@@ -534,6 +594,18 @@ mod tests {
     }
 
     #[test]
+    fn only_background_checks_show_a_notification() {
+        // 后台检查发现没通知过的版本：弹通知
+        assert!(should_show_notification(false, "0.2.0", None));
+        assert!(should_show_notification(false, "0.2.0", Some("0.1.1")));
+        // 手动检查：用户就在设置页上，不弹，但版本号照样记下（should_notify 为真）
+        assert!(!should_show_notification(true, "0.2.0", None));
+        assert!(should_notify("0.2.0", None));
+        // 记下之后，后台检查也不再为这个版本弹
+        assert!(!should_show_notification(false, "0.2.0", Some("0.2.0")));
+    }
+
+    #[test]
     fn background_check_failures_stay_quiet() {
         assert_eq!(
             after_check_error(false, "offline".into()),
@@ -549,27 +621,72 @@ mod tests {
 
     #[test]
     fn install_only_starts_from_available() {
-        assert!(can_install(&UpdateState::Available {
-            version: "0.2.0".into()
-        }));
+        let updates = updates_in(UpdateState::Available {
+            version: "0.2.0".into(),
+        });
+        assert_eq!(
+            updates.begin_install(),
+            InstallStart::Started {
+                version: "0.2.0".into()
+            }
+        );
         for s in [
             UpdateState::Idle,
             UpdateState::Checking,
-            UpdateState::Installing,
-            UpdateState::Downloading {
-                downloaded: 1,
-                total: None,
+            UpdateState::UpToDate,
+            UpdateState::Error {
+                message: "offline".into(),
             },
         ] {
-            assert!(!can_install(&s));
+            let updates = updates_in(s.clone());
+            assert_eq!(updates.begin_install(), InstallStart::NothingToInstall);
+            assert_eq!(updates.current(), s, "没开始就不改状态");
         }
     }
 
     #[test]
-    fn cancelled_authorization_is_not_an_error() {
+    fn install_errors_are_shown_as_text_and_cancel_reads_naturally() {
+        // 取消系统授权：按界面语言给一句说明，而不是插件的英文错误
+        let cancelled = tauri_plugin_updater::Error::AuthenticationFailed;
         assert_eq!(
-            state_after_install_error(&tauri_plugin_updater::Error::AuthenticationFailed),
-            UpdateState::Cancelled
+            install_error_message(&cancelled, text::Lang::En),
+            "Authorization cancelled; you can try again later"
+        );
+        assert_eq!(
+            install_error_message(&cancelled, text::Lang::Zh),
+            "已取消授权，可以稍后再试"
+        );
+        // 其余照插件原文
+        assert_eq!(
+            install_error_message(
+                &tauri_plugin_updater::Error::DebInstallFailed,
+                text::Lang::Zh
+            ),
+            "Failed to install .deb package"
+        );
+    }
+
+    #[test]
+    fn a_failed_install_goes_back_to_available_and_can_be_retried() {
+        let available = UpdateState::Available {
+            version: "0.2.0".into(),
+        };
+        let updates = updates_in(available.clone());
+        let InstallStart::Started { version } = updates.begin_install() else {
+            panic!("应当开始安装");
+        };
+        // 下载或安装失败（含取消授权）：回到同一版本的 Available，托盘项和安装按钮回来
+        let old = updates.replace(state_after_install_error(&version));
+        assert!(install_running(&old));
+        assert_eq!(updates.current(), available);
+        assert_eq!(updates.available_version().as_deref(), Some("0.2.0"));
+        assert!(tray_needs_refresh(&old, &available));
+        // 不用先手动检查，直接再点一次就重新开始
+        assert_eq!(
+            updates.begin_install(),
+            InstallStart::Started {
+                version: "0.2.0".into()
+            }
         );
     }
 
@@ -633,7 +750,6 @@ mod tests {
             UpdateState::Available {
                 version: "0.2.0".into(),
             },
-            UpdateState::Cancelled,
             UpdateState::Error {
                 message: "offline".into(),
             },
@@ -735,7 +851,7 @@ mod tests {
     }
 
     #[test]
-    fn install_can_only_be_started_once() {
+    fn a_second_install_while_one_is_running_does_nothing() {
         let updates = updates_in(UpdateState::Available {
             version: "0.2.0".into(),
         });
@@ -744,19 +860,20 @@ mod tests {
             total: None,
         };
         assert_eq!(
-            updates.transition(can_install, starting.clone()),
-            Ok(UpdateState::Available {
+            updates.begin_install(),
+            InstallStart::Started {
                 version: "0.2.0".into()
-            })
-        );
-        assert_eq!(updates.current(), starting);
-        // 第二次点击：已经在下载，不再开始，状态不变
-        assert_eq!(
-            updates.transition(can_install, starting.clone()),
-            Err(starting.clone())
+            }
         );
         assert_eq!(updates.current(), starting);
         assert_eq!(updates.available_version(), None);
+        // 连点第二次：已经在下载，不再开始（install 返回 Ok，不报错、不下第二份），状态不变
+        assert_eq!(updates.begin_install(), InstallStart::AlreadyRunning);
+        assert_eq!(updates.current(), starting);
+        // 安装阶段也一样
+        let updates = updates_in(UpdateState::Installing);
+        assert_eq!(updates.begin_install(), InstallStart::AlreadyRunning);
+        assert_eq!(updates.current(), UpdateState::Installing);
     }
 
     #[test]

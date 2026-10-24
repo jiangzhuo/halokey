@@ -64,6 +64,15 @@ pub fn update_notification(lang: Lang, version: &str) -> (String, String) {
     }
 }
 
+/// 安装更新时用户取消了系统授权：设置页错误行显示这一句，而不是插件的英文错误。
+pub fn install_cancelled(lang: Lang) -> &'static str {
+    match lang {
+        Lang::En => "Authorization cancelled; you can try again later",
+        Lang::Zh => "已取消授权，可以稍后再试",
+        Lang::Ja => "認証がキャンセルされました。あとでもう一度お試しください",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

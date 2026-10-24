@@ -34,7 +34,7 @@ describe("update card", () => {
     expect(button("Check for updates")!.disabled).toBe(true);
     expect(text()).toMatch(/1\.0 \/ 4\.0 MB/);
   });
-  it("explains source runs and cancelled authorization", async () => {
+  it("explains source runs", async () => {
     setMockUpdate({ state: "unsupported", reason: "fromSource" });
     await render();
     expect(text()).toContain("Running from source; updates are not automatic");
@@ -68,7 +68,6 @@ describe("update card", () => {
   });
   it("renders the remaining states", async () => {
     const cases: [Parameters<typeof setMockUpdate>[0], string][] = [
-      [{ state: "cancelled" }, "Authorization cancelled; you can try again later"],
       [{ state: "error", message: "下载失败：网络不通" }, "下载失败：网络不通"],
       [{ state: "upToDate" }, "You're up to date"],
       [{ state: "checking" }, "Checking…"],
@@ -134,6 +133,41 @@ describe("update card", () => {
     unmount(app); app = undefined; // 订阅 promise 还没落定
     await new Promise((r) => setTimeout(r, 0));
     expect(mockUpdateHandlerCount()).toBe(0);
+  });
+  it("disables the install button as soon as it is clicked, so a double click installs once", async () => {
+    setMockUpdate({ state: "available", version: "0.2.0" });
+    // 调用一直不结束（真机上下载要一会儿），Rust 的下载状态也还没推过来
+    const install = vi.spyOn(api, "installUpdate").mockReturnValue(new Promise(() => {}));
+    await render();
+    const btn = button("Download and install")!;
+    click(btn);
+    expect(btn.disabled).toBe(true);
+    expect(button("Check for updates")!.disabled).toBe(true);
+    click(btn);
+    expect(install).toHaveBeenCalledOnce();
+  });
+  it("an install failure shows the error once and the install button comes back", async () => {
+    setMockUpdate({ state: "available", version: "0.2.0" });
+    let reject!: (e: unknown) => void;
+    const install = vi.spyOn(api, "installUpdate").mockReturnValueOnce(new Promise((_, r) => { reject = r; }));
+    await render();
+    click(button("Download and install")!);
+    // Rust：下载中，失败后把状态恢复成"有新版本"，再让调用以错误结束
+    emitMockUpdate({ state: "downloading", downloaded: 1048576, total: 4194304 });
+    flushSync();
+    expect(button("Download and install")).toBeUndefined();
+    emitMockUpdate({ state: "available", version: "0.2.0" });
+    reject("Authorization cancelled; you can try again later");
+    await new Promise((r) => setTimeout(r, 0));
+    flushSync();
+    expect(text().split("Authorization cancelled; you can try again later").length - 1).toBe(1);
+    expect(text()).toContain("New version available");
+    const again = button("Download and install")!;
+    expect(again.disabled).toBe(false);
+    expect(button("Check for updates")!.disabled).toBe(false);
+    // 直接再点一次就重试，不用先检查
+    click(again);
+    expect(install).toHaveBeenCalledTimes(2);
   });
   it("shows the error row when checkUpdate rejects", async () => {
     vi.spyOn(api, "checkUpdate").mockRejectedValueOnce("network down");

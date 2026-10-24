@@ -16,7 +16,7 @@ export type UpdateState =
   | { state: "idle" } | { state: "checking" } | { state: "upToDate" }
   | { state: "available"; version: string }
   | { state: "downloading"; downloaded: number; total: number | null }
-  | { state: "installing" } | { state: "cancelled" }
+  | { state: "installing" }
   | { state: "error"; message: string };
 export type UiLight = { kind: number; workTime: number; breatheLevel: number; breatheBrightness: number; alwaysOnBrightness: number };
 export type UiLighting = { mode: number; brightness: number; lights: UiLight[] };
