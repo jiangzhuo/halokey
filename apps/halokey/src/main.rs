@@ -14,6 +14,14 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, State};
 
+/// 托盘图标（源文件在 `icons/tray*.svg`）。macOS 菜单栏用模板图，由系统按明暗主题着色；
+/// 其他平台用自带陶土色圆底的小图，深色、浅色任务栏上都看得清。
+const TRAY_ICON: tauri::image::Image<'static> = if cfg!(target_os = "macos") {
+    tauri::include_image!("icons/tray-template.png")
+} else {
+    tauri::include_image!("icons/tray.png")
+};
+
 /// 应用状态：设备服务与配置路径。
 struct App {
     service: Mutex<Option<Service>>,
@@ -946,9 +954,9 @@ fn main() {
             let open = MenuItem::with_id(app, "open", "打开设置", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open, &quit])?;
-            let icon = app.default_window_icon().cloned().expect("图标");
             TrayIconBuilder::with_id("tray")
-                .icon(icon)
+                .icon(TRAY_ICON)
+                .icon_as_template(cfg!(target_os = "macos"))
                 .tooltip("halokey")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
@@ -1086,5 +1094,33 @@ mod tests {
         let mut hold_on_double = good;
         hold_on_double["controls"][0]["doublePressBehavior"] = "hold".into();
         assert!(validate_keymap(hold_on_double).is_err());
+    }
+
+    fn tauri_conf() -> serde_json::Value {
+        serde_json::from_str(include_str!("../tauri.conf.json")).unwrap()
+    }
+
+    #[test]
+    fn config_does_not_create_a_second_tray_icon() {
+        // 配置里的 trayIcon 会让 Tauri 自己再建一个没有菜单的托盘图标；托盘只在 setup 里建。
+        assert!(tauri_conf()["app"].get("trayIcon").is_none());
+    }
+
+    #[test]
+    fn linux_window_icon_is_not_upscaled_from_32px() {
+        // Linux 的默认窗口图标取 bundle.icon 里第一张 PNG，Dock 和 Alt+Tab 会把它放大显示。
+        let conf = tauri_conf();
+        let first_png = conf["bundle"]["icon"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.as_str())
+            .find(|p| p.ends_with(".png"))
+            .unwrap();
+        let png = std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(first_png))
+            .unwrap();
+        // PNG 的 IHDR 紧跟 8 字节签名：长度 4 + 类型 4，宽度在第 16..20 字节（大端）。
+        let width = u32::from_be_bytes(png[16..20].try_into().unwrap());
+        assert!(width >= 128, "{first_png} 只有 {width}px");
     }
 }
