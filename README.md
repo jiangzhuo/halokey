@@ -61,7 +61,7 @@ Installed builds (Linux deb, macOS .app, Windows NSIS/MSI) check `https://github
 - macOS builds are ad-hoc signed, not Developer ID: each update changes the signature, so macOS may ask you to grant Accessibility permission again afterwards.
 - The first release that contains the updater is the baseline; anything installed before it has to be updated manually once.
 
-To release (maintainers): bump the version in `apps/halokey/tauri.conf.json` and the root `Cargo.toml`, commit, and push a `vX.Y.Z` tag. CI builds signed deb (x86_64, arm64), macOS .app/.dmg (arm64, x86_64) and Windows NSIS/MSI, generates `latest.json` and creates a draft release. Check the draft on GitHub and publish it; users only receive the update after it is published. Local `cargo tauri build` fails without `TAURI_SIGNING_PRIVATE_KEY` because update artifacts are on; add `--no-sign` for local builds (it skips the update signature, fine for local use).
+To release (maintainers): bump the version in `apps/halokey/tauri.conf.json` and the root `Cargo.toml` (`[workspace.package] version`), commit, and push a `vX.Y.Z` tag. CI checks the tag against both versions and the release job fails if they differ, so bump both and commit before tagging. CI builds signed deb (x86_64, arm64), macOS .app/.dmg (arm64, x86_64) and Windows NSIS/MSI, generates `latest.json` and creates a draft release. Check the draft on GitHub and publish it; users only receive the update after it is published. Local `cargo tauri build` fails without `TAURI_SIGNING_PRIVATE_KEY` because update artifacts are on; add `--no-sign` for local builds (it skips the update signature, fine for local use).
 
 ## Platform matrix
 

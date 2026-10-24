@@ -61,7 +61,7 @@ Ulanzi Studio 只支持 Windows 和 macOS。目前所有社区项目要么只做
 - macOS 构建是临时（ad-hoc）签名，不是 Developer ID：每次更新签名都会变，更新后 macOS 可能要求重新授予辅助功能权限。
 - 第一个带更新功能的版本是基线；更早安装的版本需要手动更新一次。
 
-发版（维护者）：修改 `apps/halokey/tauri.conf.json` 与根 `Cargo.toml` 的版本，提交，推 `vX.Y.Z` 标签。CI 会构建已签名的 deb（x86_64、arm64）、macOS .app/.dmg（arm64、x86_64）和 Windows NSIS/MSI，生成 `latest.json` 并创建草稿 release。在 GitHub 上检查草稿并发布；发布之后用户才会收到更新。因为开启了更新产物，本地 `cargo tauri build` 没有 `TAURI_SIGNING_PRIVATE_KEY` 会失败；本地构建加 `--no-sign`（跳过更新签名，本地使用没问题）。
+发版（维护者）：修改 `apps/halokey/tauri.conf.json` 与根 `Cargo.toml`（`[workspace.package] version`）的版本，提交，推 `vX.Y.Z` 标签。CI 会把标签与这两处版本对照，不一致则发布任务失败，所以要先同时改好两处并提交，再打标签。CI 会构建已签名的 deb（x86_64、arm64）、macOS .app/.dmg（arm64、x86_64）和 Windows NSIS/MSI，生成 `latest.json` 并创建草稿 release。在 GitHub 上检查草稿并发布；发布之后用户才会收到更新。因为开启了更新产物，本地 `cargo tauri build` 没有 `TAURI_SIGNING_PRIVATE_KEY` 会失败；本地构建加 `--no-sign`（跳过更新签名，本地使用没问题）。
 
 ## 平台矩阵
 
