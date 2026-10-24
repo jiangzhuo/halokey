@@ -6,6 +6,7 @@
   import HaloEditor from "./pages/HaloEditor.svelte";
   import MacroEditor from "./pages/MacroEditor.svelte";
   import { api, subscribe, type UiSnapshot } from "./lib/tauri";
+  import { t } from "./lib/i18n";
   import { initialDraft, loadSaved, assignAction, select, type Draft, type Selection } from "./model/draft";
 
   let page = $state<"keymap" | "settings" | "halo" | "macro">("keymap");
@@ -31,6 +32,9 @@
   let draft = $state<Draft>(initialDraft());
   let langTick = $state(0);
   let activeLayers = $state<number[]>([]);
+  // 后端最近一次的错误（快照里的 lastError）。用户点掉后不再显示同一条，直到来了新的错误事件。
+  let dismissedError = $state<string | null>(null);
+  const shownError = $derived(snapshot?.lastError && snapshot.lastError !== dismissedError ? snapshot.lastError : null);
 
   async function refresh() {
     try { snapshot = await api.snapshot(); activeLayers = snapshot.activeLayers ?? []; } catch (e) { console.error(e); }
@@ -46,6 +50,8 @@
     subscribe((e) => {
       if (e.kind === "connected") api.getKeymap().then((m) => { draft = loadSaved(draft, m); });
       if (e.kind === "layers") activeLayers = e.active;
+      // 不等下一次轮询：马上显示，之前点掉过同样的文本也重新显示。
+      if (e.kind === "error") { dismissedError = null; if (snapshot) snapshot = { ...snapshot, lastError: e.text }; }
     }).then((u) => { un = u; });
     return () => { clearInterval(timer); window.removeEventListener("halokey-lang", relang); un?.(); };
   });
@@ -54,6 +60,9 @@
 {#key langTick}
 <div class="app">
   <TopBar page={page === "settings" ? "settings" : "keymap"} {snapshot} dirty={draft.dirty} onNavigate={(p) => { editing = null; page = p; }} />
+  {#if shownError}
+    <div class="error" role="alert" data-role="backend-error"><span>⚠ {shownError}</span><button data-role="dismiss-error" aria-label={t("忽略")} title={t("忽略")} onclick={() => { dismissedError = shownError; }}>✕</button></div>
+  {/if}
   <div class="view">
   {#if page === "keymap"}
     <Keymap bind:draft {snapshot} {activeLayers} onEditHalo={openHalo} onEditMacro={openMacro} />
@@ -71,5 +80,8 @@
 <style>
   /* 顶栏固定；页面内容在 .view 里滚动（键位页自己再把舞台固定、只滚键码面板）。 */
   .app { display: flex; flex-direction: column; height: 100vh; }
+  .error { display: flex; align-items: center; gap: 12px; padding: 8px 22px; background: var(--bad-soft); color: var(--bad); font-size: 13px; border-bottom: 1px solid var(--line); }
+  .error span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .error button { background: none; color: inherit; padding: 2px 6px; }
   .view { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; }
 </style>
