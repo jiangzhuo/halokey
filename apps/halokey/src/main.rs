@@ -283,8 +283,34 @@ fn save_keymap(state: State<'_, App>, keymap: serde_json::Value) -> Result<(), S
     install_keymap(&state, map).map(|_| ())
 }
 
-/// 退出：先停设备线程（松开按住的键、把控制交还设备），再退出进程。托盘"退出"与关窗退出都走这里。
-fn quit_app(app: &AppHandle) {
+/// 按当前配置文件和设置启动设备服务；启动时与安装更新失败后都走这里。
+fn spawn_service(app: &AppHandle) -> Service {
+    let config_path = &app.state::<App>().config_path;
+    let settings = load_settings(config_path);
+    let keymap = match load_keymap(config_path) {
+        Ok(map) => map,
+        Err(e) => {
+            eprintln!("配置读取失败，将使用设备表：{e}");
+            None
+        }
+    };
+    let handle = app.clone();
+    Service::spawn(
+        Config {
+            keymap,
+            dry_run: false,
+            serial: None,
+            idle_timeout: (settings.idle_minutes > 0)
+                .then(|| std::time::Duration::from_secs(settings.idle_minutes * 60)),
+            halo_timeout: std::time::Duration::from_secs(settings.halo.timeout_seconds),
+        },
+        Backends::platform(),
+        Box::new(move |event| forward(&handle, event)),
+    )
+}
+
+/// 取出并停掉设备线程（松开按住的键、把控制交还设备）。会等线程结束。
+fn stop_service(app: &AppHandle) {
     if let Some(service) = app
         .state::<App>()
         .service
@@ -294,6 +320,11 @@ fn quit_app(app: &AppHandle) {
     {
         service.stop();
     }
+}
+
+/// 退出：先停设备线程，再退出进程。托盘"退出"与关窗退出都走这里。
+fn quit_app(app: &AppHandle) {
+    stop_service(app);
     app.exit(0);
 }
 
@@ -960,21 +991,10 @@ fn main() {
     if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     }
-    let path = config_path();
-    let settings = load_settings(&path);
-    let idle_minutes = settings.idle_minutes;
-    let halo_timeout = std::time::Duration::from_secs(settings.halo.timeout_seconds);
-    let initial = match load_keymap(&path) {
-        Ok(map) => map,
-        Err(e) => {
-            eprintln!("配置读取失败，将使用设备表：{e}");
-            None
-        }
-    };
     tauri::Builder::default()
         .manage(App {
             service: Mutex::new(None),
-            config_path: path,
+            config_path: config_path(),
         })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -1004,24 +1024,12 @@ fn main() {
             set_standby_delay,
             set_noise_reduction
         ])
-        .setup(move |app| {
-            let handle = app.handle().clone();
+        .setup(|app| {
             // 调试用：HALOKEY_SHOW_MAIN=1 时启动即显示设置窗口，省去点托盘。
             if std::env::var_os("HALOKEY_SHOW_MAIN").is_some() {
-                show_main(&handle);
+                show_main(app.handle());
             }
-            let service = Service::spawn(
-                Config {
-                    keymap: initial,
-                    dry_run: false,
-                    serial: None,
-                    idle_timeout: (idle_minutes > 0)
-                        .then(|| std::time::Duration::from_secs(idle_minutes * 60)),
-                    halo_timeout,
-                },
-                Backends::platform(),
-                Box::new(move |event| forward(&handle, event)),
-            );
+            let service = spawn_service(app.handle());
             *app.state::<App>().service.lock().expect("state lock") = Some(service);
 
             let lang = text::resolve_lang(&load_settings(&app.state::<App>().config_path).lang);
