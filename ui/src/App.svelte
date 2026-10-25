@@ -6,7 +6,7 @@
   import HaloEditor from "./pages/HaloEditor.svelte";
   import MacroEditor from "./pages/MacroEditor.svelte";
   import { api, subscribe, type UiSnapshot } from "./lib/tauri";
-  import { lang } from "./lib/i18n";
+  import { lang, t } from "./lib/i18n";
   import { initialDraft, loadSaved, assignAction, select, type Draft, type Selection } from "./model/draft";
 
   let page = $state<"keymap" | "settings" | "halo" | "macro">("keymap");
@@ -32,9 +32,29 @@
   let draft = $state<Draft>(initialDraft());
   let langTick = $state(0);
   let activeLayers = $state<number[]>([]);
+  // 后端最近一次的错误：快照里的 lastError，或者比快照更新的错误事件。用户点掉后不再显示同一条，直到来了新的错误事件。
+  let dismissedError = $state<string | null>(null);
+  // 错误事件先单独存着：早于第一份快照到达、或者事件之前发出的轮询晚回来，都不会把它丢掉或盖掉。
+  let eventError = $state<string | null>(null);
+  let errorSeq = 0;
+  // 快照请求按发出顺序编号；慢的旧请求晚回来时直接丢掉，不覆盖更新的快照。
+  let snapshotSeq = 0;
+  let appliedSnapshotSeq = 0;
+  const currentError = $derived(eventError ?? snapshot?.lastError ?? null);
+  const shownError = $derived(currentError && currentError !== dismissedError ? currentError : null);
 
   async function refresh() {
-    try { snapshot = await api.snapshot(); activeLayers = snapshot.activeLayers ?? []; } catch (e) { console.error(e); }
+    const seq = errorSeq;
+    const request = ++snapshotSeq;
+    try {
+      const s = await api.snapshot();
+      if (request > appliedSnapshotSeq) {
+        appliedSnapshotSeq = request;
+        // 请求发出后没有新的错误事件，这份快照就比事件新，以它为准。
+        if (seq === errorSeq) eventError = null;
+        snapshot = s; activeLayers = s.activeLayers ?? [];
+      }
+    } catch (e) { console.error(e); }
     // 键位来自配置文件，与接收器是否在线无关：离线也要能编辑。
     if (!draft.map) try { draft = loadSaved(draft, await api.getKeymap()); } catch { /* 还没有键位（等待接收器），下次再试 */ }
   }
@@ -52,6 +72,8 @@
       if (e.kind === "layers") activeLayers = e.active;
       // 托盘菜单 / 通知点击：切到设置页并滚到"更新"一节。
       if (e.kind === "showUpdates") { editing = null; page = "settings"; tick().then(() => document.getElementById("updates")?.scrollIntoView()); }
+      // 不等下一次轮询：马上显示，之前点掉过同样的文本也重新显示。
+      if (e.kind === "error") { errorSeq++; eventError = e.text; dismissedError = null; }
     }).then((u) => { un = u; });
     return () => { clearInterval(timer); window.removeEventListener("halokey-lang", relang); un?.(); };
   });
@@ -60,6 +82,9 @@
 {#key langTick}
 <div class="app">
   <TopBar page={page === "settings" ? "settings" : "keymap"} {snapshot} dirty={draft.dirty} onNavigate={(p) => { editing = null; page = p; }} />
+  {#if shownError}
+    <div class="error" role="alert" data-role="backend-error"><span>⚠ {shownError}</span><button data-role="dismiss-error" aria-label={t("忽略")} title={t("忽略")} onclick={() => { dismissedError = shownError; }}>✕</button></div>
+  {/if}
   <div class="view">
   {#if page === "keymap"}
     <Keymap bind:draft {snapshot} {activeLayers} onEditHalo={openHalo} onEditMacro={openMacro} />
@@ -77,5 +102,8 @@
 <style>
   /* 顶栏固定；页面内容在 .view 里滚动（键位页自己再把舞台固定、只滚键码面板）。 */
   .app { display: flex; flex-direction: column; height: 100vh; }
+  .error { display: flex; align-items: center; gap: 12px; padding: 8px 22px; background: var(--bad-soft); color: var(--bad); font-size: 13px; border-bottom: 1px solid var(--line); }
+  .error span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .error button { background: none; color: inherit; padding: 2px 6px; }
   .view { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; }
 </style>

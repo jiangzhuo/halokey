@@ -31,4 +31,17 @@ describe("App", () => {
     expect(spy).toHaveBeenLastCalledWith({ lang: "ja" });
     setLang("en"); // 复位模块级语言状态，免得影响后面的用例
   });
+
+  it("shows the backend's last error and lets the user dismiss it", async () => {
+    setLang("zh");
+    vi.spyOn(api, "snapshot").mockResolvedValue({ connected: false, online: null, battery: null, heartbeats: 0, echoes: 0, injected: 0, lastError: "HID 初始化失败：测试", configPath: "x", paused: false, standby: null, link: null, activeLayers: [], effectiveLighting: null, version: "0.1.0" });
+    app = mount(App, { target: document.body });
+    await tick(); await tick(); await tick();
+    flushSync();
+    const bar = document.querySelector('[data-role="backend-error"]');
+    expect(bar?.textContent).toContain("HID 初始化失败：测试");
+    (document.querySelector('[data-role="dismiss-error"]') as HTMLButtonElement).click();
+    flushSync();
+    expect(document.querySelector('[data-role="backend-error"]')).toBeNull();
+  });
 });
