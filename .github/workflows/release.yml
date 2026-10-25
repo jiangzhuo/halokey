@@ -35,10 +35,12 @@ jobs:
             args: "--bundles msi,nsis"
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      # 第三方 action 固定到提交（这个工作流要读签名私钥、发布更新清单，不能跟着可变的标签走）
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
+          toolchain: stable
           targets: ${{ contains(matrix.args, 'aarch64-apple-darwin') && 'aarch64-apple-darwin' || contains(matrix.args, 'x86_64-apple-darwin') && 'x86_64-apple-darwin' || '' }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Linux system libraries for Tauri
         if: runner.os == 'Linux'
         run: |
@@ -112,7 +114,7 @@ jobs:
         run: python3 tools/make_latest_json.py --artifacts dist --out dist/latest.json --tag "$RELEASE_TAG"
       - name: Attach to release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           draft: true
           files: dist/*
