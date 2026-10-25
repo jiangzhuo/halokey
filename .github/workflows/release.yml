@@ -116,7 +116,9 @@ jobs:
             macos-arm64) triple=aarch64-apple-darwin ;;
             *) triple=x86_64-apple-darwin ;;
           esac
-          app="target/$triple/release/bundle/macos/halokey.app"
+          # .app 名随 tauri.conf.json 的 productName
+          product=$(python3 -c "import json; print(json.load(open('apps/halokey/tauri.conf.json'))['productName'])")
+          app="target/$triple/release/bundle/macos/$product.app"
           codesign --verify --strict --verbose=2 "$app"
           requirement=$(codesign -d -r- "$app" 2>&1 | sed -n 's/^designated => //p')
           echo "designated requirement: $requirement"
@@ -135,17 +137,18 @@ jobs:
           # 安装包/更新包及其 .sig（不再收集 AppImage）
           find target -path '*/bundle/*' \( -name '*.deb' -o -name '*.dmg' -o -name '*.msi' -o -name '*-setup.exe' \) -exec cp {} dist/ \;
           find target -path '*/bundle/*' \( -name '*.deb.sig' -o -name '*.msi.sig' -o -name '*-setup.exe.sig' \) -exec cp {} dist/ \;
-          # macOS 更新包固定叫 halokey.app.tar.gz，按架构改名以区分
+          # macOS 更新包叫 <productName>.app.tar.gz，不带版本和架构，按架构改名以区分
           case "${{ matrix.name }}" in
             macos-arm64) arch=aarch64; triple=aarch64-apple-darwin ;;
             macos-x86_64) arch=x64; triple=x86_64-apple-darwin ;;
             *) arch=; triple= ;;
           esac
           if [ -n "$arch" ]; then
+            product=$(python3 -c "import json; print(json.load(open('apps/halokey/tauri.conf.json'))['productName'])")
             version=$(python3 -c "import json; print(json.load(open('apps/halokey/tauri.conf.json'))['version'])")
             src="target/$triple/release/bundle/macos"
-            cp "$src/halokey.app.tar.gz" "dist/halokey_${version}_${arch}.app.tar.gz"
-            cp "$src/halokey.app.tar.gz.sig" "dist/halokey_${version}_${arch}.app.tar.gz.sig"
+            cp "$src/$product.app.tar.gz" "dist/${product}_${version}_${arch}.app.tar.gz"
+            cp "$src/$product.app.tar.gz.sig" "dist/${product}_${version}_${arch}.app.tar.gz.sig"
           fi
           ls -la dist
       - uses: actions/upload-artifact@v4
