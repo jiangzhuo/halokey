@@ -68,6 +68,12 @@ jobs:
       # 每次构建都一样，更新后 macOS 仍认之前给的辅助功能授权（ad-hoc 签名的指定要求是
       # 每次都变的 cdhash）。不是 Developer ID，没有公证，首次打开照旧要「仍要打开」。
       # 没配 secret（例如 fork）时跳过，沿用 tauri.conf.json 的 ad-hoc 签名
+      # 但本仓库不能退回 ad-hoc：secret 丢了的话，发出去的 ad-hoc 版本会让用户更新后丢授权
+      - name: Require macOS signing certificate
+        if: runner.os == 'macOS' && github.repository == 'jiangzhuo/halokey' && env.HAS_MACOS_CERT != 'true'
+        run: |
+          echo "::error::MACOS_SIGNING_CERT is not set; jiangzhuo/halokey must not ship ad-hoc signed macOS builds"
+          exit 1
       - name: Import macOS signing certificate
         if: runner.os == 'macOS' && env.HAS_MACOS_CERT == 'true'
         env:
