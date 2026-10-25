@@ -66,8 +66,8 @@
 
 **新模块 `apps/halokey/src/update.rs`**
 
-- 更新状态：`Unsupported(原因)` / `Idle` / `Checking` / `UpToDate` / `Available { version, notes }` / `Downloading { downloaded, total }` / `Installing` / `Error(消息)`。状态保存在应用状态里，变化时向设置窗口发事件。
-- 支持判断：用 `tauri::utils::platform::bundle_type()`（打包时由 tauri-cli 写入二进制）。`Deb`、`App`、`Nsis`、`Msi` 视为支持；`None`（从源码运行）、`AppImage`、`Rpm` 视为不支持。不支持时不检查，状态为 `Unsupported`。
+- 更新状态：`Unsupported(原因)` / `Idle` / `Checking` / `UpToDate` / `Available { version }` / `Downloading { downloaded, total }` / `Installing` / `Error(消息)`。状态保存在应用状态里，变化时向设置窗口发事件。
+- 支持判断：用 `tauri::utils::platform::bundle_type()`（打包时由 tauri-cli 写入二进制）。`Deb`、`Nsis`、`Msi` 视为支持；`App` 只有在可执行文件位于 `.app/Contents/MacOS/` 内时才支持（macOS 上 `bundle_type()` 总是返回 `App`，源码运行也一样），否则按源码运行处理；`None`（从源码运行）、`AppImage`、`Rpm` 视为不支持。不支持时不检查，状态为 `Unsupported`。
 - 纯逻辑放成可单测的函数：是否需要通知（新版本号与已通知版本号比较）、支持判断、设置里 `updates` 段的合并与校验。
 - 后台检查：`tauri::async_runtime` 里的循环（启动后 30 秒，之后每 6 小时；每次先读设置里的开关）。
 - 新命令：`update_status`、`check_update`（手动检查）、`install_update`（下载并安装当前可用版本）。新事件：设置窗口订阅的更新状态事件。
@@ -125,7 +125,7 @@
 - **Rust 单元测试**：是否通知、支持判断、`updates` 设置的合并和默认值；`tauri.conf.json` 里开启了 `createUpdaterArtifacts`、endpoint 是 HTTPS 的 GitHub 地址、公钥非空。
 - **Python 单元测试**：`make_latest_json` 的平台键、签名读取、版本不一致报错、缺平台报错。CI 里跑。
 - **前端 vitest**：更新一节在各状态下的显示和按钮行为。
-- **发布流程演练**：用 `workflow_dispatch` 跑一遍，检查产物齐全、`latest.json` 正确、草稿 Release 内容正确。同时确认去掉 `--no-sign` 后，没有证书的 macOS 和 Windows 仍能打包。
+- **发布流程演练**：用 `workflow_dispatch` 跑一遍，检查各平台产物齐全、`latest.json` 正确（手动演练不建 Release，只上传 `latest.json` 工作流产物）；草稿 Release 的内容在第一次推标签时检查。同时确认去掉 `--no-sign` 后，没有证书的 macOS 和 Windows 仍能打包。
 - **端到端**：要发两个真实版本（例如 v0.1.0 作为第一个带更新功能的基线，再发 v0.1.1），在 LittleBlack 上装 v0.1.0 的 deb，发布 v0.1.1 后看提醒、授权、安装、重启是否顺利。发布时间由 jiangzhuo 决定。
 
 ## 5. 风险

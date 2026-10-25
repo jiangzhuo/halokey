@@ -57,7 +57,7 @@ Ulanzi Studio 只支持 Windows 和 macOS。目前所有社区项目要么只做
 
 ## 更新与发版
 
-安装版（Linux deb、macOS .app、Windows NSIS/MSI）在启动 30 秒后以及之后每 6 小时检查一次 `https://github.com/jiangzhuo/halokey/releases/latest/download/latest.json`。默认开启，可在设置里关闭（"Check for updates automatically"）；也可点 "Check for updates" 手动检查。新版本只提醒一次：系统通知、托盘里的 "Install update vX.Y.Z…" 项，以及设置页的更新区（带发布说明链接）。确认后 halokey 下载更新、校验签名、安装并重启。从源码运行的版本（`cargo run`、`target/*/halokey-app`）从不检查更新。托盘菜单和通知跟随界面语言。
+安装版（Linux deb、macOS .app、Windows NSIS/MSI）在启动 30 秒后以及之后每 6 小时检查一次 `https://github.com/jiangzhuo/halokey/releases/latest/download/latest.json`。默认开启，可在设置里关闭（「自动检查更新」）；也可点「检查更新」手动检查。每个新版本只发一次系统通知；有新版本期间，托盘里会出现「安装更新 vX.Y.Z…」，设置页的「更新」一节也会显示它（带「发布说明」链接）。确认后 halokey 下载更新、校验签名、安装并重启。从源码运行的版本（`cargo run`、`target/*/halokey-app`）从不检查更新。托盘菜单和通知跟随界面语言。
 
 - Linux deb 更新会要求输入一次管理员密码（系统授权对话框）。如果取消，更新插件可能再次以备用提示询问，最后报告安装失败，而不是"已取消"。
 - macOS 构建没有用 Apple Developer ID 签名，所以更新后 macOS 可能不再认可之前授予的辅助功能权限，即使系统设置里看起来仍是开启的。如果更新后按键或旋钮没有反应，在 系统设置 → 隐私与安全性 → 辅助功能 里移除 halokey 再重新添加。
