@@ -3,7 +3,7 @@
 
 > 📚 Docs set: [README](../README.md) · [01 Architecture](01-architecture.md) · [02 Protocol Notes](02-protocol-notes.md) · **03 Configuration Format**
 
-halokey keeps one JSON file, `~/.config/halokey/keymap.json` on Linux. The settings window edits it; `halokey run --config` and `halokey export-keymap` use the same shape. The shape is derived from olanzi's `HostKeymap` but the file is halokey's own: version is always 6 and olanzi files are not accepted.
+HaloKey keeps one JSON file, `~/.config/halokey/keymap.json` on Linux. The settings window edits it; `halokey run --config` and `halokey export-keymap` use the same shape. The shape is derived from olanzi's `HostKeymap` but the file is HaloKey's own: version is always 6 and olanzi files are not accepted.
 
 ---
 
@@ -23,7 +23,7 @@ halokey keeps one JSON file, `~/.config/halokey/keymap.json` on Linux. The setti
 
 | Field | Meaning |
 |---|---|
-| `version` | Always `6`. Any other value is rejected (halokey has not shipped, so there is no older format to keep reading). |
+| `version` | Always `6`. Any other value is rejected (HaloKey has not shipped, so there is no older format to keep reading). |
 | `controls` | Exactly six, one per control index: 0 key 1, 1 key 2, 2 key 3, 3 knob press, 4 knob right, 5 knob left. |
 | `layers` | Optional sparse overlays 1–3, activated by the layer actions in §3 (`momentaryLayer`, `toggleLayer`, `toLayer`, `oneShotLayer`). |
 | `actionLibrary` | Optional reusable application or macro actions referenced by `library` actions. |
@@ -69,12 +69,12 @@ Actions use olanzi's tagged form `{ "<kind>": { "_0": <value> } }`:
 | `macro` | list of steps | Steps are `keyboard`, `application` or `delay` (`{ "delay": { "_0": 0.3 } }`, 0.05–10 s), 1–32 of them. |
 | `library` | UUID string | References `actionLibrary`. |
 | `momentaryLayer` | 1–3 | QMK `MO`. Active while the control is held. Keys and knob press only, single or long press. |
-| `toggleLayer` | 1–3 | halokey extension, QMK `TG`. Turns the layer on, or off if it is already on; it stays after release. Keys and knob press, any gesture. |
-| `toLayer` | 0–3 | halokey extension, QMK `TO`. Leaves only this layer locked (`0` = back to Layer 0) and drops a pending one-shot layer; layers held by `momentaryLayer` keys stay until those keys are released. Keys and knob press, any gesture. |
-| `oneShotLayer` | 1–3 | halokey extension, QMK `OSL`. The next key or knob press uses the layer, then it drops. If the knob turns first, the whole continuous turn uses it; the layer drops 1 s after the last tick or at the next press. Keys and knob press, any gesture. |
-| `pointerMove` | `{ "dx", "dy" }` | halokey extension. Pixels per trigger, each within ±1000, not both zero. |
-| `scroll` | `{ "dx", "dy" }` | halokey extension. Wheel notches per trigger in screen directions (`dy` > 0 scrolls down, `dx` > 0 right), each within ±10, not both zero. A knob tick sends them as one event, so fast turns do not queue up the way `burst` does; how far one notch scrolls is still up to the system and each app. |
-| `halo` | halo id | halokey extension. Opens that menu. |
+| `toggleLayer` | 1–3 | HaloKey extension, QMK `TG`. Turns the layer on, or off if it is already on; it stays after release. Keys and knob press, any gesture. |
+| `toLayer` | 0–3 | HaloKey extension, QMK `TO`. Leaves only this layer locked (`0` = back to Layer 0) and drops a pending one-shot layer; layers held by `momentaryLayer` keys stay until those keys are released. Keys and knob press, any gesture. |
+| `oneShotLayer` | 1–3 | HaloKey extension, QMK `OSL`. The next key or knob press uses the layer, then it drops. If the knob turns first, the whole continuous turn uses it; the layer drops 1 s after the last tick or at the next press. Keys and knob press, any gesture. |
+| `pointerMove` | `{ "dx", "dy" }` | HaloKey extension. Pixels per trigger, each within ±1000, not both zero. |
+| `scroll` | `{ "dx", "dy" }` | HaloKey extension. Wheel notches per trigger in screen directions (`dy` > 0 scrolls down, `dx` > 0 right), each within ±10, not both zero. A knob tick sends them as one event, so fast turns do not queue up the way `burst` does; how far one notch scrolls is still up to the system and each app. |
+| `halo` | halo id | HaloKey extension. Opens that menu. |
 
 The active layers are the union of layers held by `momentaryLayer`, layers locked by `toggleLayer` / `toLayer`, and the pending one-shot layer; where several define the same gesture, the higher-numbered layer wins. Locked layers survive the idle hand-back and reconnects and are cleared when a new keymap is saved; the one-shot layer is dropped on idle, disconnect and save. The AU05 has no screen, so give each locked layer its own `lighting` to see which one is on, and give Layer 0 a record too, or the lights keep the last layer's effect after returning to it.
 
@@ -111,7 +111,7 @@ Application preferences live next to the keymap in `settings.json` and never ent
 
 | Key | Value | Default |
 |---|---|---|
-| `idleMinutes` | minutes of inactivity before halokey hands the device back to its own firmware; `0` = never | `5` |
+| `idleMinutes` | minutes of inactivity before HaloKey hands the device back to its own firmware; `0` = never | `5` |
 | `halo.position` | `pointer` or `center` | `pointer` |
 | `halo.timeoutSeconds` | seconds before the halo wheel closes | `4` |
 | `halo.size` | `small`, `medium`, `large` | `medium` |

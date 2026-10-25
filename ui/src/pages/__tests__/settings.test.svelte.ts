@@ -23,7 +23,7 @@ describe("Settings page", () => {
     expect(text).toContain("4.4.2 / 4.4.2");
     expect(text).toContain("本体在线");
     expect(text).toContain("/tmp/keymap.json");
-    expect(text).toContain("halokey 0.1.0");
+    expect(text).toContain("HaloKey 0.1.0");
     expect(q<HTMLSelectElement>("select[data-role=idle]").value).toBe("5");
     expect(q<HTMLSelectElement>("select[data-role=sleep]").value).toBe("3600");
     expect(q<HTMLSelectElement>("select[data-role=standby]").value).toBe("300");

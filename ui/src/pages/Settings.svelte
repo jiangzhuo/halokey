@@ -169,7 +169,7 @@
   </section>
   <section class="card" id="updates"><UpdateCard /></section>
   {#if note}<p class="bad">{note}</p>{/if}
-  <p class="about mono">halokey {snapshot?.version ?? "—"} · {snapshot?.configPath ?? "—"}</p>
+  <p class="about mono">HaloKey {snapshot?.version ?? "—"} · {snapshot?.configPath ?? "—"}</p>
 </div>
 
 <style>

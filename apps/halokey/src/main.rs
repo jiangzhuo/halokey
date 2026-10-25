@@ -347,7 +347,7 @@ fn install_keymap(state: &App, map: HostKeymap) -> Result<serde_json::Value, Str
     std::fs::write(&state.config_path, pretty)
         .map_err(|e| format!("写入 {} 失败：{e}", state.config_path.display()))?;
     if !service.send(Command::SetKeymap(map)) {
-        return Err("文件已替换，但设备线程已退出；重启 halokey 后生效".into());
+        return Err("文件已替换，但设备线程已退出；重启 HaloKey 后生效".into());
     }
     Ok(normalized)
 }
@@ -1001,7 +1001,7 @@ fn set_autostart(enabled: bool) -> Result<bool, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let entry = if cfg!(target_os = "macos") {
         if is_translocated(&exe) {
-            return Err("halokey 正从临时位置运行（App Translocation），这个路径下次登录就失效了。请先把 halokey 拖进「应用程序」文件夹，再打开它开启登录启动".to_string());
+            return Err("HaloKey 正从临时位置运行（App Translocation），这个路径下次登录就失效了。请先把 HaloKey 拖进「应用程序」文件夹，再打开它开启登录启动".to_string());
         }
         launch_agent_plist(&exe)
     } else {
@@ -1141,7 +1141,7 @@ fn main() {
             TrayIconBuilder::with_id("tray")
                 .icon(TRAY_ICON)
                 .icon_as_template(cfg!(target_os = "macos"))
-                .tooltip("halokey")
+                .tooltip("HaloKey")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id().as_ref() {
@@ -1190,7 +1190,7 @@ fn main() {
             }
         })
         .run(tauri::generate_context!())
-        .expect("halokey 启动失败");
+        .expect("HaloKey 启动失败");
 }
 
 #[cfg(test)]

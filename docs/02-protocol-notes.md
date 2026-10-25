@@ -3,13 +3,13 @@
 
 > 📚 Docs set: [README](../README.md) · [01 Architecture](01-architecture.md) · **02 Protocol Notes** · [03 Configuration Format](03-config-format.md)
 
-Facts about the AU05 vendor channel that halokey established itself, on top of the olanzi record. Everything here was measured on Linux through `/dev/hidraw` with the `halokey` CLI unless stated otherwise. Raw logs live in [evidence/](evidence/).
+Facts about the AU05 vendor channel that HaloKey established itself, on top of the olanzi record. Everything here was measured on Linux through `/dev/hidraw` with the `halokey` CLI unless stated otherwise. Raw logs live in [evidence/](evidence/).
 
 ---
 
 ## 1. Linux transport
 
-[CONFIRMED] hidapi's pure-Rust hidraw backend enumerates the receiver with usage pages: interface 2 exposes usage pages `0x000c`, `0x0001` (usages 1, 2, 6), interface 3 exposes `0xfffc` usage 1. halokey selects the vendor channel by usage page and falls back to interface number 3 only when a backend reports no usage page.
+[CONFIRMED] hidapi's pure-Rust hidraw backend enumerates the receiver with usage pages: interface 2 exposes usage pages `0x000c`, `0x0001` (usages 1, 2, 6), interface 3 exposes `0xfffc` usage 1. HaloKey selects the vendor channel by usage page and falls back to interface number 3 only when a backend reports no usage page.
 
 [CONFIRMED] Reads need no heartbeat: `status` and `keys` answered within milliseconds on a device that had been idle for minutes.
 
@@ -34,7 +34,7 @@ The action byte is stable per control but is not a key code; hosts route by `ind
 
 ## 4. Battery broadcast (notice `0x7b`)
 
-[INFERRED] The device broadcasts `0b 7b <v_lo> <v_hi> 00 <percent> <?> 01` every few seconds without being asked. In four samples the little-endian voltage at bytes 2–3 and the percentage at byte 5 matched the polled `01 01 02 01` reading exactly (`cf 0e` / `d0 0e` = 3791 / 3792 mV, `3c` = 60%; earlier `15 0f` = 3861 mV, `46` = 70%). Byte 6 (`c6`, `c1`, `c0`, `bb`) and byte 7 (always `01`) are unexplained, so halokey does not derive a charging flag from the notice. `halokey-proto` exposes this as `status::parse_battery_notice`.
+[INFERRED] The device broadcasts `0b 7b <v_lo> <v_hi> 00 <percent> <?> 01` every few seconds without being asked. In four samples the little-endian voltage at bytes 2–3 and the percentage at byte 5 matched the polled `01 01 02 01` reading exactly (`cf 0e` / `d0 0e` = 3791 / 3792 mV, `3c` = 60%; earlier `15 0f` = 3861 mV, `46` = 70%). Byte 6 (`c6`, `c1`, `c0`, `bb`) and byte 7 (always `01`) are unexplained, so HaloKey does not derive a charging flag from the notice. `halokey-proto` exposes this as `status::parse_battery_notice`.
 
 ## 5. Mouse page (type `0x07`)
 
@@ -42,17 +42,17 @@ The action byte is stable per control but is not a key code; hosts route by `ind
 
 ## 6. Lighting: breathing on every channel
 
-[CONFIRMED] olanzi only allowed `workType = 2` (breathing) on key 1 because that was the only light it had measured. halokey writes `01 0b 88 04 04 <light> …` for any of the four lights; on 2026-10-16 the knob light (index 3) was set to breathing from the settings window, the write was acknowledged, the read-back matched, and the user saw the knob light breathe. This agrees with the Windows tool `doitian/ulanzi-vibekey`, whose SDK read-back showed all four channels accepting the value.
+[CONFIRMED] olanzi only allowed `workType = 2` (breathing) on key 1 because that was the only light it had measured. HaloKey writes `01 0b 88 04 04 <light> …` for any of the four lights; on 2026-10-16 the knob light (index 3) was set to breathing from the settings window, the write was acknowledged, the read-back matched, and the user saw the knob light breathe. This agrees with the Windows tool `doitian/ulanzi-vibekey`, whose SDK read-back showed all four channels accepting the value.
 
 ## 7. Idle handoff and standby
 
-[CONFIRMED] With the heartbeat running the key unit never enters standby, which drains the battery overnight. halokey therefore hands control back after a configurable idle period: it sends `01 01 10 00 00`, stops the heartbeat, and only listens on interface 2. On 2026-10-16 with a one-minute timeout the sequence `key 1 → 75 s idle → key 1 → key 1` produced "idle timeout, control handed back", the firmware typed the stored key for the next press (seen on interface 2), halokey took over again with `01 01 10 00 03`, and the following press arrived as a vendor event. After the handoff the unit soon reports `status = 0` to the online query while in standby, and a host that starts while the unit is in standby cannot read the key table until it wakes; halokey starts with the factory map in that case and reads the table once the unit answers.
+[CONFIRMED] With the heartbeat running the key unit never enters standby, which drains the battery overnight. HaloKey therefore hands control back after a configurable idle period: it sends `01 01 10 00 00`, stops the heartbeat, and only listens on interface 2. On 2026-10-16 with a one-minute timeout the sequence `key 1 → 75 s idle → key 1 → key 1` produced "idle timeout, control handed back", the firmware typed the stored key for the next press (seen on interface 2), HaloKey took over again with `01 01 10 00 03`, and the following press arrived as a vendor event. After the handoff the unit soon reports `status = 0` to the online query while in standby, and a host that starts while the unit is in standby cannot read the key table until it wakes; HaloKey starts with the factory map in that case and reads the table once the unit answers.
 
 ## 8. Power and microphone settings
 
-[CONFIRMED] The standby-state, standby-delay, sleep-delay, microphone-enable and noise-reduction reads listed in vibed's recovered command table answer on firmware 4.4.x as described: `01 01 0d 01` (byte 4), `01 01 2c 01` and `01 01 42 01` (u32 little-endian at offset 4), `01 01 2a 01` (byte 4), `01 01 90 01` (level at 4, low u16 at 5, high u16 at 7). Writing noise reduction with `01 01 90 04 <level> 40 06 e8 03` (Studio's 1600 / 1000 parameters) off and on again read back the new level each time. halokey verifies every one of these writes by read-back instead of parsing an acknowledgement frame.
+[CONFIRMED] The standby-state, standby-delay, sleep-delay, microphone-enable and noise-reduction reads listed in vibed's recovered command table answer on firmware 4.4.x as described: `01 01 0d 01` (byte 4), `01 01 2c 01` and `01 01 42 01` (u32 little-endian at offset 4), `01 01 2a 01` (byte 4), `01 01 90 01` (level at 4, low u16 at 5, high u16 at 7). Writing noise reduction with `01 01 90 04 <level> 40 06 e8 03` (Studio's 1600 / 1000 parameters) off and on again read back the new level each time. HaloKey verifies every one of these writes by read-back instead of parsing an acknowledgement frame.
 
-[CONFIRMED] The microphone-enable **write** is not honoured on firmware 4.4.2 (2026-10-20): `01 01 2a <access> 01` with access `00`, `02` and `04` each gets an acknowledgement that echoes the value (`81 01 2a 10 01`, `81 01 2a 12 01`, `81 01 2a 14 01`), but `01 01 2a 01` keeps reading `00` afterwards; the unit's USB microphone records normally while the flag reads `00`, so the flag does not reflect whether the microphone works. Its meaning is unknown; halokey does not show it.
+[CONFIRMED] The microphone-enable **write** is not honoured on firmware 4.4.2 (2026-10-20): `01 01 2a <access> 01` with access `00`, `02` and `04` each gets an acknowledgement that echoes the value (`81 01 2a 10 01`, `81 01 2a 12 01`, `81 01 2a 14 01`), but `01 01 2a 01` keeps reading `00` afterwards; the unit's USB microphone records normally while the flag reads `00`, so the flag does not reflect whether the microphone works. Its meaning is unknown; HaloKey does not show it.
 
 ## 9. Open questions
 

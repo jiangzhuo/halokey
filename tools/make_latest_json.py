@@ -17,6 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 REPO_URL = "https://github.com/jiangzhuo/halokey"
+PRODUCT_NAMES = ("HaloKey", "halokey")
 
 # 平台键 -> 产物文件名正则（键为 updater 的 {os}-{arch}-{installer}）
 PLATFORMS = {
@@ -85,10 +86,11 @@ def build_manifest(version: str, artifacts: Path, pubkey: str) -> dict:
     """为每个平台找到唯一产物及其 .sig，并确认每个签名都出自 `pubkey` 对应的密钥；
     任何缺失、歧义或密钥不符都汇总后抛 ValueError。"""
     expected = pubkey_key_id(pubkey)
-    # 只认文件名以当前版本开头的产物，旧版本残留不会被误用
-    prefix = f"halokey_{version}_"
+    # 只认文件名以当前版本开头的产物，旧版本残留不会被误用。
+    # 文件名前缀跟着 productName：macOS / Windows 是 HaloKey，Linux 的 deb 包名必须小写，是 halokey
+    prefixes = tuple(f"{name}_{version}_" for name in PRODUCT_NAMES)
     names = sorted(
-        p.name for p in artifacts.iterdir() if p.is_file() and p.name.startswith(prefix)
+        p.name for p in artifacts.iterdir() if p.is_file() and p.name.startswith(prefixes)
     )
     platforms = {}
     problems = []

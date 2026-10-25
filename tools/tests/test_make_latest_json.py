@@ -52,10 +52,10 @@ def package_names(version):
     return [
         f"halokey_{version}_amd64.deb",
         f"halokey_{version}_arm64.deb",
-        f"halokey_{version}_aarch64.app.tar.gz",
-        f"halokey_{version}_x64.app.tar.gz",
-        f"halokey_{version}_x64-setup.exe",
-        f"halokey_{version}_x64_en-US.msi",
+        f"HaloKey_{version}_aarch64.app.tar.gz",
+        f"HaloKey_{version}_x64.app.tar.gz",
+        f"HaloKey_{version}_x64-setup.exe",
+        f"HaloKey_{version}_x64_en-US.msi",
     ]
 
 
@@ -70,7 +70,7 @@ def fake_artifacts(test, version, skip=None, skip_sig=None):
         (d / name).write_bytes(b"binary")
         if name != skip_sig:
             (d / f"{name}.sig").write_text(fake_signature(name))
-    (d / f"halokey_{version}_aarch64.dmg").write_bytes(b"dmg")
+    (d / f"HaloKey_{version}_aarch64.dmg").write_bytes(b"dmg")
     return d
 
 
@@ -87,6 +87,15 @@ class MakeLatestJson(unittest.TestCase):
             "https://github.com/jiangzhuo/halokey/releases/download/v0.2.0/halokey_0.2.0_arm64.deb",
         )
         self.assertEqual(deb["signature"], fake_signature("halokey_0.2.0_arm64.deb"))
+        # macOS / Windows 的文件名前缀是 HaloKey，Linux deb 是小写 halokey，两种都要认
+        self.assertTrue(m["platforms"]["darwin-aarch64-app"]["url"].endswith("/HaloKey_0.2.0_aarch64.app.tar.gz"))
+
+    def test_unknown_prefix_ignored(self):
+        d = fake_artifacts(self, "0.2.0", skip="HaloKey_0.2.0_x64-setup.exe")
+        (d / "Other_0.2.0_x64-setup.exe").write_bytes(b"x")
+        (d / "Other_0.2.0_x64-setup.exe.sig").write_text(fake_signature("Other_0.2.0_x64-setup.exe"))
+        with self.assertRaisesRegex(ValueError, "windows-x86_64-nsis"):
+            build_manifest("0.2.0", d, PUBKEY)
 
     def test_missing_platform_fails(self):
         d = fake_artifacts(self, "0.2.0", skip="halokey_0.2.0_arm64.deb")
@@ -94,7 +103,7 @@ class MakeLatestJson(unittest.TestCase):
             build_manifest("0.2.0", d, PUBKEY)
 
     def test_missing_signature_fails(self):
-        d = fake_artifacts(self, "0.2.0", skip_sig="halokey_0.2.0_x64-setup.exe")
+        d = fake_artifacts(self, "0.2.0", skip_sig="HaloKey_0.2.0_x64-setup.exe")
         with self.assertRaisesRegex(ValueError, "windows-x86_64-nsis"):
             build_manifest("0.2.0", d, PUBKEY)
 
@@ -123,7 +132,7 @@ class MakeLatestJson(unittest.TestCase):
 
     def test_signature_from_another_key_fails_naming_the_file(self):
         d = fake_artifacts(self, "0.2.0")
-        name = "halokey_0.2.0_x64-setup.exe"
+        name = "HaloKey_0.2.0_x64-setup.exe"
         (d / f"{name}.sig").write_text(fake_signature(name, OTHER_KEY_ID))
         with self.assertRaises(ValueError) as cm:
             build_manifest("0.2.0", d, PUBKEY)

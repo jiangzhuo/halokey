@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "halokey",
+  "productName": "HaloKey",
   "version": "0.1.2",
   "identifier": "dev.halokey.app",
   "build": {
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "halokey",
+        "title": "HaloKey",
         "url": "index.html",
         "width": 1100,
         "height": 760,
@@ -66,6 +66,9 @@
     },
     "macOS": {
       "signingIdentity": "-"
+    },
+    "windows": {
+      "wix": { "upgradeCode": "82718a53-e696-51f1-ae42-86599578288b" }
     },
     "category": "Utility",
     "shortDescription": "Control center for the Ulanzi Vibe Key (AU05)",
