@@ -1,6 +1,6 @@
 # halokey
 
-> 🌐 [中文](README.zh.md)
+> 🌐 [中文](README.zh.md) · [日本語](README.ja.md)
 
 Cross-platform, open-source control center for the Ulanzi Vibe Key (AU05): remap the three keys and the knob, run host-side actions, pick from a radial on-screen menu, and manage lighting, microphone and power settings. One codebase for Linux, macOS and Windows.
 

@@ -1,6 +1,6 @@
 # halokey
 
-> 🌐 [English](README.md)
+> 🌐 [English](README.md) · [日本語](README.ja.md)
 
 Ulanzi Vibe Key（AU05）的跨平台开源控制中心：重映射三个按键和旋钮，执行主机侧动作，用屏幕上的环形菜单做选择，管理灯光、麦克风和电源设置。一套代码覆盖 Linux、macOS 和 Windows。
 

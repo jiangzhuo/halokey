@@ -6,6 +6,7 @@
   2. 两版的 Markdown 结构一一对应（标题层级、代码块数、表格形状）
   3. 两版互相有语言切换链接
   4. 所有相对链接都能解析
+  5. 可选的日文版 .ja.md（目前只有 README）：结构、数值、互链、链接与英文版一致
 
 **英文是默认入口**（文件名不带语言后缀），中文版加 `.zh.md`。
 
@@ -66,6 +67,72 @@ def find_orphan_zh():
     return out
 
 
+def collect_ja():
+    """返回 [(日文路径, 英文路径)]。日文版是可选的，加 .ja.md。"""
+    out = []
+    for p in sorted(ROOT.rglob("*.ja.md")):
+        if any(part in SKIP_DIRS for part in p.parts):
+            continue
+        out.append((p, p.with_name(p.name[: -len(".ja.md")] + ".md")))
+    return out
+
+
+def head_of(text):
+    """H1 之后约 900 字符，用来找语言切换链接。"""
+    m = H1_RE.search(text)
+    return text[:m.end() + 900] if m else text[:900]
+
+
+def check_ja(ja, en):
+    """日文版对照英文版检查；返回是否通过。"""
+    print(f"\n📄 {ja.relative_to(ROOT)}")
+    if not en.exists():
+        print(f"   ❌ 缺少英文版 {en.name}")
+        return False
+    ok = True
+    jt, et = ja.read_text(encoding="utf-8", errors="ignore"), en.read_text(encoding="utf-8", errors="ignore")
+    jp, ep = profile(jt), profile(et)
+    diffs = [f"{k} 日={jp[k]} 英={ep[k]}" for k in ("heads", "fences", "tables") if jp[k] != ep[k]]
+    if diffs:
+        for d in diffs:
+            print(f"   ❌ 结构不一致: {d}")
+        ok = False
+    else:
+        print("   ✅ 结构一致")
+    hj, he = hex_tokens(jt), hex_tokens(et)
+    if hj != he:
+        print(f"   ❌ 数值不一致: 日文多 {dict(hj - he)} / 日文少 {dict(he - hj)}")
+        ok = False
+    else:
+        print("   ✅ 数值保真")
+    # 三份互链：每份头部的 Markdown 链接都要指向另外两份（中文版不存在时只看英文、日文）
+    zh = en.with_name(en.name[: -len(".md")] + ".zh.md")
+    trio = [f for f in (en, zh, ja) if f.exists()]
+    missing = []
+    for f in trio:
+        head = head_of(f.read_text(encoding="utf-8", errors="ignore"))
+        targets = {(f.parent / m.group(2).split("#")[0]).resolve()
+                   for m in LINK_RE.finditer(head) if not m.group(2).startswith(("http", "#", "mailto"))}
+        for other in trio:
+            if other is not f and other.resolve() not in targets:
+                missing.append(f"{f.name} 头部缺少指向 {other.name} 的链接")
+    for m in missing:
+        print(f"   ❌ {m}")
+    if missing:
+        ok = False
+    else:
+        print("   ✅ 语言互链正常")
+    problems = []
+    check_links(ja, problems)
+    for p in problems:
+        print(f"   ❌ {p}")
+    if problems:
+        ok = False
+    else:
+        print("   ✅ 所有相对链接有效")
+    return ok
+
+
 def strip_literals(text):
     """去掉围栏代码块 + 行内代码。
 
@@ -112,7 +179,7 @@ def profile(text):
 
 
 def check_links(md, problems):
-    for m in LINK_RE.finditer(md.read_text(errors="ignore")):
+    for m in LINK_RE.finditer(md.read_text(encoding="utf-8", errors="ignore")):
         target = m.group(2)
         if target.startswith(("http", "#", "mailto")):
             continue
@@ -150,7 +217,7 @@ def main():
             ok = False
             continue
 
-        zt, et = zh.read_text(errors="ignore"), en.read_text(errors="ignore")
+        zt, et = zh.read_text(encoding="utf-8", errors="ignore"), en.read_text(encoding="utf-8", errors="ignore")
         zp, ep = profile(zt), profile(et)
 
         # 2. 结构一致
@@ -235,6 +302,9 @@ def main():
 
         if a.verbose:
             print(f"   ℹ️  中文 {len(zt.splitlines())} 行 / 英文 {len(et.splitlines())} 行")
+
+    for ja, en in collect_ja():
+        ok = check_ja(ja, en) and ok
 
     print()
     print("═" * 60)
