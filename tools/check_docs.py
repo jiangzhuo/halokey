@@ -90,7 +90,7 @@ def check_ja(ja, en):
         print(f"   ❌ 缺少英文版 {en.name}")
         return False
     ok = True
-    jt, et = ja.read_text(errors="ignore"), en.read_text(errors="ignore")
+    jt, et = ja.read_text(encoding="utf-8", errors="ignore"), en.read_text(encoding="utf-8", errors="ignore")
     jp, ep = profile(jt), profile(et)
     diffs = [f"{k} 日={jp[k]} 英={ep[k]}" for k in ("heads", "fences", "tables") if jp[k] != ep[k]]
     if diffs:
@@ -110,9 +110,11 @@ def check_ja(ja, en):
     trio = [f for f in (en, zh, ja) if f.exists()]
     missing = []
     for f in trio:
-        targets = {m.group(2).split("#")[0] for m in LINK_RE.finditer(head_of(f.read_text(errors="ignore")))}
+        head = head_of(f.read_text(encoding="utf-8", errors="ignore"))
+        targets = {(f.parent / m.group(2).split("#")[0]).resolve()
+                   for m in LINK_RE.finditer(head) if not m.group(2).startswith(("http", "#", "mailto"))}
         for other in trio:
-            if other is not f and other.name not in targets:
+            if other is not f and other.resolve() not in targets:
                 missing.append(f"{f.name} 头部缺少指向 {other.name} 的链接")
     for m in missing:
         print(f"   ❌ {m}")
@@ -177,7 +179,7 @@ def profile(text):
 
 
 def check_links(md, problems):
-    for m in LINK_RE.finditer(md.read_text(errors="ignore")):
+    for m in LINK_RE.finditer(md.read_text(encoding="utf-8", errors="ignore")):
         target = m.group(2)
         if target.startswith(("http", "#", "mailto")):
             continue
@@ -215,7 +217,7 @@ def main():
             ok = False
             continue
 
-        zt, et = zh.read_text(errors="ignore"), en.read_text(errors="ignore")
+        zt, et = zh.read_text(encoding="utf-8", errors="ignore"), en.read_text(encoding="utf-8", errors="ignore")
         zp, ep = profile(zt), profile(et)
 
         # 2. 结构一致
