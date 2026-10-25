@@ -105,14 +105,15 @@ def check_ja(ja, en):
         ok = False
     else:
         print("   ✅ 数值保真")
-    # 日文版要链到英文版；英文版和中文版（如果有）要链到日文版
+    # 三份互链：每份头部的 Markdown 链接都要指向另外两份（中文版不存在时只看英文、日文）
     zh = en.with_name(en.name[: -len(".md")] + ".zh.md")
+    trio = [f for f in (en, zh, ja) if f.exists()]
     missing = []
-    if en.name not in head_of(jt):
-        missing.append(f"日文版头部缺少指向 {en.name} 的链接")
-    for other in (en, zh):
-        if other.exists() and ja.name not in head_of(other.read_text(errors="ignore")):
-            missing.append(f"{other.name} 头部缺少指向 {ja.name} 的链接")
+    for f in trio:
+        targets = {m.group(2).split("#")[0] for m in LINK_RE.finditer(head_of(f.read_text(errors="ignore")))}
+        for other in trio:
+            if other is not f and other.name not in targets:
+                missing.append(f"{f.name} 头部缺少指向 {other.name} 的链接")
     for m in missing:
         print(f"   ❌ {m}")
     if missing:
