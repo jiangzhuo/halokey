@@ -54,7 +54,8 @@
       "icons/128x128.png",
       "icons/32x32.png",
       "icons/icon.icns",
-      "icons/icon.ico"
+      "icons/icon.ico",
+      "icons/Assets.car"
     ],
     "linux": {
       "deb": {
@@ -62,6 +63,9 @@
           "/usr/lib/udev/rules.d/70-halokey.rules": "../../packaging/linux/70-halokey.rules"
         }
       }
+    },
+    "macOS": {
+      "signingIdentity": "-"
     },
     "category": "Utility",
     "shortDescription": "Control center for the Ulanzi Vibe Key (AU05)",

@@ -30,6 +30,8 @@ cargo run -p halokey-app --no-default-features   # tray app (dev: loads the Vite
 
 To install on Debian/Ubuntu, use the `.deb` from the GitHub Releases page (x86_64 and arm64), or build it locally: `cargo tauri build --bundles deb --no-sign` in `apps/halokey`, then `sudo dpkg -i target/release/bundle/deb/halokey_*.deb` and replug the receiver so the bundled udev rule applies. AppImage is not built: it cannot install the udev rule.
 
+To install on macOS: `cargo tauri build --bundles dmg` in `apps/halokey`, open the `.dmg` from `target/release/bundle/dmg/` and drag halokey into Applications. The app is ad-hoc signed and not notarized, so the first launch of a downloaded copy is blocked: open System Settings → Privacy & Security and click Open Anyway. halokey then asks for Accessibility permission, which it needs to send keys and mouse events; allow it under Privacy & Security → Accessibility, wait a couple of seconds, then press a key and it takes effect, no restart needed. The app lives in the menu bar, not the Dock.
+
 ![Settings page](docs/screenshots/settings-en.png)
 
 The Settings page writes lighting, power, microphone and the device's own key table directly, and can import / export the keymap file or rebuild it from the device.

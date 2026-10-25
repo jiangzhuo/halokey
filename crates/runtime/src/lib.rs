@@ -174,9 +174,13 @@ pub struct DeviceInfo {
     pub errors: Vec<String>,
 }
 
+/// 注入器工厂。可以多次调用：第一次失败（例如 macOS 还没有辅助功能权限）后会定期重试。
+pub type InjectorFactory =
+    Box<dyn FnMut() -> Result<Box<dyn Injector>, halokey_input::Error> + Send>;
+
 /// 构造注入器与启动器的工厂；在设备线程内调用。
 pub struct Backends {
-    pub injector: Box<dyn FnOnce() -> Result<Box<dyn Injector>, halokey_input::Error> + Send>,
+    pub injector: InjectorFactory,
     pub launcher: Box<dyn FnOnce() -> Box<dyn Launcher> + Send>,
 }
 
@@ -187,6 +191,34 @@ impl Backends {
             injector: Box::new(halokey_input::open_default),
             launcher: Box::new(halokey_wm::open_default),
         }
+    }
+}
+
+/// 注入器打开失败后的重试：有按键时才试，两次之间至少隔 [`InjectorRetry::INTERVAL`]。
+struct InjectorRetry {
+    factory: InjectorFactory,
+    last_attempt: Instant,
+    /// 打开失败时写进 `last_error` 的文本；恢复后只清掉这一条，不覆盖之后的其他错误。
+    error: String,
+}
+
+impl InjectorRetry {
+    const INTERVAL: Duration = Duration::from_secs(2);
+
+    /// 距上次尝试不到间隔时返回 `None`，否则再调一次工厂。
+    fn attempt(&mut self, now: Instant) -> Option<Result<Box<dyn Injector>, halokey_input::Error>> {
+        if now.duration_since(self.last_attempt) < Self::INTERVAL {
+            return None;
+        }
+        self.last_attempt = now;
+        Some((self.factory)())
+    }
+}
+
+/// `last_error` 仍是 `text` 时才清掉；之后又出了别的错就保留那条。
+fn clear_error_if(snapshot: &mut Snapshot, text: &str) {
+    if snapshot.last_error.as_deref() == Some(text) {
+        snapshot.last_error = None;
     }
 }
 
@@ -276,6 +308,7 @@ struct Worker {
     router: GestureRouter,
     bridge: KeyBridge,
     injector: Option<Box<dyn Injector>>,
+    injector_retry: Option<InjectorRetry>,
     runner: Option<ActionRunner<Box<dyn Launcher>>>,
     start: Instant,
     stray: (Sender<Plaintext>, Receiver<Plaintext>),
@@ -318,6 +351,7 @@ impl Worker {
             router: GestureRouter::new(),
             bridge: KeyBridge::new(),
             injector: None,
+            injector_retry: None,
             runner: None,
             start: Instant::now(),
             stray: mpsc::channel(),
@@ -341,21 +375,44 @@ impl Worker {
         }
     }
 
+    /// 注入器之前打开失败时再试一次（例如用户刚授予了辅助功能权限）；成功就换掉记录器。
+    fn retry_injector(&mut self) {
+        let Some(retry) = self.injector_retry.as_mut() else {
+            return;
+        };
+        // 还没到间隔或依旧失败：继续用记录器，下次按键再试。
+        if let Some(Ok(injector)) = retry.attempt(Instant::now()) {
+            if let Some(old) = self.injector.as_mut() {
+                self.bridge.release_all(old.as_mut());
+            }
+            self.injector = Some(injector);
+            if let Some(retry) = self.injector_retry.take() {
+                self.update(|s| clear_error_if(s, &retry.error));
+            }
+        }
+    }
+
     fn fail(&self, text: String) {
         self.update(|s| s.last_error = Some(text.clone()));
         (self.on_event)(Event::Error(text));
     }
 
     fn run(&mut self) {
-        // 后端只创建一次；失败就一直用记录器并报错，不让服务起不来。
-        if let Some(backends) = self.backends.take() {
+        // 后端在这里创建；注入器失败就先用记录器并报错，不让服务起不来，之后有按键时再重试。
+        if let Some(mut backends) = self.backends.take() {
             self.injector = Some(if self.config.dry_run {
                 Box::new(RecordingInjector::default())
             } else {
                 match (backends.injector)() {
                     Ok(i) => i,
                     Err(e) => {
-                        self.fail(format!("输入注入不可用，改为只记录：{e}"));
+                        let error = format!("输入注入不可用，改为只记录：{e}");
+                        self.fail(error.clone());
+                        self.injector_retry = Some(InjectorRetry {
+                            factory: backends.injector,
+                            last_attempt: Instant::now(),
+                            error,
+                        });
                         Box::new(RecordingInjector::default())
                     }
                 }
@@ -786,6 +843,7 @@ impl Worker {
             // 本体发来按键，必然在线，也不算空闲。
             self.last_activity = Instant::now();
             self.update(|s| s.online = Some(true));
+            self.retry_injector();
             let now = self.now();
             (self.on_event)(Event::Key(event, now));
             if self.intercept_for_halo(event) {
@@ -1250,4 +1308,56 @@ fn set_noise_reduction(
         return Err(format!("写入后读回等级为 {}，期望 {level}", actual.level));
     }
     Ok(actual)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[test]
+    fn injector_recovery_keeps_a_newer_error() {
+        let mut s = Snapshot {
+            last_error: Some("注入器".into()),
+            ..Snapshot::default()
+        };
+        clear_error_if(&mut s, "注入器");
+        assert_eq!(s.last_error, None);
+        s.last_error = Some("键位读取失败".into());
+        clear_error_if(&mut s, "注入器");
+        assert_eq!(s.last_error.as_deref(), Some("键位读取失败"));
+    }
+
+    #[test]
+    fn injector_retry_waits_for_the_interval_then_calls_the_factory() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let counter = calls.clone();
+        let start = Instant::now();
+        let mut retry = InjectorRetry {
+            factory: Box::new(move || {
+                // 第一次重试还失败，第二次成功。
+                if counter.fetch_add(1, Ordering::SeqCst) == 0 {
+                    Err(halokey_input::Error::Unsupported("测试"))
+                } else {
+                    Ok(Box::new(RecordingInjector::default()) as Box<dyn Injector>)
+                }
+            }),
+            last_attempt: start,
+            error: String::new(),
+        };
+        assert!(retry.attempt(start + Duration::from_millis(500)).is_none());
+        assert_eq!(calls.load(Ordering::SeqCst), 0, "间隔内不调用工厂");
+        assert!(matches!(
+            retry.attempt(start + InjectorRetry::INTERVAL),
+            Some(Err(_))
+        ));
+        assert!(retry
+            .attempt(start + InjectorRetry::INTERVAL + Duration::from_secs(1))
+            .is_none());
+        assert!(matches!(
+            retry.attempt(start + InjectorRetry::INTERVAL * 2),
+            Some(Ok(_))
+        ));
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+    }
 }

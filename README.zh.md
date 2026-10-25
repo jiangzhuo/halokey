@@ -30,6 +30,8 @@ cargo run -p halokey-app --no-default-features   # 托盘应用（开发：加�
 
 Debian/Ubuntu 安装：用 GitHub Releases 里的 `.deb`（x86_64 和 arm64），或本地构建：在 `apps/halokey` 里 `cargo tauri build --bundles deb --no-sign`，然后 `sudo dpkg -i target/release/bundle/deb/halokey_*.deb`，重新插拔接收器让自带的 udev 规则生效。不再构建 AppImage：它装不了 udev 规则。
 
+macOS 安装：在 `apps/halokey` 里 `cargo tauri build --bundles dmg`，打开 `target/release/bundle/dmg/` 里的 `.dmg`，把 halokey 拖进「应用程序」。应用是 ad-hoc 签名、没有公证，下载来的副本第一次启动会被拦下：打开「系统设置 → 隐私与安全性」，点「仍要打开」。之后 halokey 会请求辅助功能权限（发送按键和鼠标事件需要它）：在「隐私与安全性 → 辅助功能」里允许后，等两三秒再按一下键就会生效，不用重启。应用只在菜单栏显示，不占 Dock。
+
 ![设置页](docs/screenshots/settings-en.png)
 
 设置页可直接写灯光、电源、麦克风与设备自身键位，也能导入 / 导出键位文件或从设备重建。
