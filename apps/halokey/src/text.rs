@@ -73,6 +73,24 @@ pub fn install_cancelled(lang: Lang) -> &'static str {
     }
 }
 
+/// 点了安装但已经没有可安装的更新（例如状态刚被别的操作改掉）。
+pub fn nothing_to_install(lang: Lang) -> &'static str {
+    match lang {
+        Lang::En => "No update to install",
+        Lang::Zh => "没有可安装的更新",
+        Lang::Ja => "インストールできるアップデートはありません",
+    }
+}
+
+/// 打开发布说明时版本号不合法（只允许数字、字母、`.`、`-`、`+`）。
+pub fn invalid_version(lang: Lang) -> &'static str {
+    match lang {
+        Lang::En => "Invalid version number",
+        Lang::Zh => "版本号无效",
+        Lang::Ja => "バージョン番号が正しくありません",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -89,5 +107,14 @@ mod tests {
             "Install update v0.2.0…"
         );
         assert!(update_notification(Lang::Zh, "0.2.0").0.contains("v0.2.0"));
+    }
+
+    #[test]
+    fn install_errors_are_localized() {
+        assert_eq!(nothing_to_install(Lang::En), "No update to install");
+        assert_eq!(nothing_to_install(Lang::Zh), "没有可安装的更新");
+        assert_eq!(invalid_version(Lang::En), "Invalid version number");
+        assert_eq!(invalid_version(Lang::Zh), "版本号无效");
+        assert!(!nothing_to_install(Lang::Ja).is_empty() && !invalid_version(Lang::Ja).is_empty());
     }
 }

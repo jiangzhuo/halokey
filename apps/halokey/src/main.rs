@@ -771,11 +771,16 @@ fn save_settings(config_path: &std::path::Path, settings: &AppSettings) -> Resul
         &mut raw,
         &serde_json::to_value(settings).map_err(|e| e.to_string())?,
     );
-    std::fs::write(
-        &path,
-        serde_json::to_vec_pretty(&raw).map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())
+    // 先写同目录的临时文件再改名换掉：不加锁的读者只会读到旧文件或新文件，不会读到写了一半的。
+    // 写入已由 `SETTINGS_IO` 串行化，所以临时文件名固定即可。
+    let tmp = path.with_extension("json.tmp");
+    let bytes = serde_json::to_vec_pretty(&raw).map_err(|e| e.to_string())?;
+    std::fs::write(&tmp, bytes)
+        .and_then(|()| std::fs::rename(&tmp, &path))
+        .map_err(|e| {
+            let _ = std::fs::remove_file(&tmp);
+            e.to_string()
+        })
 }
 
 /// 按界面语言构建托盘菜单；`update` 为新版本号时多一项"安装更新"。
@@ -1333,6 +1338,54 @@ mod tests {
             serde_json::to_value(&off).unwrap()["updates"]["notifiedVersion"],
             serde_json::Value::Null
         );
+    }
+
+    #[test]
+    fn readers_never_see_a_half_written_settings_file() {
+        // 读设置的路径不加锁（托盘、后台检查、重启设备服务）：写入必须是"整个换掉"，
+        // 读到的要么是旧文件、要么是新文件，不能是空的或写了一半的。
+        let dir = std::env::temp_dir().join(format!(
+            "halokey-settings-atomic-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let config = dir.join("keymap.json");
+        patch_settings(&config, &serde_json::json!({ "idleMinutes": 1 })).unwrap();
+        let path = settings_path(&config);
+        let stop = std::sync::atomic::AtomicBool::new(false);
+        let torn = std::thread::scope(|s| {
+            s.spawn(|| {
+                for i in 2..=400u64 {
+                    patch_settings(&config, &serde_json::json!({ "idleMinutes": i % 1000 }))
+                        .unwrap();
+                }
+                stop.store(true, std::sync::atomic::Ordering::SeqCst);
+            });
+            let reader = s.spawn(|| {
+                let mut torn = 0u32;
+                while !stop.load(std::sync::atomic::Ordering::SeqCst) {
+                    let bytes = std::fs::read(&path).unwrap_or_default();
+                    if serde_json::from_slice::<serde_json::Value>(&bytes).is_err() {
+                        torn += 1;
+                    }
+                }
+                torn
+            });
+            reader.join().unwrap()
+        });
+        let leftovers: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|n| n != "settings.json")
+            .collect();
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(torn, 0, "读到了空的或写了一半的 settings.json");
+        assert!(leftovers.is_empty(), "留下了临时文件：{leftovers:?}");
     }
 
     #[test]

@@ -136,8 +136,15 @@ fn install_error_message(err: &tauri_plugin_updater::Error, lang: text::Lang) ->
 }
 
 /// 该版本的发布说明页面。
-pub fn release_notes_url(version: &str) -> String {
-    format!("https://github.com/jiangzhuo/halokey/releases/tag/v{version}")
+/// 版本号来自远端 latest.json 并经前端传回，只接受数字、字母、`.`、`-`、`+`（且不能含 `..`），
+/// 防止它把浏览器带到 GitHub 上别的路径；不合法时返回 `None`。
+pub fn release_notes_url(version: &str) -> Option<String> {
+    let ok = !version.is_empty()
+        && !version.contains("..")
+        && version
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '+'));
+    ok.then(|| format!("https://github.com/jiangzhuo/halokey/releases/tag/v{version}"))
 }
 
 /// 启动时的状态：不支持的运行方式一直是 `Unsupported`，其余从 `Idle` 开始。
@@ -426,7 +433,9 @@ pub async fn install(app: &AppHandle) -> Result<(), String> {
     let version = match updates.begin_install() {
         InstallStart::Started { version } => version,
         InstallStart::AlreadyRunning => return Ok(()),
-        InstallStart::NothingToInstall => return Err("没有可安装的更新".to_string()),
+        InstallStart::NothingToInstall => {
+            return Err(text::nothing_to_install(ui_lang(app)).to_string())
+        }
     };
     // begin_install 已把 Available 换成下载中：通知设置页、拿掉托盘项
     publish(
@@ -444,7 +453,7 @@ pub async fn install(app: &AppHandle) -> Result<(), String> {
     let Some(mut update) = pending else {
         // 不会发生：进入 Available 之前总是先存好 pending。回到 Idle，下次检查重新取
         set_state(app, UpdateState::Idle);
-        return Err("没有可安装的更新".to_string());
+        return Err(text::nothing_to_install(ui_lang(app)).to_string());
     };
     // 检查的超时（CHECK_TIMEOUT）不能截断下载：插件 2.14 本来就不把它带进 `Update`，
     // 这里再显式清掉，换插件版本也不会变成"大包下载 30 秒就断"。
@@ -548,8 +557,9 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
 /// 用系统浏览器打开该版本的发布说明。
 #[tauri::command]
 pub fn open_release_notes(app: AppHandle, version: String) -> Result<(), String> {
+    let url = release_notes_url(&version).ok_or_else(|| text::invalid_version(ui_lang(&app)))?;
     app.opener()
-        .open_url(release_notes_url(&version), None::<&str>)
+        .open_url(url, None::<&str>)
         .map_err(|e| e.to_string())
 }
 
@@ -958,8 +968,28 @@ mod tests {
             serde_json::json!({ "state": "unsupported", "reason": "fromSource" })
         );
         assert_eq!(
-            release_notes_url("0.2.0"),
-            "https://github.com/jiangzhuo/halokey/releases/tag/v0.2.0"
+            release_notes_url("0.2.0").as_deref(),
+            Some("https://github.com/jiangzhuo/halokey/releases/tag/v0.2.0")
         );
+    }
+
+    #[test]
+    fn release_notes_url_rejects_versions_that_change_the_path() {
+        // 版本号来自远端 latest.json 和前端，不能让它把浏览器带到 GitHub 上别的路径
+        assert_eq!(
+            release_notes_url("1.2.3-rc.1+build.5").as_deref(),
+            Some("https://github.com/jiangzhuo/halokey/releases/tag/v1.2.3-rc.1+build.5")
+        );
+        for bad in [
+            "",
+            "0.2.0/../x",
+            "0.2.0?x=1",
+            "0.2.0#a",
+            "../settings",
+            "0.2 .0",
+            "..",
+        ] {
+            assert_eq!(release_notes_url(bad), None, "{bad:?}");
+        }
     }
 }
