@@ -14,6 +14,12 @@ jobs:
     name: Bundle (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
+    env:
+      # 只能在 job 级 env 里读 secrets，步骤的 if: 不能直接引用
+      HAS_MACOS_CERT: ${{ secrets.MACOS_SIGNING_CERT != '' }}
+      # macOS 签名证书的 SHA-1。已发布的版本把它写进了指定要求（designated requirement），
+      # 用户的辅助功能授权绑定在它上面：换证书会让所有用户的授权失效一次，所以这里钉死
+      MACOS_SIGNING_CERT_SHA1: 458F11F754939C797825BF630156C96CF6AD187F
     strategy:
       fail-fast: false
       matrix:
@@ -58,6 +64,35 @@ jobs:
         shell: bash
         working-directory: ui
         run: npm ci
+      # 用固定的自签名证书签 macOS 应用：指定要求变成 `certificate root = H"…"`，
+      # 每次构建都一样，更新后 macOS 仍认之前给的辅助功能授权（ad-hoc 签名的指定要求是
+      # 每次都变的 cdhash）。不是 Developer ID，没有公证，首次打开照旧要「仍要打开」。
+      # 没配 secret（例如 fork）时跳过，沿用 tauri.conf.json 的 ad-hoc 签名
+      - name: Import macOS signing certificate
+        if: runner.os == 'macOS' && env.HAS_MACOS_CERT == 'true'
+        env:
+          MACOS_SIGNING_CERT: ${{ secrets.MACOS_SIGNING_CERT }}
+          MACOS_SIGNING_CERT_PASSWORD: ${{ secrets.MACOS_SIGNING_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          keychain="$RUNNER_TEMP/halokey-signing.keychain-db"
+          keychain_password=$(openssl rand -hex 16)
+          echo "$MACOS_SIGNING_CERT" | base64 --decode > "$RUNNER_TEMP/signing.p12"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$RUNNER_TEMP/signing.p12" -k "$keychain" -f pkcs12 -P "$MACOS_SIGNING_CERT_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/signing.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" > /dev/null
+          # tauri 只传 -s <身份>、不传 --keychain，codesign 按搜索列表找私钥
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          sha1=$(security find-certificate -c "halokey Code Signing" -Z "$keychain" | awk '/^SHA-1 hash:/ {print $3}')
+          if [ "$sha1" != "$MACOS_SIGNING_CERT_SHA1" ]; then
+            echo "::error::signing certificate SHA-1 '$sha1' does not match MACOS_SIGNING_CERT_SHA1; changing it would revoke every user's Accessibility grant"
+            exit 1
+          fi
+          # 覆盖 tauri.conf.json 里的 signingIdentity "-"
+          echo "APPLE_SIGNING_IDENTITY=$sha1" >> "$GITHUB_ENV"
       # 不能加 --no-sign：它会同时跳过更新包签名（.sig）
       - name: Build bundles
         working-directory: apps/halokey
@@ -65,6 +100,27 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: cargo tauri build ${{ matrix.args }}
+      # 身份没传到 tauri 时它照样用 ad-hoc 签名、构建成功；这种包会让用户更新后丢授权，必须拦下
+      - name: Verify macOS signature
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ matrix.name }}" in
+            macos-arm64) triple=aarch64-apple-darwin ;;
+            *) triple=x86_64-apple-darwin ;;
+          esac
+          app="target/$triple/release/bundle/macos/halokey.app"
+          codesign --verify --strict --verbose=2 "$app"
+          requirement=$(codesign -d -r- "$app" 2>&1 | sed -n 's/^designated => //p')
+          echo "designated requirement: $requirement"
+          if [ "$HAS_MACOS_CERT" = "true" ]; then
+            shopt -s nocasematch
+            case "$requirement" in
+              *"certificate root = H\"$MACOS_SIGNING_CERT_SHA1\""*) ;;
+              *) echo "::error::app is not signed with the halokey certificate"; exit 1 ;;
+            esac
+          fi
       - name: Collect bundles
         shell: bash
         run: |
