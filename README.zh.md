@@ -30,7 +30,7 @@ cargo run -p halokey-app --no-default-features   # 托盘应用（开发：加�
 
 Debian/Ubuntu 安装：用 GitHub Releases 里的 `.deb`（x86_64 和 arm64），或本地构建：在 `apps/halokey` 里 `cargo tauri build --bundles deb --no-sign`，然后 `sudo dpkg -i target/release/bundle/deb/halokey_*.deb`，重新插拔接收器让自带的 udev 规则生效。不再构建 AppImage：它装不了 udev 规则。
 
-macOS 安装：在 `apps/halokey` 里 `cargo tauri build --bundles dmg`，打开 `target/release/bundle/dmg/` 里的 `.dmg`，把 halokey 拖进「应用程序」。应用是 ad-hoc 签名、没有公证，下载来的副本第一次启动会被拦下：打开「系统设置 → 隐私与安全性」，点「仍要打开」。之后 halokey 会请求辅助功能权限（发送按键和鼠标事件需要它）：在「隐私与安全性 → 辅助功能」里允许后，等两三秒再按一下键就会生效，不用重启。应用只在菜单栏显示，不占 Dock。
+macOS 安装：用 GitHub Releases 里的 `.dmg`（Apple 芯片和 Intel），或本地构建：在 `apps/halokey` 里 `cargo tauri build --bundles dmg`，然后打开 `target/release/bundle/dmg/` 里的 `.dmg`。把 halokey 拖进「应用程序」。发布版用 halokey 自己的自签名证书签名（不是 Apple Developer ID），本地构建是 ad-hoc 签名。两者都没有公证，下载来的副本第一次启动会被拦下：打开「系统设置 → 隐私与安全性」，点「仍要打开」。之后 halokey 会请求辅助功能权限（发送按键和鼠标事件需要它）：在「隐私与安全性 → 辅助功能」里允许后，等两三秒再按一下键就会生效，不用重启。应用只在菜单栏显示，不占 Dock。
 
 ![设置页](docs/screenshots/settings-en.png)
 
@@ -60,10 +60,10 @@ Ulanzi Studio 只支持 Windows 和 macOS。目前所有社区项目要么只做
 安装版（Linux deb、macOS .app、Windows NSIS/MSI）在启动 30 秒后以及之后每 6 小时检查一次 `https://github.com/jiangzhuo/halokey/releases/latest/download/latest.json`。默认开启，可在设置里关闭（「自动检查更新」）；也可点「检查更新」手动检查。每个新版本只发一次系统通知；有新版本期间，托盘里会出现「安装更新 vX.Y.Z…」，设置页的「更新」一节也会显示它（带「发布说明」链接）。确认后 halokey 下载更新、校验签名、安装并重启。从源码运行的版本（`cargo run`、`target/*/halokey-app`）从不检查更新。托盘菜单和通知跟随界面语言。
 
 - Linux deb 更新会要求输入一次管理员密码（系统授权对话框）。如果取消，更新插件可能再次以备用提示询问，最后报告安装失败，而不是"已取消"。
-- macOS 构建没有用 Apple Developer ID 签名，所以更新后 macOS 可能不再认可之前授予的辅助功能权限，即使系统设置里看起来仍是开启的。如果更新后按键或旋钮没有反应，在 系统设置 → 隐私与安全性 → 辅助功能 里移除 halokey 再重新添加。
+- macOS 发布版用 halokey 自己的自签名证书签名，所以更新后 macOS 仍认之前授予的辅助功能权限。例外是从 v0.1.1 及更早版本（ad-hoc 签名）更新的那一次：macOS 会把新版当成另一个应用，系统设置里旧的条目看起来仍是开启的，但已经不起作用。如果那次更新后按键或旋钮没有反应，在 系统设置 → 隐私与安全性 → 辅助功能 里移除 halokey 再重新添加。本地构建的应用是 ad-hoc 签名，每次重新构建后都要这样做。
 - 第一个带更新功能的版本是基线；更早安装的版本需要手动更新一次。
 
-发版（维护者）：修改 `apps/halokey/tauri.conf.json` 与根 `Cargo.toml`（`[workspace.package] version`）的版本，提交，推 `vX.Y.Z` 标签。CI 会把标签与这两处版本对照，不一致则发布任务失败，所以要先同时改好两处并提交，再打标签。CI 会构建已签名的 deb（x86_64、arm64）、macOS .app/.dmg（arm64、x86_64）和 Windows NSIS/MSI，生成 `latest.json` 并创建草稿 release。在 GitHub 上检查草稿并发布；发布之后用户才会收到更新。因为开启了更新产物，本地 `cargo tauri build` 没有 `TAURI_SIGNING_PRIVATE_KEY` 会失败；本地构建加 `--no-sign`（跳过更新签名，本地使用没问题）。
+发版（维护者）：修改 `apps/halokey/tauri.conf.json` 与根 `Cargo.toml`（`[workspace.package] version`）的版本，提交，推 `vX.Y.Z` 标签。CI 会把标签与这两处版本对照，不一致则发布任务失败，所以要先同时改好两处并提交，再打标签。CI 会构建已签名的 deb（x86_64、arm64）、macOS .app/.dmg（arm64、x86_64）和 Windows NSIS/MSI，生成 `latest.json` 并创建草稿 release。在 GitHub 上检查草稿并发布；发布之后用户才会收到更新。macOS 构建用仓库 secrets `MACOS_SIGNING_CERT` 和 `MACOS_SIGNING_CERT_PASSWORD` 里的证书签名。不要更换这张证书：换了之后所有 macOS 用户都得重新授予辅助功能权限，所以工作流钉住了它的 SHA-1，变了就失败。因为开启了更新产物，本地 `cargo tauri build` 没有 `TAURI_SIGNING_PRIVATE_KEY` 会失败；本地构建加 `--no-sign`（跳过更新签名，本地使用没问题）。
 
 ## 平台矩阵
 
