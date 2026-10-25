@@ -88,10 +88,13 @@ docs/            design and protocol notes, English default with `.zh.md` twins
 tools/           repository checks
 ```
 
-## Relationship to other projects
+## Acknowledgements
 
-- [olanzi](https://github.com/MrCroxx/olanzi) holds the reverse-engineering record and a native macOS app; halokey reuses its protocol documentation and derives its keymap format from it (files are not interchangeable).
-- [vibed](https://github.com/ihavespoons/vibed) documented the mouse-page entry types recovered from the vendor SDK, which halokey confirmed on hardware.
+halokey builds on the work of these projects, all MIT-licensed. [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) keeps the license notices for the material halokey includes.
+
+- [olanzi](https://github.com/MrCroxx/olanzi) by Croxx: the reverse-engineering record of the AU05 protocol and a native macOS app. halokey's protocol knowledge comes from its documentation; the gesture router, action runner and key bridge are ported from it together with their tests; the keymap format is derived from it (files are not interchangeable); the macOS virtual key table and the hardware evidence used in the protocol tests also come from it.
+- [vibed](https://github.com/ihavespoons/vibed) by Ben Gittins: a macOS daemon for the Vibe Key. halokey relies on what it recovered from the vendor SDK: the mouse-page entry types (confirmed on hardware), the power, microphone and standby commands, and the lighting work-duration value.
+- [Open VibeKey](https://github.com/palaemonboy/OpenVibeKey) by palaemonboy: a macOS customization app for the AU05. The device render in the settings window comes from it.
 
 halokey is an independent community project. It is not affiliated with or endorsed by Ulanzi or Kehwin, and it does not include or load any vendor binaries.
 
