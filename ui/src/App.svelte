@@ -32,12 +32,22 @@
   let draft = $state<Draft>(initialDraft());
   let langTick = $state(0);
   let activeLayers = $state<number[]>([]);
-  // 后端最近一次的错误（快照里的 lastError）。用户点掉后不再显示同一条，直到来了新的错误事件。
+  // 后端最近一次的错误：快照里的 lastError，或者比快照更新的错误事件。用户点掉后不再显示同一条，直到来了新的错误事件。
   let dismissedError = $state<string | null>(null);
-  const shownError = $derived(snapshot?.lastError && snapshot.lastError !== dismissedError ? snapshot.lastError : null);
+  // 错误事件先单独存着：早于第一份快照到达、或者事件之前发出的轮询晚回来，都不会把它丢掉或盖掉。
+  let eventError = $state<string | null>(null);
+  let errorSeq = 0;
+  const currentError = $derived(eventError ?? snapshot?.lastError ?? null);
+  const shownError = $derived(currentError && currentError !== dismissedError ? currentError : null);
 
   async function refresh() {
-    try { snapshot = await api.snapshot(); activeLayers = snapshot.activeLayers ?? []; } catch (e) { console.error(e); }
+    const seq = errorSeq;
+    try {
+      const s = await api.snapshot();
+      // 请求发出后没有新的错误事件，这份快照就比事件新，以它为准。
+      if (seq === errorSeq) eventError = null;
+      snapshot = s; activeLayers = s.activeLayers ?? [];
+    } catch (e) { console.error(e); }
     // 键位来自配置文件，与接收器是否在线无关：离线也要能编辑。
     if (!draft.map) try { draft = loadSaved(draft, await api.getKeymap()); } catch { /* 还没有键位（等待接收器），下次再试 */ }
   }
@@ -51,7 +61,7 @@
       if (e.kind === "connected") api.getKeymap().then((m) => { draft = loadSaved(draft, m); });
       if (e.kind === "layers") activeLayers = e.active;
       // 不等下一次轮询：马上显示，之前点掉过同样的文本也重新显示。
-      if (e.kind === "error") { dismissedError = null; if (snapshot) snapshot = { ...snapshot, lastError: e.text }; }
+      if (e.kind === "error") { errorSeq++; eventError = e.text; dismissedError = null; }
     }).then((u) => { un = u; });
     return () => { clearInterval(timer); window.removeEventListener("halokey-lang", relang); un?.(); };
   });
