@@ -75,7 +75,7 @@ impl CgEventInjector {
         let prompt = !PROMPTED.swap(true, Ordering::Relaxed);
         if !accessibility_trusted(prompt) {
             return Err(io_err(
-                "没有辅助功能权限：请在「系统设置 → 隐私与安全性 → 辅助功能」里允许 halokey，授权后等两三秒再按一下键即可生效",
+                "没有辅助功能权限：请在「系统设置 → 隐私与安全性 → 辅助功能」里允许 halokey（如果列表里的 halokey 已经是打开的，例如刚更新过，请先用「−」删掉再重新添加），授权后等两三秒再按一下键即可生效",
             ));
         }
         let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
