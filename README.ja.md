@@ -88,10 +88,13 @@ docs/            設計とプロトコルのメモ。英語が既定、`.zh.md` 
 tools/           リポジトリのチェックツール
 ```
 
-## ほかのプロジェクトとの関係
+## 謝辞
 
-- [olanzi](https://github.com/MrCroxx/olanzi) にはリバースエンジニアリングの記録と macOS ネイティブアプリがあります。halokey はそのプロトコル資料を再利用し、キーマップ形式もそこから派生させています（ファイルに互換性はありません）。
-- [vibed](https://github.com/ihavespoons/vibed) はベンダー SDK から復元したマウスページのエントリ種別を記録しており、halokey はそれを実機で確認しました。
+halokey は以下のプロジェクトの成果の上に成り立っています。いずれも MIT ライセンスです。halokey に含まれる部分のライセンス表記は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) にあります。
+
+- [olanzi](https://github.com/MrCroxx/olanzi)（作者 Croxx）：AU05 プロトコルのリバースエンジニアリング記録と macOS ネイティブアプリ。halokey のプロトコルの知識はその資料に基づいています。ジェスチャールーター、アクション実行、キーブリッジはテストごと移植し、キーマップ形式もそこから派生させています（ファイルに互換性はありません）。macOS の仮想キーコード表と、プロトコルのテストで使う実機の記録もここから来ています。
+- [vibed](https://github.com/ihavespoons/vibed)（作者 Ben Gittins）：Vibe Key 用の macOS デーモン。halokey は、それがベンダー SDK から復元した内容を使っています：マウスページのエントリ種別（実機で確認済み）、電源 / マイク / スタンバイのコマンド、ライトの点灯時間の値。
+- [Open VibeKey](https://github.com/palaemonboy/OpenVibeKey)（作者 palaemonboy）：AU05 用の macOS カスタマイズアプリ。設定ウィンドウのデバイス画像はここから来ています。
 
 halokey は独立したコミュニティプロジェクトです。Ulanzi や Kehwin とは関係がなく、承認も受けていません。ベンダーのバイナリは一切含まず、読み込みもしません。
 

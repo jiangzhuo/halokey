@@ -88,10 +88,13 @@ docs/            设计与协议笔记，英文为默认，`.zh.md` 为中文版
 tools/           仓库检查脚本
 ```
 
-## 与其他项目的关系
+## 致谢
 
-- [olanzi](https://github.com/MrCroxx/olanzi) 保存着逆向记录和一个原生 macOS 应用；halokey 复用它的协议文档，键位格式由它衍生（文件不互通）。
-- [vibed](https://github.com/ihavespoons/vibed) 记录了从厂商 SDK 恢复的鼠标页条目类型，halokey 已在真机上确认。
+halokey 建立在下面这些项目的工作之上，它们都使用 MIT 许可证。halokey 包含的部分，许可证声明保存在 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+- [olanzi](https://github.com/MrCroxx/olanzi)（作者 Croxx）：AU05 协议的逆向记录和一个原生 macOS 应用。halokey 的协议知识来自它的文档；手势路由、动作执行和按键桥接连同测试从它移植；键位格式由它衍生（文件不互通）；macOS 虚拟键码表和协议测试里用到的真机证据也来自它。
+- [vibed](https://github.com/ihavespoons/vibed)（作者 Ben Gittins）：Vibe Key 的 macOS 守护进程。halokey 用到了它从厂商 SDK 恢复出的内容：鼠标页条目类型（已在真机上确认）、电源 / 麦克风 / 待机命令，以及灯效工作时长的取值。
+- [Open VibeKey](https://github.com/palaemonboy/OpenVibeKey)（作者 palaemonboy）：AU05 的 macOS 自定义应用。设置窗口里的设备渲染图来自它。
 
 halokey 是独立的社区项目，与 Ulanzi 或 Kehwin 无关联、未获其背书，不包含也不加载任何厂商二进制。
 
