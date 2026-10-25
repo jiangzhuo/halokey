@@ -3,7 +3,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![forbid(unsafe_code)]
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use halokey_host::{HostAction, HostKeymap, HostProfile};
@@ -789,23 +789,77 @@ async fn set_noise_reduction(state: State<'_, App>, level: u8) -> Result<u8, Str
     ask(&state, |tx| Command::SetNoiseReduction(level, tx), 15)?.map(|n| n.level)
 }
 
-fn autostart_path() -> PathBuf {
+/// 登录启动条目的位置：Linux 是 XDG autostart，macOS 是用户级 LaunchAgent。
+/// macOS 上没有 HOME 时报错，不退回当前目录（否则 plist 会写到 `./Library/LaunchAgents`）。
+fn autostart_path() -> Result<PathBuf, String> {
+    let home = std::env::var_os("HOME").map(PathBuf::from);
+    if cfg!(target_os = "macos") {
+        let home = home.ok_or("没有 HOME 环境变量，找不到 ~/Library/LaunchAgents")?;
+        return Ok(home
+            .join("Library/LaunchAgents")
+            .join(format!("{LAUNCH_AGENT_LABEL}.plist")));
+    }
     let base = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
+        .or_else(|| home.map(|h| h.join(".config")))
         .unwrap_or_else(|| PathBuf::from("."));
-    base.join("autostart").join("halokey.desktop")
+    Ok(base.join("autostart").join("halokey.desktop"))
+}
+
+/// LaunchAgent 的 Label，与 bundle identifier 一致。
+const LAUNCH_AGENT_LABEL: &str = "dev.halokey.app";
+
+/// XDG autostart 条目，Exec 指向 `exe`。
+fn desktop_entry(exe: &Path) -> String {
+    format!(
+        "[Desktop Entry]\nType=Application\nName=halokey\nComment=Ulanzi Vibe Key control center\nExec={}\nIcon=halokey-app\nTerminal=false\nX-GNOME-Autostart-enabled=true\n",
+        exe.display()
+    )
+}
+
+/// macOS LaunchAgent：登录时启动 `exe` 一次；不设 KeepAlive，用户退出后不会被拉起。
+fn launch_agent_plist(exe: &Path) -> String {
+    let exe = exe
+        .display()
+        .to_string()
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;");
+    format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n\
+<plist version=\"1.0\">\n\
+<dict>\n\
+\t<key>Label</key>\n\
+\t<string>{LAUNCH_AGENT_LABEL}</string>\n\
+\t<key>ProgramArguments</key>\n\
+\t<array>\n\
+\t\t<string>{exe}</string>\n\
+\t</array>\n\
+\t<key>RunAtLoad</key>\n\
+\t<true/>\n\
+\t<key>ProcessType</key>\n\
+\t<string>Interactive</string>\n\
+</dict>\n\
+</plist>\n"
+    )
+}
+
+/// macOS 对没移动过的下载应用做 App Translocation：从随机的只读路径运行，下次启动路径就变了。
+fn is_translocated(exe: &Path) -> bool {
+    exe.components()
+        .any(|c| c.as_os_str() == std::ffi::OsStr::new("AppTranslocation"))
 }
 
 #[tauri::command]
 fn get_autostart() -> bool {
-    autostart_path().exists()
+    autostart_path().is_ok_and(|p| p.exists())
 }
 
-/// 登录启动：写 / 删 XDG autostart 条目，Exec 指向当前可执行文件。
+/// 登录启动：写 / 删登录启动条目（Linux 为 XDG autostart，macOS 为 LaunchAgent），指向当前可执行文件。
 #[tauri::command]
 fn set_autostart(enabled: bool) -> Result<bool, String> {
-    let path = autostart_path();
+    let path = autostart_path()?;
     if !enabled {
         match std::fs::remove_file(&path) {
             Ok(()) => return Ok(false),
@@ -814,10 +868,14 @@ fn set_autostart(enabled: bool) -> Result<bool, String> {
         }
     }
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let entry = format!(
-        "[Desktop Entry]\nType=Application\nName=halokey\nComment=Ulanzi Vibe Key control center\nExec={}\nIcon=halokey-app\nTerminal=false\nX-GNOME-Autostart-enabled=true\n",
-        exe.display()
-    );
+    let entry = if cfg!(target_os = "macos") {
+        if is_translocated(&exe) {
+            return Err("halokey 正从临时位置运行（App Translocation），这个路径下次登录就失效了。请先把 halokey 拖进「应用程序」文件夹，再打开它开启登录启动".to_string());
+        }
+        launch_agent_plist(&exe)
+    } else {
+        desktop_entry(&exe)
+    };
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
@@ -932,6 +990,9 @@ fn main() {
             set_noise_reduction
         ])
         .setup(move |app| {
+            // macOS：只在菜单栏显示托盘图标，不占 Dock 和 Cmd-Tab。
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             let handle = app.handle().clone();
             // 调试用：HALOKEY_SHOW_MAIN=1 时启动即显示设置窗口，省去点托盘。
             if std::env::var_os("HALOKEY_SHOW_MAIN").is_some() {
@@ -998,6 +1059,43 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn launch_agent_runs_the_exe_once_at_login() {
+        let plist = super::launch_agent_plist(std::path::Path::new(
+            "/Applications/halokey.app/Contents/MacOS/halokey-app",
+        ));
+        assert!(plist.contains("<string>dev.halokey.app</string>"));
+        assert!(
+            plist.contains("<string>/Applications/halokey.app/Contents/MacOS/halokey-app</string>")
+        );
+        assert!(plist.contains("<key>RunAtLoad</key>\n\t<true/>"));
+        assert!(!plist.contains("KeepAlive"));
+    }
+
+    #[test]
+    fn launch_agent_escapes_xml_in_the_path() {
+        let plist =
+            super::launch_agent_plist(std::path::Path::new("/Users/a&b/<x>.app/halokey-app"));
+        assert!(plist.contains("<string>/Users/a&amp;b/&lt;x&gt;.app/halokey-app</string>"));
+    }
+
+    #[test]
+    fn translocated_paths_are_detected() {
+        assert!(super::is_translocated(std::path::Path::new(
+            "/private/var/folders/xy/abc/T/AppTranslocation/1234-ABCD/d/halokey.app/Contents/MacOS/halokey-app"
+        )));
+        assert!(!super::is_translocated(std::path::Path::new(
+            "/Applications/halokey.app/Contents/MacOS/halokey-app"
+        )));
+    }
+
+    #[test]
+    fn desktop_entry_points_at_the_exe() {
+        let entry = super::desktop_entry(std::path::Path::new("/usr/bin/halokey-app"));
+        assert!(entry.starts_with("[Desktop Entry]\n"));
+        assert!(entry.contains("\nExec=/usr/bin/halokey-app\n"));
+    }
+
     #[test]
     fn picks_the_vibe_key_capture_source_and_skips_monitors() {
         let list = "94\talsa_output.platform-hdmi.monitor\tPipeWire\ts32le 2ch 48000Hz\tRUNNING\n\
