@@ -51,4 +51,24 @@ describe("App backend error bar", () => {
     expect(spy).toHaveBeenCalledTimes(2);
     expect(bar()).toBeNull();
   });
+
+  it("ignores an older snapshot that resolves after a newer one", async () => {
+    setLang("zh");
+    const pending: ((s: UiSnapshot) => void)[] = [];
+    vi.spyOn(api, "snapshot").mockImplementation(() => new Promise((r) => { pending.push(r); }));
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    app = mount(App, { target: document.body });
+    await tick();
+    vi.advanceTimersByTime(2000);
+    await tick();
+    expect(pending.length).toBe(2);
+    // 新请求先回来：后端已经没有错误。
+    pending[1]!(snap(null));
+    await tick(); flushSync();
+    expect(bar()).toBeNull();
+    // 旧请求晚回来，带着旧错误：丢掉。
+    pending[0]!(snap("旧错误"));
+    await tick(); flushSync();
+    expect(bar()).toBeNull();
+  });
 });

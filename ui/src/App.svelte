@@ -37,16 +37,23 @@
   // 错误事件先单独存着：早于第一份快照到达、或者事件之前发出的轮询晚回来，都不会把它丢掉或盖掉。
   let eventError = $state<string | null>(null);
   let errorSeq = 0;
+  // 快照请求按发出顺序编号；慢的旧请求晚回来时直接丢掉，不覆盖更新的快照。
+  let snapshotSeq = 0;
+  let appliedSnapshotSeq = 0;
   const currentError = $derived(eventError ?? snapshot?.lastError ?? null);
   const shownError = $derived(currentError && currentError !== dismissedError ? currentError : null);
 
   async function refresh() {
     const seq = errorSeq;
+    const request = ++snapshotSeq;
     try {
       const s = await api.snapshot();
-      // 请求发出后没有新的错误事件，这份快照就比事件新，以它为准。
-      if (seq === errorSeq) eventError = null;
-      snapshot = s; activeLayers = s.activeLayers ?? [];
+      if (request > appliedSnapshotSeq) {
+        appliedSnapshotSeq = request;
+        // 请求发出后没有新的错误事件，这份快照就比事件新，以它为准。
+        if (seq === errorSeq) eventError = null;
+        snapshot = s; activeLayers = s.activeLayers ?? [];
+      }
     } catch (e) { console.error(e); }
     // 键位来自配置文件，与接收器是否在线无关：离线也要能编辑。
     if (!draft.map) try { draft = loadSaved(draft, await api.getKeymap()); } catch { /* 还没有键位（等待接收器），下次再试 */ }
