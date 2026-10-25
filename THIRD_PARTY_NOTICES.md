@@ -1,12 +1,12 @@
 # Third-party notices
 
-halokey includes material from the projects below. Their licenses require the following notices to be kept with copies of that material. The license texts are reproduced verbatim and are not translated.
+HaloKey includes material from the projects below. Their licenses require the following notices to be kept with copies of that material. The license texts are reproduced verbatim and are not translated.
 
 ## olanzi
 
 <https://github.com/MrCroxx/olanzi>
 
-Used in halokey: the gesture router, the host action runner and the vendor key bridge are ported from olanzi together with their tests (`crates/host`, `crates/input`); the keymap JSON format is derived from olanzi's; the HID usage to macOS virtual key table (`crates/input/src/hid_usage.rs`) and the hardware evidence used in `crates/proto/tests/evidence.rs` come from olanzi.
+Used in HaloKey: the gesture router, the host action runner and the vendor key bridge are ported from olanzi together with their tests (`crates/host`, `crates/input`); the keymap JSON format is derived from olanzi's; the HID usage to macOS virtual key table (`crates/input/src/hid_usage.rs`) and the hardware evidence used in `crates/proto/tests/evidence.rs` come from olanzi.
 
 ```text
 MIT License
@@ -36,7 +36,7 @@ SOFTWARE.
 
 <https://github.com/palaemonboy/OpenVibeKey>
 
-Used in halokey: the device render `ui/public/device.png`, shown in the settings window and shipped in the app bundle.
+Used in HaloKey: the device render `ui/public/device.png`, shown in the settings window and shipped in the app bundle.
 
 ```text
 MIT License

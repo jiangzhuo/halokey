@@ -1,4 +1,4 @@
-# halokey
+# HaloKey
 
 > 🌐 [中文](README.zh.md) · [日本語](README.ja.md)
 
@@ -30,7 +30,7 @@ cargo run -p halokey-app --no-default-features   # tray app (dev: loads the Vite
 
 To install on Debian/Ubuntu, use the `.deb` from the GitHub Releases page (x86_64 and arm64), or build it locally: `cargo tauri build --bundles deb --no-sign` in `apps/halokey`, then `sudo dpkg -i target/release/bundle/deb/halokey_*.deb` and replug the receiver so the bundled udev rule applies. AppImage is not built: it cannot install the udev rule.
 
-To install on macOS, use the `.dmg` from the GitHub Releases page (Apple silicon and Intel), or build it locally: `cargo tauri build --bundles dmg` in `apps/halokey`, then open the `.dmg` from `target/release/bundle/dmg/`. Drag halokey into Applications. Release builds are signed with halokey's own self-signed certificate, not an Apple Developer ID, and local builds are ad-hoc signed. Neither is notarized, so the first launch of a downloaded copy is blocked: open System Settings → Privacy & Security and click Open Anyway. halokey then asks for Accessibility permission, which it needs to send keys and mouse events; allow it under Privacy & Security → Accessibility, wait a couple of seconds, then press a key and it takes effect, no restart needed. The app lives in the menu bar, not the Dock.
+To install on macOS, use the `.dmg` from the GitHub Releases page (Apple silicon and Intel), or build it locally: `cargo tauri build --bundles dmg` in `apps/halokey`, then open the `.dmg` from `target/release/bundle/dmg/`. Drag HaloKey into Applications. Release builds are signed with HaloKey's own self-signed certificate, not an Apple Developer ID, and local builds are ad-hoc signed. Neither is notarized, so the first launch of a downloaded copy is blocked: open System Settings → Privacy & Security and click Open Anyway. HaloKey then asks for Accessibility permission, which it needs to send keys and mouse events; allow it under Privacy & Security → Accessibility, wait a couple of seconds, then press a key and it takes effect, no restart needed. The app lives in the menu bar, not the Dock.
 
 ![Settings page](docs/screenshots/settings-en.png)
 
@@ -42,7 +42,7 @@ The device render in the settings window (`ui/public/device.png`) comes from the
 
 ## Why another one
 
-Ulanzi Studio supports only Windows and macOS. Every community project so far is either macOS-only or Linux-only, and none of them offers the radial menu that Studio has. halokey starts over on Rust and Tauri 2 so that the device logic is written once and only thin platform adapters differ.
+Ulanzi Studio supports only Windows and macOS. Every community project so far is either macOS-only or Linux-only, and none of them offers the radial menu that Studio has. HaloKey starts over on Rust and Tauri 2 so that the device logic is written once and only thin platform adapters differ.
 
 ## Planned features
 
@@ -57,10 +57,10 @@ Ulanzi Studio supports only Windows and macOS. Every community project so far is
 
 ## Updates and releases
 
-Installed builds (Linux deb, macOS .app, Windows NSIS/MSI) check `https://github.com/jiangzhuo/halokey/releases/latest/download/latest.json` 30 seconds after start and every 6 hours. This is on by default and can be turned off in Settings ("Check for updates automatically"); a "Check for updates" button checks on demand. Each new version brings one system notification; while it is available, the tray also shows an "Install update vX.Y.Z…" item and Settings → Updates shows it with a release-notes link. After you confirm, halokey downloads the update, verifies its signature, installs it and restarts. Builds run from source (`cargo run`, `target/*/halokey-app`) never check for updates. The tray menu and the notification follow the interface language.
+Installed builds (Linux deb, macOS .app, Windows NSIS/MSI) check `https://github.com/jiangzhuo/halokey/releases/latest/download/latest.json` 30 seconds after start and every 6 hours. This is on by default and can be turned off in Settings ("Check for updates automatically"); a "Check for updates" button checks on demand. Each new version brings one system notification; while it is available, the tray also shows an "Install update vX.Y.Z…" item and Settings → Updates shows it with a release-notes link. After you confirm, HaloKey downloads the update, verifies its signature, installs it and restarts. Builds run from source (`cargo run`, `target/*/halokey-app`) never check for updates. The tray menu and the notification follow the interface language.
 
 - Linux deb updates ask for the administrator password once (a system authorization dialog). If you cancel it, the updater plugin may ask again with a fallback prompt and then report a failed install rather than "cancelled".
-- macOS release builds are signed with halokey's own self-signed certificate, so macOS keeps the Accessibility permission across updates. The exception is the one update from v0.1.1 or earlier, which were ad-hoc signed: macOS treats the new build as a different app, and the old entry still looks enabled in System Settings but no longer works. If the keys or the knob stop working after that update, remove halokey from System Settings → Privacy & Security → Accessibility and add it again. Locally built apps are ad-hoc signed and need the same after every rebuild.
+- macOS release builds are signed with HaloKey's own self-signed certificate, so macOS keeps the Accessibility permission across updates. The exception is the one update from v0.1.1 or earlier, which were ad-hoc signed: macOS treats the new build as a different app, and the old entry still looks enabled in System Settings but no longer works. If the keys or the knob stop working after that update, remove HaloKey from System Settings → Privacy & Security → Accessibility and add it again. Locally built apps are ad-hoc signed and need the same after every rebuild.
 - The first release that contains the updater is the baseline; anything installed before it has to be updated manually once.
 
 To release (maintainers): bump the version in `apps/halokey/tauri.conf.json` and the root `Cargo.toml` (`[workspace.package] version`), commit, and push a `vX.Y.Z` tag. CI checks the tag against both versions and the release job fails if they differ, so bump both and commit before tagging. CI builds signed deb (x86_64, arm64), macOS .app/.dmg (arm64, x86_64) and Windows NSIS/MSI, generates `latest.json` and creates a draft release. Check the draft on GitHub and publish it; users only receive the update after it is published. macOS builds are signed with the certificate in the `MACOS_SIGNING_CERT` and `MACOS_SIGNING_CERT_PASSWORD` repository secrets. Keep that certificate: a different one makes every macOS user grant Accessibility again, so the workflow pins its SHA-1 and fails if it changes. Local `cargo tauri build` fails without `TAURI_SIGNING_PRIVATE_KEY` because update artifacts are on; add `--no-sign` for local builds (it skips the update signature, fine for local use).
@@ -90,20 +90,20 @@ tools/           repository checks
 
 ## Acknowledgements
 
-halokey builds on the work of these projects, all MIT-licensed. [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) keeps the license notices for the material halokey includes.
+HaloKey builds on the work of these projects, all MIT-licensed. [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) keeps the license notices for the material HaloKey includes.
 
-- [olanzi](https://github.com/MrCroxx/olanzi) by Croxx: the reverse-engineering record of the AU05 protocol and a native macOS app. halokey's protocol knowledge comes from its documentation; the gesture router, action runner and key bridge are ported from it together with their tests; the keymap format is derived from it (files are not interchangeable); the macOS virtual key table and the hardware evidence used in the protocol tests also come from it.
-- [vibed](https://github.com/ihavespoons/vibed) by Ben Gittins: a macOS daemon for the Vibe Key. halokey relies on what it recovered from the vendor SDK: the mouse-page entry types (confirmed on hardware), the power, microphone and standby commands, and the lighting work-duration value.
+- [olanzi](https://github.com/MrCroxx/olanzi) by Croxx: the reverse-engineering record of the AU05 protocol and a native macOS app. HaloKey's protocol knowledge comes from its documentation; the gesture router, action runner and key bridge are ported from it together with their tests; the keymap format is derived from it (files are not interchangeable); the macOS virtual key table and the hardware evidence used in the protocol tests also come from it.
+- [vibed](https://github.com/ihavespoons/vibed) by Ben Gittins: a macOS daemon for the Vibe Key. HaloKey relies on what it recovered from the vendor SDK: the mouse-page entry types (confirmed on hardware), the power, microphone and standby commands, and the lighting work-duration value.
 - [Open VibeKey](https://github.com/palaemonboy/OpenVibeKey) by palaemonboy: a macOS customization app for the AU05. The device render in the settings window comes from it.
 
-halokey is an independent community project. It is not affiliated with or endorsed by Ulanzi or Kehwin, and it does not include or load any vendor binaries.
+HaloKey is an independent community project. It is not affiliated with or endorsed by Ulanzi or Kehwin, and it does not include or load any vendor binaries.
 
 ## Documentation
 
 | # | Document | Content |
 |---|---|---|
 | 01 | [Architecture](docs/01-architecture.md) | crates, platform adapters, overlay, known risks |
-| 02 | [Protocol Notes](docs/02-protocol-notes.md) | what halokey measured beyond the olanzi record |
+| 02 | [Protocol Notes](docs/02-protocol-notes.md) | what HaloKey measured beyond the olanzi record |
 | 03 | [Configuration Format](docs/03-config-format.md) | the keymap JSON: controls, actions, layers, halos |
 
 Every document exists in English (default filename) and Chinese (`.zh.md`); `python3 tools/check_docs.py` verifies that the pairs stay in sync.

@@ -3,7 +3,7 @@
 
 > 📚 Docs set: [README](../README.md) · **01 Architecture** · [02 Protocol Notes](02-protocol-notes.md) · [03 Configuration Format](03-config-format.md)
 
-Design notes for halokey. Everything here is a plan unless marked **[CONFIRMED]**, which means it was measured on hardware.
+Design notes for HaloKey. Everything here is a plan unless marked **[CONFIRMED]**, which means it was measured on hardware.
 
 ---
 
@@ -11,8 +11,8 @@ Design notes for halokey. Everything here is a plan unless marked **[CONFIRMED]*
 
 1. One codebase for Linux, macOS and Windows; platform-specific code lives only in adapter crates.
 2. No vendor binaries: the TEA protocol is implemented from the public reverse-engineering record.
-3. Host-side execution: while halokey runs, the device sends raw control events and the host decides what happens, which is what makes layers, gestures, the halo menu and pointer movement possible.
-4. The device keeps working as a plain keyboard when halokey is not running, using whatever six-slot table was last written to it.
+3. Host-side execution: while HaloKey runs, the device sends raw control events and the host decides what happens, which is what makes layers, gestures, the halo menu and pointer movement possible.
+4. The device keeps working as a plain keyboard when HaloKey is not running, using whatever six-slot table was last written to it.
 
 ## 2. Crates
 
@@ -46,7 +46,7 @@ device ──vendor event──▶ hid ──▶ host (gesture router, layers) �
                                                                    └─▶ shell command
 ```
 
-The heartbeat keeps the device in vendor-event mode. When halokey stops, suspends, or the machine sleeps, it hands control back so the firmware types its stored table again.
+The heartbeat keeps the device in vendor-event mode. When HaloKey stops, suspends, or the machine sleeps, it hands control back so the firmware types its stored table again.
 
 ## 4. The halo overlay
 

@@ -1,4 +1,4 @@
-# halokey
+# HaloKey
 
 > 🌐 [English](README.md) · [中文](README.zh.md)
 
@@ -30,7 +30,7 @@ cargo run -p halokey-app --no-default-features   # トレイアプリ（開発�
 
 Debian/Ubuntu へのインストールは、GitHub Releases ページの `.deb`（x86_64 と arm64）を使うか、ローカルでビルドします：`apps/halokey` で `cargo tauri build --bundles deb --no-sign` を実行し、`sudo dpkg -i target/release/bundle/deb/halokey_*.deb` でインストールしたら、同梱の udev ルールを反映させるためにレシーバーを挿し直してください。AppImage は udev ルールをインストールできないため、ビルドしていません。
 
-macOS へのインストールは、GitHub Releases ページの `.dmg`（Apple シリコンと Intel）を使うか、ローカルでビルドします：`apps/halokey` で `cargo tauri build --bundles dmg` を実行し、`target/release/bundle/dmg/` の `.dmg` を開きます。halokey を「アプリケーション」にドラッグしてください。リリース版は halokey 独自の自己署名証明書で署名されており（Apple Developer ID ではありません）、ローカルビルドは ad-hoc 署名です。どちらも公証（notarize）されていないため、ダウンロードしたものを初めて開くとブロックされます。「システム設定 → プライバシーとセキュリティ」を開き、「このまま開く」をクリックしてください。続いて halokey がアクセシビリティ権限を求めます。キーやマウスのイベントを送るのに必要なので、「プライバシーとセキュリティ → アクセシビリティ」で許可し、数秒待ってからキーを押せば有効になります。再起動は不要です。アプリは Dock ではなくメニューバーに常駐します。
+macOS へのインストールは、GitHub Releases ページの `.dmg`（Apple シリコンと Intel）を使うか、ローカルでビルドします：`apps/halokey` で `cargo tauri build --bundles dmg` を実行し、`target/release/bundle/dmg/` の `.dmg` を開きます。HaloKey を「アプリケーション」にドラッグしてください。リリース版は HaloKey 独自の自己署名証明書で署名されており（Apple Developer ID ではありません）、ローカルビルドは ad-hoc 署名です。どちらも公証（notarize）されていないため、ダウンロードしたものを初めて開くとブロックされます。「システム設定 → プライバシーとセキュリティ」を開き、「このまま開く」をクリックしてください。続いて HaloKey がアクセシビリティ権限を求めます。キーやマウスのイベントを送るのに必要なので、「プライバシーとセキュリティ → アクセシビリティ」で許可し、数秒待ってからキーを押せば有効になります。再起動は不要です。アプリは Dock ではなくメニューバーに常駐します。
 
 ![設定画面](docs/screenshots/settings-en.png)
 
@@ -42,7 +42,7 @@ macOS へのインストールは、GitHub Releases ページの `.dmg`（Apple 
 
 ## なぜ新しく作るのか
 
-Ulanzi Studio は Windows と macOS にしか対応していません。これまでのコミュニティプロジェクトは macOS 専用か Linux 専用のどちらかで、Studio にある円形メニューを備えたものもありません。halokey は Rust と Tauri 2 で一から作り直し、デバイスのロジックを一度だけ書いて、プラットフォームごとの違いは薄いアダプターだけにしています。
+Ulanzi Studio は Windows と macOS にしか対応していません。これまでのコミュニティプロジェクトは macOS 専用か Linux 専用のどちらかで、Studio にある円形メニューを備えたものもありません。HaloKey は Rust と Tauri 2 で一から作り直し、デバイスのロジックを一度だけ書いて、プラットフォームごとの違いは薄いアダプターだけにしています。
 
 ## 予定している機能
 
@@ -60,7 +60,7 @@ Ulanzi Studio は Windows と macOS にしか対応していません。これ�
 インストール版（Linux deb、macOS .app、Windows NSIS/MSI）は、起動 30 秒後とその後 6 時間ごとに `https://github.com/jiangzhuo/halokey/releases/latest/download/latest.json` を確認します。これは既定でオンで、設定の「自動でアップデートを確認」でオフにできます。「アップデートを確認」ボタンでいつでも手動確認できます。新しいバージョンごとにシステム通知は 1 回だけ出ます。アップデートがある間は、トレイに「アップデート vX.Y.Z をインストール…」が表示され、設定 → アップデートにもリリースノートへのリンク付きで表示されます。確認するとダウンロード、署名の検証、インストール、再起動まで自動で行います。ソースから動かしているビルド（`cargo run`、`target/*/halokey-app`）はアップデートを確認しません。トレイメニューと通知は画面の言語設定に従います。
 
 - Linux deb のアップデートでは管理者パスワードを 1 回求められます（システムの認証ダイアログ）。キャンセルした場合、アップデーターのプラグインが代替のプロンプトでもう一度尋ね、その後「キャンセル」ではなく「インストール失敗」と表示することがあります。
-- macOS のリリース版は halokey 独自の自己署名証明書で署名されているため、アップデート後も以前許可したアクセシビリティ権限がそのまま有効です。例外は v0.1.1 以前（ad-hoc 署名）からのアップデート 1 回だけです。macOS は新しい版を別のアプリとして扱い、システム設定では古い項目がオンのままに見えますが、実際には効きません。そのアップデート後にキーやノブが反応しなくなったら、「システム設定 → プライバシーとセキュリティ → アクセシビリティ」で halokey を削除してから追加し直してください。ローカルでビルドしたアプリは ad-hoc 署名なので、ビルドし直すたびに同じ操作が必要です。
+- macOS のリリース版は HaloKey 独自の自己署名証明書で署名されているため、アップデート後も以前許可したアクセシビリティ権限がそのまま有効です。例外は v0.1.1 以前（ad-hoc 署名）からのアップデート 1 回だけです。macOS は新しい版を別のアプリとして扱い、システム設定では古い項目がオンのままに見えますが、実際には効きません。そのアップデート後にキーやノブが反応しなくなったら、「システム設定 → プライバシーとセキュリティ → アクセシビリティ」で HaloKey を削除してから追加し直してください。ローカルでビルドしたアプリは ad-hoc 署名なので、ビルドし直すたびに同じ操作が必要です。
 - アップデーターを含む最初のリリースが起点になります。それより前にインストールしたものは、一度だけ手動でアップデートしてください。
 
 リリース手順（メンテナー向け）：`apps/halokey/tauri.conf.json` とルートの `Cargo.toml`（`[workspace.package] version`）のバージョンを上げてコミットし、`vX.Y.Z` タグをプッシュします。CI はタグと両方のバージョンを照合し、一致しなければリリースジョブが失敗するので、タグを打つ前に両方を上げてコミットしてください。CI は署名付きの deb（x86_64、arm64）、macOS .app/.dmg（arm64、x86_64）、Windows NSIS/MSI をビルドし、`latest.json` を生成してドラフトリリースを作ります。GitHub でドラフトを確認して公開してください。ユーザーにアップデートが届くのは公開後です。macOS 版はリポジトリの secrets `MACOS_SIGNING_CERT` と `MACOS_SIGNING_CERT_PASSWORD` にある証明書で署名されます。この証明書は替えないでください。別の証明書にすると macOS の全ユーザーがアクセシビリティ権限を許可し直すことになるため、ワークフローは SHA-1 を固定し、変わると失敗します。アップデート用の成果物が有効になっているため、ローカルの `cargo tauri build` は `TAURI_SIGNING_PRIVATE_KEY` がないと失敗します。ローカルビルドでは `--no-sign` を付けてください（アップデート用の署名を省くだけなので、ローカルで使う分には問題ありません）。
@@ -90,20 +90,20 @@ tools/           リポジトリのチェックツール
 
 ## 謝辞
 
-halokey は以下のプロジェクトの成果の上に成り立っています。いずれも MIT ライセンスです。halokey に含まれる部分のライセンス表記は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) にあります。
+HaloKey は以下のプロジェクトの成果の上に成り立っています。いずれも MIT ライセンスです。HaloKey に含まれる部分のライセンス表記は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) にあります。
 
-- [olanzi](https://github.com/MrCroxx/olanzi)（作者 Croxx）：AU05 プロトコルのリバースエンジニアリング記録と macOS ネイティブアプリ。halokey のプロトコルの知識はその資料に基づいています。ジェスチャールーター、アクション実行、キーブリッジはテストごと移植し、キーマップ形式もそこから派生させています（ファイルに互換性はありません）。macOS の仮想キーコード表と、プロトコルのテストで使う実機の記録もここから来ています。
-- [vibed](https://github.com/ihavespoons/vibed)（作者 Ben Gittins）：Vibe Key 用の macOS デーモン。halokey は、それがベンダー SDK から復元した内容を使っています：マウスページのエントリ種別（実機で確認済み）、電源 / マイク / スタンバイのコマンド、ライトの点灯時間の値。
+- [olanzi](https://github.com/MrCroxx/olanzi)（作者 Croxx）：AU05 プロトコルのリバースエンジニアリング記録と macOS ネイティブアプリ。HaloKey のプロトコルの知識はその資料に基づいています。ジェスチャールーター、アクション実行、キーブリッジはテストごと移植し、キーマップ形式もそこから派生させています（ファイルに互換性はありません）。macOS の仮想キーコード表と、プロトコルのテストで使う実機の記録もここから来ています。
+- [vibed](https://github.com/ihavespoons/vibed)（作者 Ben Gittins）：Vibe Key 用の macOS デーモン。HaloKey は、それがベンダー SDK から復元した内容を使っています：マウスページのエントリ種別（実機で確認済み）、電源 / マイク / スタンバイのコマンド、ライトの点灯時間の値。
 - [Open VibeKey](https://github.com/palaemonboy/OpenVibeKey)（作者 palaemonboy）：AU05 用の macOS カスタマイズアプリ。設定ウィンドウのデバイス画像はここから来ています。
 
-halokey は独立したコミュニティプロジェクトです。Ulanzi や Kehwin とは関係がなく、承認も受けていません。ベンダーのバイナリは一切含まず、読み込みもしません。
+HaloKey は独立したコミュニティプロジェクトです。Ulanzi や Kehwin とは関係がなく、承認も受けていません。ベンダーのバイナリは一切含まず、読み込みもしません。
 
 ## ドキュメント
 
 | # | ドキュメント | 内容 |
 |---|---|---|
 | 01 | [Architecture](docs/01-architecture.md) | crate 構成、プラットフォームアダプター、オーバーレイ、既知のリスク |
-| 02 | [Protocol Notes](docs/02-protocol-notes.md) | olanzi の記録以外に halokey が実測した内容 |
+| 02 | [Protocol Notes](docs/02-protocol-notes.md) | olanzi の記録以外に HaloKey が実測した内容 |
 | 03 | [Configuration Format](docs/03-config-format.md) | キーマップ JSON：コントロール、アクション、レイヤー、ハロー |
 
 ドキュメントは英語版（既定のファイル名）と中国語版（`.zh.md`）のみで、日本語版はありません。`python3 tools/check_docs.py` が各版の同期を確認します。

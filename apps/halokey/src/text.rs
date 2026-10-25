@@ -50,15 +50,15 @@ pub fn install_update_label(lang: Lang, version: &str) -> String {
 pub fn update_notification(lang: Lang, version: &str) -> (String, String) {
     match lang {
         Lang::En => (
-            format!("halokey v{version} is available"),
+            format!("HaloKey v{version} is available"),
             "Open Settings to install it.".into(),
         ),
         Lang::Zh => (
-            format!("halokey v{version} 可以更新了"),
+            format!("HaloKey v{version} 可以更新了"),
             "打开设置即可安装。".into(),
         ),
         Lang::Ja => (
-            format!("halokey v{version} が利用可能です"),
+            format!("HaloKey v{version} が利用可能です"),
             "設定を開いてインストールしてください。".into(),
         ),
     }

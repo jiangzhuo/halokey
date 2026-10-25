@@ -3,7 +3,7 @@
 
 > 📚 文档集：[README](../README.zh.md) · [01 架构](01-architecture.zh.md) · [02 协议笔记](02-protocol-notes.zh.md) · **03 配置格式**
 
-halokey 只保存一个 JSON 文件，Linux 上在 `~/.config/halokey/keymap.json`。设置窗口编辑它；`halokey run --config` 和 `halokey export-keymap` 用同一种结构。结构源自 olanzi 的 `HostKeymap`，但文件是 halokey 自己的：版本固定为 6，不接受 olanzi 的文件。
+HaloKey 只保存一个 JSON 文件，Linux 上在 `~/.config/halokey/keymap.json`。设置窗口编辑它；`halokey run --config` 和 `halokey export-keymap` 用同一种结构。结构源自 olanzi 的 `HostKeymap`，但文件是 HaloKey 自己的：版本固定为 6，不接受 olanzi 的文件。
 
 ---
 
@@ -23,7 +23,7 @@ halokey 只保存一个 JSON 文件，Linux 上在 `~/.config/halokey/keymap.jso
 
 | 字段 | 含义 |
 |---|---|
-| `version` | 固定 `6`。其他值一律拒绝（halokey 没发布过，没有需要继续读的旧格式）。 |
+| `version` | 固定 `6`。其他值一律拒绝（HaloKey 没发布过，没有需要继续读的旧格式）。 |
 | `controls` | 恰好六项，每个控件一项：0 键 1、1 键 2、2 键 3、3 旋钮按下、4 右拧、5 左拧。 |
 | `layers` | 可选的稀疏覆盖层 1–3，由 §3 的切层动作（`momentaryLayer`、`toggleLayer`、`toLayer`、`oneShotLayer`）激活。 |
 | `actionLibrary` | 可选的可复用应用或宏动作，由 `library` 动作引用。 |
@@ -69,12 +69,12 @@ halokey 只保存一个 JSON 文件，Linux 上在 `~/.config/halokey/keymap.jso
 | `macro` | 步骤列表 | 步骤为 `keyboard`、`application` 或 `delay`（`{ "delay": { "_0": 0.3 } }`，0.05–10 秒），1–32 步。 |
 | `library` | UUID 字符串 | 引用 `actionLibrary`。 |
 | `momentaryLayer` | 1–3 | QMK 的 `MO`。控件按住期间生效。只限按键与旋钮按下的单击或长按。 |
-| `toggleLayer` | 1–3 | halokey 扩展，QMK 的 `TG`。该层没开就打开，开着就关掉；松开后保持。按键与旋钮按下的任何手势。 |
-| `toLayer` | 0–3 | halokey 扩展，QMK 的 `TO`。只留这一层锁定（`0` = 回到 Layer 0），并丢掉还没用的一次性层；`momentaryLayer` 按住的层保留到那个键松开。按键与旋钮按下的任何手势。 |
-| `oneShotLayer` | 1–3 | halokey 扩展，QMK 的 `OSL`。下一次按键或旋钮按下走该层，之后回落。如果先转旋钮，整段连续转动都走该层，最后一格之后 1 秒或下一次按下时回落。按键与旋钮按下的任何手势。 |
-| `pointerMove` | `{ "dx", "dy" }` | halokey 扩展。每次触发的像素位移，各不超过 ±1000，不能同时为零。 |
-| `scroll` | `{ "dx", "dy" }` | halokey 扩展。每次触发滚动的格数，方向同屏幕坐标（`dy` 正值向下，`dx` 正值向右），各不超过 ±10，不能同时为零。旋钮每格作为一个事件一次发出，转得快也不会像 `burst` 那样排队；一格滚多远仍由系统和各应用决定。 |
-| `halo` | 光环 id | halokey 扩展。打开该菜单。 |
+| `toggleLayer` | 1–3 | HaloKey 扩展，QMK 的 `TG`。该层没开就打开，开着就关掉；松开后保持。按键与旋钮按下的任何手势。 |
+| `toLayer` | 0–3 | HaloKey 扩展，QMK 的 `TO`。只留这一层锁定（`0` = 回到 Layer 0），并丢掉还没用的一次性层；`momentaryLayer` 按住的层保留到那个键松开。按键与旋钮按下的任何手势。 |
+| `oneShotLayer` | 1–3 | HaloKey 扩展，QMK 的 `OSL`。下一次按键或旋钮按下走该层，之后回落。如果先转旋钮，整段连续转动都走该层，最后一格之后 1 秒或下一次按下时回落。按键与旋钮按下的任何手势。 |
+| `pointerMove` | `{ "dx", "dy" }` | HaloKey 扩展。每次触发的像素位移，各不超过 ±1000，不能同时为零。 |
+| `scroll` | `{ "dx", "dy" }` | HaloKey 扩展。每次触发滚动的格数，方向同屏幕坐标（`dy` 正值向下，`dx` 正值向右），各不超过 ±10，不能同时为零。旋钮每格作为一个事件一次发出，转得快也不会像 `burst` 那样排队；一格滚多远仍由系统和各应用决定。 |
+| `halo` | 光环 id | HaloKey 扩展。打开该菜单。 |
 
 活动层是三者的并集：`momentaryLayer` 按住的层、`toggleLayer` / `toLayer` 锁定的层、还没用掉的一次性层；几层都定义了同一手势时，编号高的层优先。锁定层在空闲交还和重连后保留，保存新键位时清空；一次性层在空闲、断线和保存时丢弃。AU05 没有屏幕，给每个锁定层配自己的 `lighting` 才看得出当前在哪层；Layer 0 也要有记录，否则切回 Layer 0 后灯会停在上一层的效果。
 

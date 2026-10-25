@@ -53,6 +53,7 @@ Rust workspace + Tauri 2；前端在 `ui/`，Svelte 5 + Vite + TypeScript（`npm
 | `pkill -f` 会杀掉包含同样字符串的当前 shell | 用 `pgrep` 精确匹配 |
 | NVIDIA + WebKitGTK 窗口空白 | 设 `WEBKIT_DISABLE_DMABUF_RENDERER=1`（应用已内置） |
 | `cargo build -p` 不会重编其他 bin | 验证 CLI 行为前先 `cargo build --workspace`，否则用的是旧二进制 |
+| 产品显示名是 HaloKey，标识一律小写 halokey | `productName` = HaloKey（macOS / Windows 的 app 名、安装包文件名都跟着它）；bundle id、可执行文件、crate、配置目录、仓库名保持小写。Linux 由 `tauri.linux.conf.json` 把 productName 改回 `halokey`，因为 deb 包名由它生成且必须小写，改了老用户就升级不上；应用菜单显示名靠 `packaging/linux/halokey.desktop`。Windows MSI 的 upgradeCode 固定为旧名算出的值 |
 
 ## 6. 安全规则
 

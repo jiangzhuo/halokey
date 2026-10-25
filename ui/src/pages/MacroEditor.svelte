@@ -88,7 +88,7 @@
     </div>
     <div class="adders">
       <h4><Icon name="keyboard" size={14} /> {t("组合键")}</h4>
-      <p class="muted warn">{t("录制时 halokey 窗口有焦点，设备注入的按键也会被录进来")}</p>
+      <p class="muted warn">{t("录制时 HaloKey 窗口有焦点，设备注入的按键也会被录进来")}</p>
       <ComboRecorder assignLabel={t("添加为步骤")} onAssign={addKeys} />
       <h4><Icon name="app" size={14} /> APP</h4>
       <div class="cards">
