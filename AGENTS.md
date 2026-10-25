@@ -20,6 +20,7 @@
 - 两版 Markdown 结构一一对应：标题层级、表格形状、代码块数量。
 - 每份 `docs/` 文档头部要有 `📚` 文档集导航行和 `🌐` 语言互链。
 - 十六进制、字节序列、命令、路径、符号名、错误码、`[CONFIRMED]` / `[INFERRED]` 标签一律不翻译。
+- 首页 README 另有日文版 `README.ja.md`（只有 README 有日文版）：改 README 时三份一起改，`check_docs.py` 同样检查它。
 - 改完必须跑 `python3 tools/check_docs.py`，不通过就是没做完。
 
 ## 3. 技术栈
@@ -76,6 +77,7 @@ Rust workspace + Tauri 2；前端在 `ui/`，Svelte 5 + Vite + TypeScript（`npm
 
 - Chat and code comments in Chinese; commit messages in English.
 - Every document under `README` and `docs/` exists in English (unsuffixed) and Chinese (`.zh.md`), with identical structure; run `python3 tools/check_docs.py` after any change.
+- The root README also has a Japanese version (`README.ja.md`); keep all three READMEs in sync.
 - Never translate hex, byte sequences, commands, paths, symbols, error codes or the `[CONFIRMED]` / `[INFERRED]` tags.
 - Platform-specific code is confined to the adapter crates and the Tauri app.
 - Device-unique identifiers are never published.
