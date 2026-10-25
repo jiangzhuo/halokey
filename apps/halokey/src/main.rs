@@ -3,8 +3,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![forbid(unsafe_code)]
 
+mod text;
+mod update;
+
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Mutex, PoisonError};
 
 use halokey_host::{HostAction, HostKeymap, HostProfile};
 use halokey_proto::{IndicatorLight, Lighting};
@@ -13,6 +16,7 @@ use serde::Serialize;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_notification::NotificationExt;
 
 /// 托盘图标（源文件在 `icons/tray*.svg`）。macOS 菜单栏用模板图，由系统按明暗主题着色；
 /// 其他平台用自带陶土色圆底的小图，深色、浅色任务栏上都看得清。
@@ -63,6 +67,8 @@ enum UiEvent {
     Layers {
         active: Vec<u8>,
     },
+    /// 托盘"安装更新"：设置窗口切到设置页的"更新"一节。
+    ShowUpdates,
 }
 
 #[derive(Serialize, Clone)]
@@ -280,8 +286,34 @@ fn save_keymap(state: State<'_, App>, keymap: serde_json::Value) -> Result<(), S
     install_keymap(&state, map).map(|_| ())
 }
 
-/// 退出：先停设备线程（松开按住的键、把控制交还设备），再退出进程。托盘"退出"与关窗退出都走这里。
-fn quit_app(app: &AppHandle) {
+/// 按当前配置文件和设置启动设备服务；启动时与安装更新失败后都走这里。
+fn spawn_service(app: &AppHandle) -> Service {
+    let config_path = &app.state::<App>().config_path;
+    let settings = load_settings(config_path);
+    let keymap = match load_keymap(config_path) {
+        Ok(map) => map,
+        Err(e) => {
+            eprintln!("配置读取失败，将使用设备表：{e}");
+            None
+        }
+    };
+    let handle = app.clone();
+    Service::spawn(
+        Config {
+            keymap,
+            dry_run: false,
+            serial: None,
+            idle_timeout: (settings.idle_minutes > 0)
+                .then(|| std::time::Duration::from_secs(settings.idle_minutes * 60)),
+            halo_timeout: std::time::Duration::from_secs(settings.halo.timeout_seconds),
+        },
+        Backends::platform(),
+        Box::new(move |event| forward(&handle, event)),
+    )
+}
+
+/// 取出并停掉设备线程（松开按住的键、把控制交还设备）。会等线程结束。
+fn stop_service(app: &AppHandle) {
     if let Some(service) = app
         .state::<App>()
         .service
@@ -291,6 +323,11 @@ fn quit_app(app: &AppHandle) {
     {
         service.stop();
     }
+}
+
+/// 退出：先停设备线程，再退出进程。托盘"退出"与关窗退出都走这里。
+fn quit_app(app: &AppHandle) {
+    stop_service(app);
     app.exit(0);
 }
 
@@ -622,6 +659,28 @@ struct AppSettings {
     halo: HaloSettings,
     /// 关闭设置窗口时留在托盘（true）还是退出（false）。
     close_to_tray: bool,
+    /// 界面语言：`en` / `zh` / `ja`。存成字符串，未知取值按英文处理，不会让其他设置失效。
+    lang: String,
+    updates: UpdateSettings,
+}
+
+/// 自动更新相关设置。
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase", default)]
+struct UpdateSettings {
+    /// 是否自动检查更新。
+    auto_check: bool,
+    /// 已经弹过通知的版本，避免重复打扰。
+    notified_version: Option<String>,
+}
+
+impl Default for UpdateSettings {
+    fn default() -> Self {
+        UpdateSettings {
+            auto_check: true,
+            notified_version: None,
+        }
+    }
 }
 
 impl Default for AppSettings {
@@ -630,6 +689,8 @@ impl Default for AppSettings {
             idle_minutes: 5,
             halo: HaloSettings::default(),
             close_to_tray: true,
+            lang: "en".into(),
+            updates: UpdateSettings::default(),
         }
     }
 }
@@ -681,7 +742,25 @@ fn load_settings(config_path: &std::path::Path) -> AppSettings {
     merge_settings(load_settings_value(config_path), &serde_json::json!({})).unwrap_or_default()
 }
 
-/// 把设置写回文件：先合并进原始 JSON，未知键不丢。
+/// settings.json 的读改写（设置页的 `set_settings`、记录已通知的版本）都要先拿这把锁，
+/// 否则两边同时读到旧文件、各写各的，先写的那次改动（例如语言、自动检查开关）会丢。
+/// 只包住文件读写本身：不要持锁跨 await，也不要持锁重建托盘。
+static SETTINGS_IO: Mutex<()> = Mutex::new(());
+
+/// 把一段设置合并进 settings.json 并写回，整个读改写都在 `SETTINGS_IO` 里；返回合并后的设置。
+/// 校验不过时不写文件，返回错误。
+fn patch_settings(
+    config_path: &std::path::Path,
+    patch: &serde_json::Value,
+) -> Result<AppSettings, String> {
+    // 锁里只有一个 ()，中毒了也照常用
+    let _io = SETTINGS_IO.lock().unwrap_or_else(PoisonError::into_inner);
+    let settings = merge_settings(load_settings_value(config_path), patch)?;
+    save_settings(config_path, &settings)?;
+    Ok(settings)
+}
+
+/// 把设置写回文件：先合并进原始 JSON，未知键不丢。调用方要持有 `SETTINGS_IO`（见 `patch_settings`）。
 fn save_settings(config_path: &std::path::Path, settings: &AppSettings) -> Result<(), String> {
     let path = settings_path(config_path);
     if let Some(dir) = path.parent() {
@@ -692,11 +771,51 @@ fn save_settings(config_path: &std::path::Path, settings: &AppSettings) -> Resul
         &mut raw,
         &serde_json::to_value(settings).map_err(|e| e.to_string())?,
     );
-    std::fs::write(
-        &path,
-        serde_json::to_vec_pretty(&raw).map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())
+    // 先写同目录的临时文件再改名换掉：不加锁的读者只会读到旧文件或新文件，不会读到写了一半的。
+    // 写入已由 `SETTINGS_IO` 串行化，所以临时文件名固定即可。
+    let tmp = path.with_extension("json.tmp");
+    let bytes = serde_json::to_vec_pretty(&raw).map_err(|e| e.to_string())?;
+    std::fs::write(&tmp, bytes)
+        .and_then(|()| std::fs::rename(&tmp, &path))
+        .map_err(|e| {
+            let _ = std::fs::remove_file(&tmp);
+            e.to_string()
+        })
+}
+
+/// 按界面语言构建托盘菜单；`update` 为新版本号时多一项"安装更新"。
+fn build_tray_menu(
+    app: &AppHandle,
+    lang: text::Lang,
+    update: Option<&str>,
+) -> tauri::Result<Menu<tauri::Wry>> {
+    let t = text::tray_text(lang);
+    let open = MenuItem::with_id(app, "open", t.open, true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", t.quit, true, None::<&str>)?;
+    match update {
+        Some(version) => {
+            let label = text::install_update_label(lang, version);
+            let install = MenuItem::with_id(app, "install-update", label, true, None::<&str>)?;
+            Menu::with_items(app, &[&open, &install, &quit])
+        }
+        None => Menu::with_items(app, &[&open, &quit]),
+    }
+}
+
+/// 读设置里的语言，给托盘换上新菜单。
+fn refresh_tray_menu(app: &AppHandle, update: Option<&str>) {
+    let lang = text::resolve_lang(&load_settings(&app.state::<App>().config_path).lang);
+    let Some(tray) = app.tray_by_id("tray") else {
+        return;
+    };
+    match build_tray_menu(app, lang, update) {
+        Ok(menu) => {
+            if let Err(e) = tray.set_menu(Some(menu)) {
+                eprintln!("更新托盘菜单失败：{e}");
+            }
+        }
+        Err(e) => eprintln!("构建托盘菜单失败：{e}"),
+    }
 }
 
 #[tauri::command]
@@ -705,12 +824,24 @@ fn get_settings(state: State<'_, App>) -> AppSettings {
 }
 
 /// 合并一段设置（只覆盖给出的键），写文件并即时生效。
+/// 设备服务不在（例如正在安装更新）时只保存：服务下次启动按文件生效，不算失败，免得设置页把已保存的值拨回去。
 #[tauri::command]
-fn set_settings(state: State<'_, App>, patch: serde_json::Value) -> Result<AppSettings, String> {
-    let settings = merge_settings(load_settings_value(&state.config_path), &patch)?;
-    save_settings(&state.config_path, &settings)?;
+fn set_settings(
+    app: AppHandle,
+    state: State<'_, App>,
+    patch: serde_json::Value,
+) -> Result<AppSettings, String> {
+    // 校验不过直接报错，文件不动；锁在这一步结束时就放开，下面重建托盘不持锁
+    let settings = patch_settings(&state.config_path, &patch)?;
+    // 语言变了就立刻重建托盘菜单；有可安装的更新时保留"安装更新"项。
+    if patch.get("lang").is_some() {
+        let available = app.state::<update::Updates>().available_version();
+        refresh_tray_menu(&app, available.as_deref());
+    }
     let guard = state.service.lock().map_err(|e| e.to_string())?;
-    let service = guard.as_ref().ok_or("服务未运行")?;
+    let Some(service) = guard.as_ref() else {
+        return Ok(settings);
+    };
     let idle = (settings.idle_minutes > 0)
         .then(|| std::time::Duration::from_secs(settings.idle_minutes * 60));
     if !service.send(Command::SetIdleTimeout(idle))
@@ -942,29 +1073,30 @@ fn show_main(app: &AppHandle) {
     }
 }
 
+/// 打开设置窗口并定位到"更新"一节：托盘"安装更新"和点更新通知都走这里。
+fn show_updates(app: &AppHandle) {
+    show_main(app);
+    if let Err(e) = app.emit("halokey", UiEvent::ShowUpdates) {
+        eprintln!("[halokey] 发送 showUpdates 失败：{e}");
+    }
+}
+
 fn main() {
     // NVIDIA 上 WebKitGTK 的 DMA-BUF 渲染会出现空白窗口；未显式设置时关掉它。
     #[cfg(target_os = "linux")]
     if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     }
-    let path = config_path();
-    let settings = load_settings(&path);
-    let idle_minutes = settings.idle_minutes;
-    let halo_timeout = std::time::Duration::from_secs(settings.halo.timeout_seconds);
-    let initial = match load_keymap(&path) {
-        Ok(map) => map,
-        Err(e) => {
-            eprintln!("配置读取失败，将使用设备表：{e}");
-            None
-        }
-    };
     tauri::Builder::default()
         .manage(App {
             service: Mutex::new(None),
-            config_path: path,
+            config_path: config_path(),
         })
+        .manage(update::Updates::default())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             snapshot,
             get_keymap,
@@ -987,34 +1119,25 @@ fn main() {
             power_info,
             set_sleep_delay,
             set_standby_delay,
-            set_noise_reduction
+            set_noise_reduction,
+            update::update_status,
+            update::check_update,
+            update::install_update,
+            update::open_release_notes
         ])
-        .setup(move |app| {
+        .setup(|app| {
             // macOS：只在菜单栏显示托盘图标，不占 Dock 和 Cmd-Tab。
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-            let handle = app.handle().clone();
             // 调试用：HALOKEY_SHOW_MAIN=1 时启动即显示设置窗口，省去点托盘。
             if std::env::var_os("HALOKEY_SHOW_MAIN").is_some() {
-                show_main(&handle);
+                show_main(app.handle());
             }
-            let service = Service::spawn(
-                Config {
-                    keymap: initial,
-                    dry_run: false,
-                    serial: None,
-                    idle_timeout: (idle_minutes > 0)
-                        .then(|| std::time::Duration::from_secs(idle_minutes * 60)),
-                    halo_timeout,
-                },
-                Backends::platform(),
-                Box::new(move |event| forward(&handle, event)),
-            );
+            let service = spawn_service(app.handle());
             *app.state::<App>().service.lock().expect("state lock") = Some(service);
 
-            let open = MenuItem::with_id(app, "open", "打开设置", true, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&open, &quit])?;
+            let lang = text::resolve_lang(&load_settings(&app.state::<App>().config_path).lang);
+            let menu = build_tray_menu(app.handle(), lang, None)?;
             TrayIconBuilder::with_id("tray")
                 .icon(TRAY_ICON)
                 .icon_as_template(cfg!(target_os = "macos"))
@@ -1023,6 +1146,7 @@ fn main() {
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "open" => show_main(app),
+                    "install-update" => show_updates(app),
                     "quit" => quit_app(app),
                     _ => {}
                 })
@@ -1036,6 +1160,18 @@ fn main() {
                     }
                 })
                 .build(app)?;
+            // 点更新通知（应用只发这一种通知）与点托盘"安装更新"相同。插件只给注册之后发出的通知
+            // 报告点击，所以在后台检查开始前注册；平台不报告点击时通知照常显示，只是点了没反应。
+            let handle = app.handle().clone();
+            if let Err(e) = app.notification().on_action(move |action| {
+                if action.action_id() == "tap" {
+                    show_updates(&handle);
+                }
+            }) {
+                eprintln!("[halokey] 注册通知点击回调失败：{e}");
+            }
+            // 托盘建好之后再开始后台检查，发现新版本时才有托盘可改。
+            update::spawn_loop(app.handle().clone());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -1182,6 +1318,131 @@ mod tests {
     }
 
     #[test]
+    fn old_settings_files_keep_their_values_and_gain_defaults() {
+        let merged = merge_settings(
+            serde_json::json!({ "idleMinutes": 10, "lang": "fr" }),
+            &serde_json::json!({}),
+        )
+        .unwrap();
+        assert_eq!(merged.idle_minutes, 10);
+        assert!(matches!(text::resolve_lang(&merged.lang), text::Lang::En));
+        assert!(merged.updates.auto_check);
+        assert_eq!(merged.updates.notified_version, None);
+        let off = merge_settings(
+            serde_json::json!({}),
+            &serde_json::json!({ "updates": { "autoCheck": false } }),
+        )
+        .unwrap();
+        assert!(!off.updates.auto_check);
+        assert_eq!(
+            serde_json::to_value(&off).unwrap()["updates"]["notifiedVersion"],
+            serde_json::Value::Null
+        );
+    }
+
+    #[test]
+    fn readers_never_see_a_half_written_settings_file() {
+        // 读设置的路径不加锁（托盘、后台检查、重启设备服务）：写入必须是"整个换掉"，
+        // 读到的要么是旧文件、要么是新文件，不能是空的或写了一半的。
+        let dir = std::env::temp_dir().join(format!(
+            "halokey-settings-atomic-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let config = dir.join("keymap.json");
+        patch_settings(&config, &serde_json::json!({ "idleMinutes": 1 })).unwrap();
+        let path = settings_path(&config);
+        let stop = std::sync::atomic::AtomicBool::new(false);
+        let torn = std::thread::scope(|s| {
+            s.spawn(|| {
+                for i in 2..=400u64 {
+                    patch_settings(&config, &serde_json::json!({ "idleMinutes": i % 1000 }))
+                        .unwrap();
+                }
+                stop.store(true, std::sync::atomic::Ordering::SeqCst);
+            });
+            let reader = s.spawn(|| {
+                let mut torn = 0u32;
+                while !stop.load(std::sync::atomic::Ordering::SeqCst) {
+                    let bytes = std::fs::read(&path).unwrap_or_default();
+                    if serde_json::from_slice::<serde_json::Value>(&bytes).is_err() {
+                        torn += 1;
+                    }
+                }
+                torn
+            });
+            reader.join().unwrap()
+        });
+        let leftovers: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|n| n != "settings.json")
+            .collect();
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(torn, 0, "读到了空的或写了一半的 settings.json");
+        assert!(leftovers.is_empty(), "留下了临时文件：{leftovers:?}");
+    }
+
+    #[test]
+    fn concurrent_settings_patches_do_not_lose_each_other() {
+        // 两条读改写路径（设置页、记录已通知版本）同时写：每一次都要基于最新的文件，
+        // 最后两边的最后一次改动都在，未知键也还在。
+        let dir = std::env::temp_dir().join(format!(
+            "halokey-settings-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let config = dir.join("keymap.json");
+        std::fs::write(settings_path(&config), r#"{ "future": 1 }"#).unwrap();
+        const ROUNDS: u64 = 200;
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                for i in 1..=ROUNDS {
+                    patch_settings(&config, &serde_json::json!({ "idleMinutes": i })).unwrap();
+                }
+            });
+            s.spawn(|| {
+                for i in 1..=ROUNDS {
+                    let patch =
+                        serde_json::json!({ "updates": { "notifiedVersion": format!("0.0.{i}") } });
+                    patch_settings(&config, &patch).unwrap();
+                }
+            });
+        });
+        let raw = load_settings_value(&config);
+        let settings = load_settings(&config);
+        // 校验不过：报错，文件不动
+        let rejected = patch_settings(&config, &serde_json::json!({ "idleMinutes": 99999 }));
+        let after = load_settings_value(&config);
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(settings.idle_minutes, ROUNDS);
+        assert_eq!(
+            settings.updates.notified_version.as_deref(),
+            Some(format!("0.0.{ROUNDS}").as_str())
+        );
+        assert_eq!(raw["future"], 1);
+        assert!(rejected.is_err());
+        assert_eq!(after, raw);
+    }
+
+    #[test]
+    fn show_updates_event_matches_the_frontend_contract() {
+        assert_eq!(
+            serde_json::to_value(UiEvent::ShowUpdates).unwrap(),
+            serde_json::json!({ "kind": "showUpdates" })
+        );
+    }
+
+    #[test]
     fn validate_keymap_accepts_examples_and_rejects_bad_shapes() {
         let good: serde_json::Value =
             serde_json::from_str(include_str!("../../../docs/examples/halo-menu.json")).unwrap();
@@ -1220,5 +1481,20 @@ mod tests {
         // PNG 的 IHDR 紧跟 8 字节签名：长度 4 + 类型 4，宽度在第 16..20 字节（大端）。
         let width = u32::from_be_bytes(png[16..20].try_into().unwrap());
         assert!(width >= 128, "{first_png} 只有 {width}px");
+    }
+
+    #[test]
+    fn updater_is_configured_for_github_releases() {
+        let conf = tauri_conf();
+        assert_eq!(conf["bundle"]["createUpdaterArtifacts"], true);
+        let up = &conf["plugins"]["updater"];
+        assert_eq!(
+            up["endpoints"],
+            serde_json::json!([
+                "https://github.com/jiangzhuo/halokey/releases/latest/download/latest.json"
+            ])
+        );
+        assert_eq!(up["windows"]["installMode"], "passive");
+        assert!(up["pubkey"].as_str().is_some_and(|k| k.len() > 40));
     }
 }

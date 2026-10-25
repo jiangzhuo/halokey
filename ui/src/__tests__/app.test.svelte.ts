@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { mount, unmount, flushSync } from "svelte";
 import App from "../App.svelte";
-import { api } from "../lib/tauri";
+import { api, resetMocks } from "../lib/tauri";
 import { setLang } from "../lib/i18n";
 
 let app: ReturnType<typeof mount> | undefined;
@@ -17,6 +17,19 @@ describe("App", () => {
     flushSync();
     expect(document.body.textContent).toContain("Enter");
     expect(document.body.textContent).toContain("保存到本机");
+  });
+
+  it("syncs the interface language to settings on start and on change", async () => {
+    resetMocks();
+    setLang("en");
+    const spy = vi.spyOn(api, "setSettings");
+    app = mount(App, { target: document.body });
+    await tick();
+    expect(spy).toHaveBeenCalledWith({ lang: "en" });
+    setLang("ja");
+    await tick();
+    expect(spy).toHaveBeenLastCalledWith({ lang: "ja" });
+    setLang("en"); // 复位模块级语言状态，免得影响后面的用例
   });
 
   it("shows the backend's last error and lets the user dismiss it", async () => {

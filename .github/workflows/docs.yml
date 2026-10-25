@@ -17,5 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check English/Chinese document pairs
         run: python3 tools/check_docs.py
+      - name: Tooling unit tests
+        run: python3 -m unittest discover -s tools/tests -v
       - name: Whitespace
         run: git diff --check HEAD~1 HEAD || true

@@ -28,7 +28,7 @@ cargo run -p halokey-app --no-default-features   # tray app (dev: loads the Vite
 
 `docs/examples/halo-menu.json` puts a two-level halo menu on the knob press; copy it to `~/.config/halokey/keymap.json` or paste it into the settings window.
 
-To install on Debian/Ubuntu: `cargo tauri build --bundles deb` in `apps/halokey`, then `sudo dpkg -i target/release/bundle/deb/halokey_*.deb` and replug the receiver so the bundled udev rule applies.
+To install on Debian/Ubuntu, use the `.deb` from the GitHub Releases page (x86_64 and arm64), or build it locally: `cargo tauri build --bundles deb --no-sign` in `apps/halokey`, then `sudo dpkg -i target/release/bundle/deb/halokey_*.deb` and replug the receiver so the bundled udev rule applies. AppImage is not built: it cannot install the udev rule.
 
 To install on macOS: `cargo tauri build --bundles dmg` in `apps/halokey`, open the `.dmg` from `target/release/bundle/dmg/` and drag halokey into Applications. The app is ad-hoc signed and not notarized, so the first launch of a downloaded copy is blocked: open System Settings → Privacy & Security and click Open Anyway. halokey then asks for Accessibility permission, which it needs to send keys and mouse events; allow it under Privacy & Security → Accessibility, wait a couple of seconds, then press a key and it takes effect, no restart needed. The app lives in the menu bar, not the Dock.
 
@@ -53,7 +53,17 @@ Ulanzi Studio supports only Windows and macOS. Every community project so far is
 | Host actions: keyboard, mouse buttons, wheel, pointer movement, app switching, macros, shell | all but shell commands work on Linux X11 via `halokey run`; shell commands are planned |
 | Radial "halo" menu: an eight-option overlay driven by the knob | **done** on Linux: `halos` in the keymap, nested menus, verified on GNOME/X11 |
 | Lighting, noise reduction, standby timeouts, battery readout | **done**: lighting, noise reduction, microphone switch, standby and sleep delays, battery, versions; plus an idle handoff so the unit can actually sleep |
-| Tray / menu bar icon, launch at login, auto-update | tray icon, settings window and login autostart done (`apps/halokey`, Tauri 2); auto-update planned |
+| Tray / menu bar icon, launch at login, auto-update | **done** (`apps/halokey`, Tauri 2): tray icon, settings window, login autostart; installed builds check for updates, notify, and install after you confirm |
+
+## Updates and releases
+
+Installed builds (Linux deb, macOS .app, Windows NSIS/MSI) check `https://github.com/jiangzhuo/halokey/releases/latest/download/latest.json` 30 seconds after start and every 6 hours. This is on by default and can be turned off in Settings ("Check for updates automatically"); a "Check for updates" button checks on demand. Each new version brings one system notification; while it is available, the tray also shows an "Install update vX.Y.Z…" item and Settings → Updates shows it with a release-notes link. After you confirm, halokey downloads the update, verifies its signature, installs it and restarts. Builds run from source (`cargo run`, `target/*/halokey-app`) never check for updates. The tray menu and the notification follow the interface language.
+
+- Linux deb updates ask for the administrator password once (a system authorization dialog). If you cancel it, the updater plugin may ask again with a fallback prompt and then report a failed install rather than "cancelled".
+- macOS builds are not signed with an Apple Developer ID, so after an update macOS may stop honoring the Accessibility permission granted earlier, even though it still looks enabled in System Settings. If the keys or the knob stop working after an update, remove halokey from System Settings → Privacy & Security → Accessibility and add it again.
+- The first release that contains the updater is the baseline; anything installed before it has to be updated manually once.
+
+To release (maintainers): bump the version in `apps/halokey/tauri.conf.json` and the root `Cargo.toml` (`[workspace.package] version`), commit, and push a `vX.Y.Z` tag. CI checks the tag against both versions and the release job fails if they differ, so bump both and commit before tagging. CI builds signed deb (x86_64, arm64), macOS .app/.dmg (arm64, x86_64) and Windows NSIS/MSI, generates `latest.json` and creates a draft release. Check the draft on GitHub and publish it; users only receive the update after it is published. Local `cargo tauri build` fails without `TAURI_SIGNING_PRIVATE_KEY` because update artifacts are on; add `--no-sign` for local builds (it skips the update signature, fine for local use).
 
 ## Platform matrix
 

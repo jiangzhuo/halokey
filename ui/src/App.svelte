@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import TopBar from "./components/TopBar.svelte";
   import Keymap from "./pages/Keymap.svelte";
   import Settings from "./pages/Settings.svelte";
   import HaloEditor from "./pages/HaloEditor.svelte";
   import MacroEditor from "./pages/MacroEditor.svelte";
   import { api, subscribe, type UiSnapshot } from "./lib/tauri";
-  import { t } from "./lib/i18n";
+  import { lang, t } from "./lib/i18n";
   import { initialDraft, loadSaved, assignAction, select, type Draft, type Selection } from "./model/draft";
 
   let page = $state<"keymap" | "settings" | "halo" | "macro">("keymap");
@@ -61,12 +61,17 @@
   onMount(() => {
     refresh();
     const timer = setInterval(refresh, 2000);
-    const relang = () => { langTick++; };
+    // 界面语言存进 settings.json，托盘菜单和通知据此显示（失败只记日志，不影响界面）。
+    const syncLang = () => { api.setSettings({ lang: lang() }).catch((e) => console.error(e)); };
+    const relang = () => { langTick++; syncLang(); };
+    syncLang();
     window.addEventListener("halokey-lang", relang);
     let un: (() => void) | undefined;
     subscribe((e) => {
       if (e.kind === "connected") api.getKeymap().then((m) => { draft = loadSaved(draft, m); });
       if (e.kind === "layers") activeLayers = e.active;
+      // 托盘菜单 / 通知点击：切到设置页并滚到"更新"一节。
+      if (e.kind === "showUpdates") { editing = null; page = "settings"; tick().then(() => document.getElementById("updates")?.scrollIntoView()); }
       // 不等下一次轮询：马上显示，之前点掉过同样的文本也重新显示。
       if (e.kind === "error") { errorSeq++; eventError = e.text; dismissedError = null; }
     }).then((u) => { un = u; });

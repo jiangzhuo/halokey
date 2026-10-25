@@ -5,8 +5,9 @@ on:
   push:
     tags: ["v*"]
 
+# 顶层只读；需要写权限的 publish job 单独声明
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   bundle:
@@ -19,46 +20,112 @@ jobs:
         include:
           - name: linux-x86_64
             os: ubuntu-22.04
-            args: "--bundles deb,appimage"
+            args: "--bundles deb"
+          - name: linux-aarch64
+            os: ubuntu-22.04-arm
+            args: "--bundles deb"
           - name: macos-arm64
             os: macos-latest
-            args: "--target aarch64-apple-darwin --bundles dmg"
+            args: "--target aarch64-apple-darwin --bundles app,dmg"
           - name: macos-x86_64
             os: macos-latest
-            args: "--target x86_64-apple-darwin --bundles dmg"
+            args: "--target x86_64-apple-darwin --bundles app,dmg"
           - name: windows-x86_64
             os: windows-latest
             args: "--bundles msi,nsis"
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      # 第三方 action 固定到提交（这个工作流要读签名私钥、发布更新清单，不能跟着可变的标签走）
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
+          toolchain: stable
           targets: ${{ contains(matrix.args, 'aarch64-apple-darwin') && 'aarch64-apple-darwin' || contains(matrix.args, 'x86_64-apple-darwin') && 'x86_64-apple-darwin' || '' }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Linux system libraries for Tauri
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev patchelf
       - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2.12" --locked
+        run: cargo install tauri-cli --version "=2.12.3" --locked
+      # beforeBuildCommand 会在 ui/ 跑 npm run build，需要先装前端依赖
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: Install frontend dependencies
+        shell: bash
+        working-directory: ui
+        run: npm ci
+      # 不能加 --no-sign：它会同时跳过更新包签名（.sig）
       - name: Build bundles
         working-directory: apps/halokey
-        run: cargo tauri build --no-sign ${{ matrix.args }}
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: cargo tauri build ${{ matrix.args }}
       - name: Collect bundles
         shell: bash
         run: |
+          set -euo pipefail
           mkdir -p dist
-          find target -path '*/bundle/*' \( -name '*.deb' -o -name '*.AppImage' -o -name '*.dmg' -o -name '*.msi' -o -name '*-setup.exe' \) -exec cp {} dist/ \;
+          # 安装包/更新包及其 .sig（不再收集 AppImage）
+          find target -path '*/bundle/*' \( -name '*.deb' -o -name '*.dmg' -o -name '*.msi' -o -name '*-setup.exe' \) -exec cp {} dist/ \;
+          find target -path '*/bundle/*' \( -name '*.deb.sig' -o -name '*.msi.sig' -o -name '*-setup.exe.sig' \) -exec cp {} dist/ \;
+          # macOS 更新包固定叫 halokey.app.tar.gz，按架构改名以区分
+          case "${{ matrix.name }}" in
+            macos-arm64) arch=aarch64; triple=aarch64-apple-darwin ;;
+            macos-x86_64) arch=x64; triple=x86_64-apple-darwin ;;
+            *) arch=; triple= ;;
+          esac
+          if [ -n "$arch" ]; then
+            version=$(python3 -c "import json; print(json.load(open('apps/halokey/tauri.conf.json'))['version'])")
+            src="target/$triple/release/bundle/macos"
+            cp "$src/halokey.app.tar.gz" "dist/halokey_${version}_${arch}.app.tar.gz"
+            cp "$src/halokey.app.tar.gz.sig" "dist/halokey_${version}_${arch}.app.tar.gz.sig"
+          fi
           ls -la dist
       - uses: actions/upload-artifact@v4
         with:
           name: halokey-${{ matrix.name }}
           path: dist/*
           if-no-files-found: error
+
+  publish:
+    name: Publish
+    needs: bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      # 标签触发：版本取自标签，生成 latest.json 并附到草稿 release
+      - name: Generate latest.json (tag)
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        # 标签名经环境变量传入并加引号，不直接拼进脚本（防止 `v$(…)` 这类标签被 shell 执行）
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python3 tools/make_latest_json.py --artifacts dist --out dist/latest.json --tag "$RELEASE_TAG"
       - name: Attach to release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           draft: true
           files: dist/*
+      # 手动触发：版本取自 tauri.conf.json，只上传 latest.json 供检查，不发 release
+      - name: Generate latest.json (manual)
+        if: github.event_name == 'workflow_dispatch'
+        run: python3 tools/make_latest_json.py --artifacts dist --out dist/latest.json --version-from-conf
+      - name: Upload latest.json
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: latest-json
+          path: dist/latest.json
+          if-no-files-found: error
