@@ -1,7 +1,7 @@
 //! 防漏：会显示到界面上的后端文案必须三语（写在 `tr!` 里），不能只有中文。
 //!
 //! 扫描应用和各库 crate 的源码，找出含中文的字符串字面量，要求它们位于 `tr!(…)` 之内。
-//! 例外：注释、`#[cfg(test)]` 之后的测试代码、只进终端的日志（`eprintln!` / `println!`）、
+//! 例外：注释、`#[cfg(test)]` 修饰的测试代码、只进终端的日志（`eprintln!` / `println!`）、
 //! 程序不变量（`expect` / `panic!` 等）；命令行工具 `halokey-cli` 的输出只有中文，不扫；
 //! `apps/halokey/src/text.rs` 按调用方给的语言分别写出三语，也不扫。
 
@@ -181,23 +181,66 @@ fn enclosing_call(lexed: &Lexed, at: usize) -> Option<String> {
     None
 }
 
-/// 截掉 `#[cfg(test)]` 之后的部分（本仓库的测试模块都放在文件末尾）。
-fn without_tests(src: &str) -> &str {
-    let mut offset = 0;
-    for line in src.split_inclusive('\n') {
-        if line.trim() == "#[cfg(test)]" {
-            return &src[..offset];
+/// `#[cfg(test)]` 修饰的条目（测试模块、测试函数）所占的范围：从属性到条目末尾的 `}`，
+/// 没有花括号的条目（如 `use`）到 `;`。测试模块后面还可能有正式代码，那些照常扫描。
+fn test_items(lexed: &Lexed) -> Vec<(usize, usize)> {
+    let attr: Vec<char> = "#[cfg(test)]".chars().collect();
+    let chars = &lexed.chars;
+    let code = |k: usize| lexed.is_code[k];
+    let mut ranges = Vec::new();
+    let mut i = 0;
+    while i + attr.len() <= chars.len() {
+        if !(code(i) && chars[i..i + attr.len()] == attr[..]) {
+            i += 1;
+            continue;
         }
-        offset += line.len();
+        let start = i;
+        let mut j = i + attr.len();
+        // 找条目体的开头：圆括号、方括号外的第一个 `{` 或 `;`
+        let mut nesting = 0i32;
+        while j < chars.len() {
+            if code(j) {
+                match chars[j] {
+                    '(' | '[' => nesting += 1,
+                    ')' | ']' => nesting -= 1,
+                    '{' | ';' if nesting == 0 => break,
+                    _ => {}
+                }
+            }
+            j += 1;
+        }
+        if j < chars.len() && chars[j] == '{' {
+            let mut depth = 0i32;
+            while j < chars.len() {
+                if code(j) {
+                    match chars[j] {
+                        '{' => depth += 1,
+                        '}' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                j += 1;
+            }
+        }
+        let end = (j + 1).min(chars.len());
+        ranges.push((start, end));
+        i = end;
     }
-    src
+    ranges
 }
 
 fn offenders(src: &str) -> Vec<String> {
-    let lexed = lex(without_tests(src));
+    let lexed = lex(src);
+    let tests = test_items(&lexed);
     lexed
         .strings
         .iter()
+        .filter(|&&(s, _)| !tests.iter().any(|&(a, b)| (a..b).contains(&s)))
         .filter(|&&(s, e)| lexed.chars[s..e].iter().any(|&c| is_cjk(c)))
         .filter(|&&(s, _)| {
             enclosing_call(&lexed, s).is_none_or(|call| !ALLOWED_CALLS.contains(&call.as_str()))
@@ -255,9 +298,18 @@ fn f(e: &str) -> String {
     format!("只有中文：{e}")
 }
 #[cfg(test)]
-mod tests { const X: &str = "测试里随便写"; }
+mod tests {
+    const X: &str = "测试里随便写";
+    fn g() { let _ = ["{", "}"]; }
+}
+#[cfg(test)]
+fn helper(_: [u8; 2]) -> &'static str { "测试函数也不算" }
+fn after_tests() -> String {
+    "测试模块后面的正式代码照样要查".into()
+}
 "#;
     let found = offenders(src);
-    assert_eq!(found.len(), 1, "{found:?}");
+    assert_eq!(found.len(), 2, "{found:?}");
     assert!(found[0].starts_with("9: \"只有中文"), "{found:?}");
+    assert!(found[1].starts_with("19: \"测试模块后面"), "{found:?}");
 }
