@@ -8,6 +8,7 @@ repository.workspace = true
 authors.workspace = true
 
 [dependencies]
+halokey-i18n = { path = "../i18n" }
 halokey-host = { path = "../host" }
 halokey-proto = { path = "../proto" }
 

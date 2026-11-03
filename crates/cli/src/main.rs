@@ -128,6 +128,8 @@ enum OnOff {
 }
 
 fn main() {
+    // 命令行工具自己的输出只有中文，库里的文案（报错等）也用中文，保持一致
+    halokey_i18n::set(halokey_i18n::Lang::Zh);
     let cli = Cli::parse();
     if let Err(e) = run(cli) {
         eprintln!("✗ {e}");

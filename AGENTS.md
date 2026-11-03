@@ -12,6 +12,7 @@
 | 代码注释 | 中文 |
 | 提交信息 | **英文**（仓库公开） |
 | 文档 | **中英双语（强制）** |
+| 界面上会看到的文案 | **中英日三语**：前端用 `t()`，后端用 `halokey_i18n::tr!(中文, English, 日本語)` |
 
 ## 2. 文档双语规则
 
@@ -81,5 +82,6 @@ Rust workspace + Tauri 2；前端在 `ui/`，Svelte 5 + Vite + TypeScript（`npm
 - The root README also has a Japanese version (`README.ja.md`); keep all three READMEs in sync.
 - Never translate hex, byte sequences, commands, paths, symbols, error codes or the `[CONFIRMED]` / `[INFERRED]` tags.
 - Platform-specific code is confined to the adapter crates and the Tauri app.
+- Any backend text that can reach the UI (errors, status, prompts) is written as `halokey_i18n::tr!(zh, en, ja)`; a test fails on Chinese-only literals. Terminal logs and `halokey-cli` output are exempt.
 - Device-unique identifiers are never published.
 - Follow the pitfalls in §5 and the safety rules in §6.

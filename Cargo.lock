@@ -1610,6 +1610,7 @@ name = "halokey-app"
 version = "0.1.3"
 dependencies = [
  "halokey-host",
+ "halokey-i18n",
  "halokey-proto",
  "halokey-runtime",
  "halokey-wm",
@@ -1631,6 +1632,7 @@ dependencies = [
  "ctrlc",
  "halokey-hid",
  "halokey-host",
+ "halokey-i18n",
  "halokey-input",
  "halokey-proto",
  "halokey-runtime",
@@ -1642,6 +1644,7 @@ dependencies = [
 name = "halokey-hid"
 version = "0.1.3"
 dependencies = [
+ "halokey-i18n",
  "halokey-proto",
  "hidapi",
 ]
@@ -1650,10 +1653,15 @@ dependencies = [
 name = "halokey-host"
 version = "0.1.3"
 dependencies = [
+ "halokey-i18n",
  "halokey-proto",
  "serde",
  "serde_json",
 ]
+
+[[package]]
+name = "halokey-i18n"
+version = "0.1.3"
 
 [[package]]
 name = "halokey-input"
@@ -1663,6 +1671,7 @@ dependencies = [
  "core-graphics",
  "evdev",
  "halokey-host",
+ "halokey-i18n",
  "halokey-proto",
  "windows",
 ]
@@ -1670,6 +1679,9 @@ dependencies = [
 [[package]]
 name = "halokey-proto"
 version = "0.1.3"
+dependencies = [
+ "halokey-i18n",
+]
 
 [[package]]
 name = "halokey-runtime"
@@ -1677,6 +1689,7 @@ version = "0.1.3"
 dependencies = [
  "halokey-hid",
  "halokey-host",
+ "halokey-i18n",
  "halokey-input",
  "halokey-proto",
  "halokey-wm",
@@ -1687,6 +1700,7 @@ name = "halokey-wm"
 version = "0.1.3"
 dependencies = [
  "halokey-host",
+ "halokey-i18n",
  "objc2-app-kit",
  "objc2-foundation",
  "serde",

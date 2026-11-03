@@ -20,6 +20,7 @@ use core_graphics::event::{
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 use core_graphics::geometry::CGPoint;
 use halokey_host::KeyEntry;
+use halokey_i18n::tr;
 use halokey_proto::MouseCode;
 
 use crate::hid_usage::macos_keycode;
@@ -74,12 +75,19 @@ impl CgEventInjector {
         static PROMPTED: AtomicBool = AtomicBool::new(false);
         let prompt = !PROMPTED.swap(true, Ordering::Relaxed);
         if !accessibility_trusted(prompt) {
-            return Err(io_err(
+            return Err(io_err(&tr!(
                 "没有辅助功能权限：请在「系统设置 → 隐私与安全性 → 辅助功能」里允许 HaloKey（如果列表里的 HaloKey 已经是打开的，例如刚更新过，请先用「−」删掉再重新添加），授权后等两三秒再按一下键即可生效",
-            ));
+                "No Accessibility permission: allow HaloKey under System Settings → Privacy & Security → Accessibility (if HaloKey is already listed and on, for example right after an update, remove it with \"−\" and add it again). After granting, wait a couple of seconds and press a key; it takes effect without a restart",
+                "アクセシビリティの権限がありません：「システム設定 → プライバシーとセキュリティ → アクセシビリティ」で HaloKey を許可してください（一覧の HaloKey がすでにオンの場合、たとえばアップデート直後は「−」で削除してから追加し直してください）。許可したら数秒待ってからキーを押すと有効になります"
+            )));
         }
-        let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
-            .map_err(|()| io_err("无法创建 CGEventSource"))?;
+        let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState).map_err(|()| {
+            io_err(&tr!(
+                "无法创建 CGEventSource",
+                "Could not create a CGEventSource",
+                "CGEventSource を作成できません"
+            ))
+        })?;
         Ok(CgEventInjector {
             source,
             held_flags: CGEventFlags::CGEventFlagNull,
@@ -95,8 +103,13 @@ impl CgEventInjector {
         } else {
             self.held_flags &= !flag;
         }
-        let event = CGEvent::new_keyboard_event(self.source.clone(), code, down)
-            .map_err(|()| io_err("无法创建键盘事件"))?;
+        let event = CGEvent::new_keyboard_event(self.source.clone(), code, down).map_err(|()| {
+            io_err(&tr!(
+                "无法创建键盘事件",
+                "Could not create a keyboard event",
+                "キーボードイベントを作成できません"
+            ))
+        })?;
         // F 键要带 function 标志；修饰键本身用 flagsChanged 语义由系统处理。
         let mut flags = self.held_flags;
         if matches!(entry.code, 0x3A..=0x45 | 0x68..=0x73) {
@@ -108,7 +121,13 @@ impl CgEventInjector {
     }
 
     fn location(&self) -> Result<CGPoint, Error> {
-        let probe = CGEvent::new(self.source.clone()).map_err(|()| io_err("无法读取指针位置"))?;
+        let probe = CGEvent::new(self.source.clone()).map_err(|()| {
+            io_err(&tr!(
+                "无法读取指针位置",
+                "Could not read the pointer position",
+                "ポインターの位置を取得できません"
+            ))
+        })?;
         Ok(probe.location())
     }
 
@@ -123,8 +142,15 @@ impl CgEventInjector {
             _ => return Err(Error::UnmappedKey(button)),
         };
         let point = self.location()?;
-        let event = CGEvent::new_mouse_event(self.source.clone(), kind, point, cg_button)
-            .map_err(|()| io_err("无法创建鼠标事件"))?;
+        let event = CGEvent::new_mouse_event(self.source.clone(), kind, point, cg_button).map_err(
+            |()| {
+                io_err(&tr!(
+                    "无法创建鼠标事件",
+                    "Could not create a mouse event",
+                    "マウスイベントを作成できません"
+                ))
+            },
+        )?;
         if button >= 3 {
             // 按钮 3–5 走 OtherMouse，按钮编号字段从 2 起（0 左、1 右、2 中）。
             event.set_integer_value_field(
@@ -180,7 +206,13 @@ impl Injector for CgEventInjector {
             horizontal,
             0,
         )
-        .map_err(|()| io_err("无法创建滚轮事件"))?;
+        .map_err(|()| {
+            io_err(&tr!(
+                "无法创建滚轮事件",
+                "Could not create a scroll event",
+                "スクロールイベントを作成できません"
+            ))
+        })?;
         event.post(CGEventTapLocation::HID);
         Ok(())
     }
@@ -194,7 +226,13 @@ impl Injector for CgEventInjector {
             CGEventType::MouseMoved
         };
         let event = CGEvent::new_mouse_event(self.source.clone(), kind, point, CGMouseButton::Left)
-            .map_err(|()| io_err("无法创建移动事件"))?;
+            .map_err(|()| {
+                io_err(&tr!(
+                    "无法创建移动事件",
+                    "Could not create a pointer-move event",
+                    "ポインター移動イベントを作成できません"
+                ))
+            })?;
         event.post(CGEventTapLocation::HID);
         Ok(())
     }

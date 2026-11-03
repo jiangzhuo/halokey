@@ -50,11 +50,12 @@ fn brightness_above_20_is_rejected() {
             HostKeymap::from_json(json),
             Err(Error::InvalidLightingCount)
         ),
-        "三盏灯的记录必须被拒绝，并给中文错误"
+        "三盏灯的记录必须被拒绝"
     );
+    // 文案跟随界面语言，未设置时为英文
     assert_eq!(
         Error::InvalidLightingCount.to_string(),
-        "背光记录必须有四盏灯。"
+        "A backlight entry must cover four lights."
     );
 }
 

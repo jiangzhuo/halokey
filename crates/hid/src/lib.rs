@@ -13,6 +13,7 @@ use std::ffi::CString;
 use std::fmt;
 use std::time::{Duration, Instant};
 
+use halokey_i18n::tr;
 use halokey_proto::frame::{self, Plaintext};
 use halokey_proto::{keyconfig, status, Battery, KeyConfigReply, KeyEntry};
 
@@ -41,13 +42,23 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Hid(e) => write!(f, "HID 错误：{e}"),
-            Error::NoDevice => f.write_str("没有找到 Vibe Key 接收器的厂商通道接口"),
-            Error::Timeout => f.write_str("设备没有在限定时间内回复"),
-            Error::Protocol(e) => write!(f, "协议错误：{e}"),
-            Error::ReadbackMismatch { expected, actual } => {
-                write!(f, "写入后读回不一致：期望 {expected:?}，实际 {actual:?}")
-            }
+            Error::Hid(e) => f.write_str(&tr!("HID 错误：{e}", "HID error: {e}", "HID エラー：{e}")),
+            Error::NoDevice => f.write_str(&tr!(
+                "没有找到 Vibe Key 接收器的厂商通道接口",
+                "Vibe Key receiver not found (no vendor-channel interface)",
+                "Vibe Key レシーバーが見つかりません（ベンダーチャネルのインターフェースがありません）"
+            )),
+            Error::Timeout => f.write_str(&tr!(
+                "设备没有在限定时间内回复",
+                "The device did not reply in time",
+                "デバイスが時間内に応答しませんでした"
+            )),
+            Error::Protocol(e) => f.write_str(&tr!("协议错误：{e}", "Protocol error: {e}", "プロトコルエラー：{e}")),
+            Error::ReadbackMismatch { expected, actual } => f.write_str(&tr!(
+                "写入后读回不一致：期望 {expected:?}，实际 {actual:?}",
+                "Read-back after write does not match: expected {expected:?}, got {actual:?}",
+                "書き込み後の読み戻しが一致しません：期待値 {expected:?}、実際 {actual:?}"
+            )),
         }
     }
 }

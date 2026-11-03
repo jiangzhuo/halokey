@@ -11,6 +11,7 @@ authors.workspace = true
 path = "src/lib.rs"
 
 [dependencies]
+halokey-i18n = { path = "../i18n" }
 
 [lints]
 workspace = true

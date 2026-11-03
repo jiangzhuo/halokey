@@ -17,6 +17,8 @@ Design notes for HaloKey. Everything here is a plan unless marked **[CONFIRMED]*
 ## 2. Crates
 
 ```text
+crates/i18n      language of user-facing backend messages (zh / en / ja). The app sets it from the
+                 interface language; every crate writes such messages with `tr!(zh, en, ja)`.
 crates/proto     TEA (32 rounds, ECB, little-endian halves), 64-byte frames, command table,
                  key-config codec, entry types 0x02 / 0x03 / 0x07. No I/O, no platform code.
 crates/hid       hidapi transport. Opens interface 3 (usage page 0xFFFC), writes report ID 0x55
@@ -34,7 +36,7 @@ apps/halokey     Tauri 2: tray, settings window (webview), halo overlay window, 
 ui/              Svelte 5 + Vite front end for both windows (`index.html`, `halo.html` → `ui/dist`)
 ```
 
-Dependency direction is strictly downward: `apps` → `runtime` → `host` → `proto`; `hid`, `input`, `wm` are leaves that `runtime` wires together.
+Dependency direction is strictly downward: `apps` → `runtime` → `host` → `proto`; `hid`, `input`, `wm` are leaves that `runtime` wires together. Every crate depends on `i18n`, which depends on nothing.
 
 ## 3. Data flow
 

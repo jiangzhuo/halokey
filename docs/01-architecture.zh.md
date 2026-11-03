@@ -17,6 +17,8 @@ HaloKey 的设计笔记。除非标注 **[CONFIRMED]**（表示在真机上实�
 ## 2. Crate 划分
 
 ```text
+crates/i18n      后端用户可见文案的语言（zh / en / ja）。应用按界面语言设置它；
+                 各 crate 用 `tr!(中文, English, 日本語)` 写这类文案。
 crates/proto     TEA（32 轮、ECB、小端半字）、64 字节帧、命令表、
                  按键配置编解码、条目类型 0x02 / 0x03 / 0x07。无 I/O，无平台代码。
 crates/hid       hidapi 传输。打开接口 3（usage page 0xFFFC），写 report ID 0x55
@@ -34,7 +36,7 @@ apps/halokey     Tauri 2：托盘、设置窗（webview）、光环悬浮窗、C
 ui/              两个窗口共用的 Svelte 5 + Vite 前端（`index.html`、`halo.html` → `ui/dist`）
 ```
 
-依赖方向严格向下：`apps` → `runtime` → `host` → `proto`；`hid`、`input`、`wm` 是叶子，由 `runtime` 组装。
+依赖方向严格向下：`apps` → `runtime` → `host` → `proto`；`hid`、`input`、`wm` 是叶子，由 `runtime` 组装。各 crate 都依赖 `i18n`，它不依赖任何东西。
 
 ## 3. 数据流
 

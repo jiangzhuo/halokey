@@ -9,6 +9,7 @@
 #![deny(unsafe_code)]
 
 use halokey_host::{Activation, ApplicationTarget, Launcher};
+use halokey_i18n::tr;
 use serde::{Deserialize, Serialize};
 
 #[cfg(target_os = "macos")]
@@ -50,7 +51,11 @@ pub fn open_default() -> Box<dyn Launcher> {
     #[cfg(not(target_os = "linux"))]
     {
         Box::new(Unavailable {
-            reason: "此平台的切换应用后端尚未实现".into(),
+            reason: tr!(
+                "此平台的切换应用后端尚未实现",
+                "Switching apps is not implemented on this platform yet",
+                "このプラットフォームではアプリの切り替えがまだ実装されていません"
+            ),
         })
     }
 }
@@ -96,7 +101,13 @@ pub struct WindowList {
 fn session_note(wayland_display: Option<&str>, session_type: Option<&str>) -> Option<String> {
     let wayland = wayland_display.is_some_and(|d| !d.is_empty())
         || session_type.is_some_and(|t| t.eq_ignore_ascii_case("wayland"));
-    wayland.then(|| "Wayland 会话：只能列出 XWayland 窗口，原生 Wayland 应用请手填".to_string())
+    wayland.then(|| {
+        tr!(
+            "Wayland 会话：只能列出 XWayland 窗口，原生 Wayland 应用请手填",
+            "Wayland session: only XWayland windows can be listed; enter native Wayland apps by hand",
+            "Wayland セッション：一覧に出せるのは XWayland のウィンドウだけです。ネイティブの Wayland アプリは手入力してください"
+        )
+    })
 }
 
 /// 列出当前顶层窗口；拿不到或可能不全时附上原因（Wayland、无 X 连接、非 Linux）。
@@ -116,8 +127,20 @@ pub fn list_windows() -> WindowList {
             Err(e) => WindowList {
                 windows: Vec::new(),
                 error: Some(note.map_or_else(
-                    || format!("连接 X 服务器失败：{e}"),
-                    |n| format!("{n}（X 连接失败：{e}）"),
+                    || {
+                        tr!(
+                            "连接 X 服务器失败：{e}",
+                            "Could not connect to the X server: {e}",
+                            "X サーバーに接続できません：{e}"
+                        )
+                    },
+                    |n| {
+                        tr!(
+                            "{n}（X 连接失败：{e}）",
+                            "{n} (X connection failed: {e})",
+                            "{n}（X への接続に失敗：{e}）"
+                        )
+                    },
                 )),
             },
         }
@@ -126,7 +149,11 @@ pub fn list_windows() -> WindowList {
     {
         WindowList {
             windows: Vec::new(),
-            error: Some("此平台还没有窗口列表".to_string()),
+            error: Some(tr!(
+                "此平台还没有窗口列表",
+                "Window listing is not available on this platform yet",
+                "このプラットフォームではまだウィンドウ一覧を取得できません"
+            )),
         }
     }
 }
