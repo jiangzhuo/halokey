@@ -1607,7 +1607,7 @@ dependencies = [
 
 [[package]]
 name = "halokey-app"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "halokey-host",
  "halokey-i18n",
@@ -1626,7 +1626,7 @@ dependencies = [
 
 [[package]]
 name = "halokey-cli"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "clap",
  "ctrlc",
@@ -1642,7 +1642,7 @@ dependencies = [
 
 [[package]]
 name = "halokey-hid"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "halokey-i18n",
  "halokey-proto",
@@ -1651,7 +1651,7 @@ dependencies = [
 
 [[package]]
 name = "halokey-host"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "halokey-i18n",
  "halokey-proto",
@@ -1661,11 +1661,11 @@ dependencies = [
 
 [[package]]
 name = "halokey-i18n"
-version = "0.1.3"
+version = "0.1.4"
 
 [[package]]
 name = "halokey-input"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "core-foundation 0.10.1",
  "core-graphics",
@@ -1678,14 +1678,14 @@ dependencies = [
 
 [[package]]
 name = "halokey-proto"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "halokey-i18n",
 ]
 
 [[package]]
 name = "halokey-runtime"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "halokey-hid",
  "halokey-host",
@@ -1697,7 +1697,7 @@ dependencies = [
 
 [[package]]
 name = "halokey-wm"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "halokey-host",
  "halokey-i18n",
