@@ -1,19 +1,11 @@
 //! 托盘菜单与系统通知的三语文案（与界面语言 `en` / `zh` / `ja` 一致）。
+//! 这里按调用方给的语言出文案；报错等其余后端文案用 `halokey_i18n::tr!` 跟随全局语言。
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Lang {
-    En,
-    Zh,
-    Ja,
-}
+pub use halokey_i18n::Lang;
 
 /// 未知取值一律按英文处理（与 UI 的 `resolveLang` 一致）。
 pub fn resolve_lang(s: &str) -> Lang {
-    match s {
-        "zh" => Lang::Zh,
-        "ja" => Lang::Ja,
-        _ => Lang::En,
-    }
+    halokey_i18n::resolve(s)
 }
 
 pub struct TrayText {

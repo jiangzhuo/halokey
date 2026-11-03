@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/proto", "crates/hid", "crates/host", "crates/input", "crates/wm", "crates/runtime", "crates/cli", "apps/halokey"]
+members = ["crates/i18n", "crates/proto", "crates/hid", "crates/host", "crates/input", "crates/wm", "crates/runtime", "crates/cli", "apps/halokey"]
 
 [workspace.package]
 version = "0.1.3"

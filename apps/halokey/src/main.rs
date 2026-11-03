@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 
 use halokey_host::{HostAction, HostKeymap, HostProfile};
+use halokey_i18n::tr;
 use halokey_proto::{IndicatorLight, Lighting};
 use halokey_runtime::{Backends, Command, Config, DeviceInfo, Event, PowerInfo, Service, Snapshot};
 use serde::Serialize;
@@ -235,18 +236,21 @@ fn forward(app: &AppHandle, event: Event) {
 #[tauri::command]
 fn snapshot(state: State<'_, App>) -> Result<UiSnapshot, String> {
     let guard = state.service.lock().map_err(|e| e.to_string())?;
-    let service = guard.as_ref().ok_or("服务未运行")?;
+    let service = guard.as_ref().ok_or_else(service_not_running)?;
     Ok(UiSnapshot::from(service.snapshot(), &state.config_path))
 }
 
 #[tauri::command]
 fn get_keymap(state: State<'_, App>) -> Result<serde_json::Value, String> {
     let guard = state.service.lock().map_err(|e| e.to_string())?;
-    let service = guard.as_ref().ok_or("服务未运行")?;
-    let map = service
-        .snapshot()
-        .keymap
-        .ok_or("还没有键位（等待接收器）")?;
+    let service = guard.as_ref().ok_or_else(service_not_running)?;
+    let map = service.snapshot().keymap.ok_or_else(|| {
+        tr!(
+            "还没有键位（等待接收器）",
+            "No keymap yet (waiting for the receiver)",
+            "まだキーマップがありません（レシーバー待ち）"
+        )
+    })?;
     let bytes = map.to_json().map_err(|e| e.to_string())?;
     serde_json::from_slice(&bytes).map_err(|e| e.to_string())
 }
@@ -340,14 +344,26 @@ fn install_keymap(state: &App, map: HostKeymap) -> Result<serde_json::Value, Str
     let pretty = serde_json::to_vec_pretty(&normalized).map_err(|e| e.to_string())?;
     // 先确认服务还在，再落盘，尽量不出现"文件换了、运行时没换"的半失败。
     let guard = state.service.lock().map_err(|e| e.to_string())?;
-    let service = guard.as_ref().ok_or("服务未运行，文件未改动")?;
+    let service = guard.as_ref().ok_or_else(|| {
+        tr!(
+            "服务未运行，文件未改动",
+            "The device service is not running; the file was not changed",
+            "デバイスサービスが動いていないため、ファイルは変更していません"
+        )
+    })?;
     if let Some(dir) = state.config_path.parent() {
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
-    std::fs::write(&state.config_path, pretty)
-        .map_err(|e| format!("写入 {} 失败：{e}", state.config_path.display()))?;
+    std::fs::write(&state.config_path, pretty).map_err(|e| {
+        let path = state.config_path.display();
+        tr!(
+            "写入 {path} 失败：{e}",
+            "Could not write {path}: {e}",
+            "{path} に書き込めませんでした：{e}"
+        )
+    })?;
     if !service.send(Command::SetKeymap(map)) {
-        return Err("文件已替换，但设备线程已退出；重启 HaloKey 后生效".into());
+        return Err(tr!("文件已替换，但设备线程已退出；重启 HaloKey 后生效", "The file was replaced, but the device thread has stopped; restart HaloKey to apply it", "ファイルは置き換えましたが、デバイスのスレッドが停止しています。HaloKey を再起動すると反映されます"));
     }
     Ok(normalized)
 }
@@ -373,13 +389,21 @@ async fn import_keymap(
     let path = file.into_path().map_err(|e| e.to_string())?;
     let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
     if size > 1 << 20 {
-        return Err(format!(
-            "{} 太大（{} 字节），不像键位文件",
-            path.display(),
-            size
+        let path = path.display();
+        return Err(tr!(
+            "{path} 太大（{size} 字节），不像键位文件",
+            "{path} is too large ({size} bytes) to be a keymap file",
+            "{path} は大きすぎます（{size} バイト）。キーマップファイルではなさそうです"
         ));
     }
-    let bytes = std::fs::read(&path).map_err(|e| format!("读取 {} 失败：{e}", path.display()))?;
+    let bytes = std::fs::read(&path).map_err(|e| {
+        let path = path.display();
+        tr!(
+            "读取 {path} 失败：{e}",
+            "Could not read {path}: {e}",
+            "{path} を読み込めませんでした：{e}"
+        )
+    })?;
     let map = HostKeymap::from_json(&bytes).map_err(|e| e.to_string())?;
     install_keymap(&state, map).map(Some)
 }
@@ -402,10 +426,20 @@ async fn export_keymap(app: AppHandle, state: State<'_, App>) -> Result<Option<S
     let Some(file) = picked else { return Ok(None) };
     let target = file.into_path().map_err(|e| e.to_string())?;
     if !state.config_path.exists() {
-        return Err("还没有键位文件：先在键位页保存一次".into());
+        return Err(tr!(
+            "还没有键位文件：先在键位页保存一次",
+            "No keymap file yet: save once on the Keymap page first",
+            "まだキーマップファイルがありません。先にキーマップ画面で一度保存してください"
+        ));
     }
-    std::fs::copy(&state.config_path, &target)
-        .map_err(|e| format!("写入 {} 失败：{e}", target.display()))?;
+    std::fs::copy(&state.config_path, &target).map_err(|e| {
+        let path = target.display();
+        tr!(
+            "写入 {path} 失败：{e}",
+            "Could not write {path}: {e}",
+            "{path} に書き込めませんでした：{e}"
+        )
+    })?;
     Ok(Some(target.display().to_string()))
 }
 
@@ -449,10 +483,20 @@ fn pick_vibe_source(list: &str) -> Option<String> {
 /// `pactl list sources short` 的结果判定：连不上声音服务要说清楚，别冒充"没找到麦克风"。
 fn vibe_source_from_pactl(ok: bool, stdout: &str, stderr: &str) -> Result<String, String> {
     if !ok {
-        return Err(format!("pactl 失败：{}", stderr.trim()));
+        let stderr = stderr.trim();
+        return Err(tr!(
+            "pactl 失败：{stderr}",
+            "pactl failed: {stderr}",
+            "pactl が失敗しました：{stderr}"
+        ));
     }
-    pick_vibe_source(stdout)
-        .ok_or_else(|| "没有找到 Vibe Key 的麦克风（本体开着、收音打开了吗？）".to_string())
+    pick_vibe_source(stdout).ok_or_else(|| {
+        tr!(
+            "没有找到 Vibe Key 的麦克风（本体开着、收音打开了吗？）",
+            "Vibe Key microphone not found (is the key unit on and capture enabled?)",
+            "Vibe Key のマイクが見つかりません（本体の電源と集音はオンになっていますか？）"
+        )
+    })
 }
 
 /// Linux：把 Vibe Key 设为系统默认输入（PipeWire / PulseAudio 都认 pactl）。
@@ -462,7 +506,13 @@ async fn set_default_audio_input() -> Result<String, String> {
         let out = std::process::Command::new("pactl")
             .args(["list", "sources", "short"])
             .output()
-            .map_err(|e| format!("找不到 pactl：{e}"))?;
+            .map_err(|e| {
+                tr!(
+                    "找不到 pactl：{e}",
+                    "pactl not found: {e}",
+                    "pactl が見つかりません：{e}"
+                )
+            })?;
         let name = vibe_source_from_pactl(
             out.status.success(),
             &String::from_utf8_lossy(&out.stdout),
@@ -473,9 +523,12 @@ async fn set_default_audio_input() -> Result<String, String> {
             .output()
             .map_err(|e| e.to_string())?;
         if !out.status.success() {
-            return Err(format!(
-                "pactl set-default-source 失败：{}",
-                String::from_utf8_lossy(&out.stderr).trim()
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            let stderr = stderr.trim();
+            return Err(tr!(
+                "pactl set-default-source 失败：{stderr}",
+                "pactl set-default-source failed: {stderr}",
+                "pactl set-default-source が失敗しました：{stderr}"
             ));
         }
         Ok(name)
@@ -543,7 +596,11 @@ impl TryFrom<UiLighting> for Lighting {
     type Error = String;
     fn try_from(u: UiLighting) -> Result<Lighting, String> {
         if u.lights.len() != 4 {
-            return Err("指示灯参数必须有四盏灯".into());
+            return Err(tr!(
+                "指示灯参数必须有四盏灯",
+                "Light settings must cover four lights",
+                "ライトの設定には 4 つのライトが必要です"
+            ));
         }
         let light = |x: &UiLight| IndicatorLight {
             kind: x.kind,
@@ -715,13 +772,26 @@ fn merge_settings(
         current = serde_json::json!({});
     }
     deep_merge(&mut current, patch);
-    let settings: AppSettings =
-        serde_json::from_value(current).map_err(|e| format!("设置格式无效：{e}"))?;
+    let settings: AppSettings = serde_json::from_value(current).map_err(|e| {
+        tr!(
+            "设置格式无效：{e}",
+            "Invalid settings format: {e}",
+            "設定の形式が不正です：{e}"
+        )
+    })?;
     if !(1..=60).contains(&settings.halo.timeout_seconds) {
-        return Err("转盘自动关闭时间应为 1–60 秒".into());
+        return Err(tr!(
+            "转盘自动关闭时间应为 1–60 秒",
+            "Halo wheel auto-close must be 1–60 s",
+            "ハローの自動クローズは 1–60 秒にしてください"
+        ));
     }
     if settings.idle_minutes > 1440 {
-        return Err("空闲时间最多 1440 分钟".into());
+        return Err(tr!(
+            "空闲时间最多 1440 分钟",
+            "Idle time can be at most 1440 minutes",
+            "アイドル時間は最大 1440 分です"
+        ));
     }
     Ok(settings)
 }
@@ -833,8 +903,9 @@ fn set_settings(
 ) -> Result<AppSettings, String> {
     // 校验不过直接报错，文件不动；锁在这一步结束时就放开，下面重建托盘不持锁
     let settings = patch_settings(&state.config_path, &patch)?;
-    // 语言变了就立刻重建托盘菜单；有可安装的更新时保留"安装更新"项。
+    // 语言变了：后端文案立即跟着换，并重建托盘菜单；有可安装的更新时保留"安装更新"项。
     if patch.get("lang").is_some() {
+        halokey_i18n::set(text::resolve_lang(&settings.lang));
         let available = app.state::<update::Updates>().available_version();
         refresh_tray_menu(&app, available.as_deref());
     }
@@ -849,7 +920,7 @@ fn set_settings(
             settings.halo.timeout_seconds,
         )))
     {
-        return Err("设备线程已退出".into());
+        return Err(device_thread_stopped());
     }
     Ok(settings)
 }
@@ -881,9 +952,9 @@ impl From<PowerInfo> for UiPower {
 /// 只在发送命令时持锁；等待回复不占锁，免得 `snapshot` 等快命令被设备超时拖住。
 fn send_command(state: &State<'_, App>, command: Command) -> Result<(), String> {
     let guard = state.service.lock().map_err(|e| e.to_string())?;
-    let service = guard.as_ref().ok_or("服务未运行")?;
+    let service = guard.as_ref().ok_or_else(service_not_running)?;
     if !service.send(command) {
-        return Err("设备线程已退出".into());
+        return Err(device_thread_stopped());
     }
     Ok(())
 }
@@ -897,7 +968,13 @@ fn ask<T: Send + 'static>(
     let (tx, rx) = std::sync::mpsc::channel();
     send_command(state, make(tx))?;
     rx.recv_timeout(std::time::Duration::from_secs(secs))
-        .map_err(|_| "设备没有在限定时间内回复".to_string())
+        .map_err(|_| {
+            tr!(
+                "设备没有在限定时间内回复",
+                "The device did not reply in time",
+                "デバイスが時間内に応答しませんでした"
+            )
+        })
 }
 
 #[tauri::command]
@@ -925,7 +1002,13 @@ async fn set_noise_reduction(state: State<'_, App>, level: u8) -> Result<u8, Str
 fn autostart_path() -> Result<PathBuf, String> {
     let home = std::env::var_os("HOME").map(PathBuf::from);
     if cfg!(target_os = "macos") {
-        let home = home.ok_or("没有 HOME 环境变量，找不到 ~/Library/LaunchAgents")?;
+        let home = home.ok_or_else(|| {
+            tr!(
+                "没有 HOME 环境变量，找不到 ~/Library/LaunchAgents",
+                "HOME is not set, so ~/Library/LaunchAgents cannot be found",
+                "HOME 環境変数がないため ~/Library/LaunchAgents が見つかりません"
+            )
+        })?;
         return Ok(home
             .join("Library/LaunchAgents")
             .join(format!("{LAUNCH_AGENT_LABEL}.plist")));
@@ -1001,7 +1084,7 @@ fn set_autostart(enabled: bool) -> Result<bool, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let entry = if cfg!(target_os = "macos") {
         if is_translocated(&exe) {
-            return Err("HaloKey 正从临时位置运行（App Translocation），这个路径下次登录就失效了。请先把 HaloKey 拖进「应用程序」文件夹，再打开它开启登录启动".to_string());
+            return Err(tr!("HaloKey 正从临时位置运行（App Translocation），这个路径下次登录就失效了。请先把 HaloKey 拖进「应用程序」文件夹，再打开它开启登录启动", "HaloKey is running from a temporary location (App Translocation), which will not exist at next login. Drag HaloKey into the Applications folder, open it from there, then turn on Launch at login", "HaloKey が一時的な場所から実行されています（App Translocation）。この場所は次回ログイン時には使えません。HaloKey を「アプリケーション」フォルダにドラッグし、そこから開いてからログイン時の起動をオンにしてください"));
         }
         launch_agent_plist(&exe)
     } else {
@@ -1020,15 +1103,20 @@ fn set_autostart(enabled: bool) -> Result<bool, String> {
 async fn write_device_keys(state: State<'_, App>) -> Result<Vec<String>, String> {
     let map = {
         let guard = state.service.lock().map_err(|e| e.to_string())?;
-        let service = guard.as_ref().ok_or("服务未运行")?;
-        service.snapshot().keymap.ok_or("还没有键位")?
+        let service = guard.as_ref().ok_or_else(service_not_running)?;
+        service
+            .snapshot()
+            .keymap
+            .ok_or_else(|| tr!("还没有键位", "No keymap yet", "まだキーマップがありません"))?
     };
     let mut report = Vec::new();
     for control in &map.controls {
         let Some(HostAction::Keyboard(entries)) = Some(control.effective_press()) else {
-            report.push(format!(
-                "控件 {}：非键盘动作，设备表保持不变",
-                control.index
+            let index = control.index;
+            report.push(tr!(
+                "控件 {index}：非键盘动作，设备表保持不变",
+                "Control {index}: not a keyboard action; the device table was left unchanged",
+                "コントロール {index}：キーボード動作ではないため、デバイスの表は変更していません"
             ));
             continue;
         };
@@ -1043,10 +1131,12 @@ async fn write_device_keys(state: State<'_, App>) -> Result<Vec<String>, String>
             entries
         };
         if entries.len() > halokey_proto::keyconfig::MAX_ENTRIES {
-            report.push(format!(
-                "控件 {}：条目超过 {} 个，跳过",
-                control.index,
-                halokey_proto::keyconfig::MAX_ENTRIES
+            let index = control.index;
+            let max = halokey_proto::keyconfig::MAX_ENTRIES;
+            report.push(tr!(
+                "控件 {index}：条目超过 {max} 个，跳过",
+                "Control {index}: more than {max} entries, skipped",
+                "コントロール {index}：エントリが {max} 個を超えるためスキップしました"
             ));
             continue;
         }
@@ -1055,12 +1145,22 @@ async fn write_device_keys(state: State<'_, App>) -> Result<Vec<String>, String>
             |tx| Command::WriteKey(control.index, entries, tx),
             12,
         )? {
-            Ok(reply) => report.push(format!(
-                "控件 {}：已写入 {} 个条目并读回核对",
-                reply.index,
-                reply.entries.len()
-            )),
-            Err(e) => report.push(format!("控件 {}：失败 {e}", control.index)),
+            Ok(reply) => {
+                let (index, count) = (reply.index, reply.entries.len());
+                report.push(tr!(
+                    "控件 {index}：已写入 {count} 个条目并读回核对",
+                    "Control {index}: wrote {count} entries and verified them by reading back",
+                    "コントロール {index}：{count} 個のエントリを書き込み、読み戻して確認しました"
+                ))
+            }
+            Err(e) => {
+                let index = control.index;
+                report.push(tr!(
+                    "控件 {index}：失败 {e}",
+                    "Control {index}: failed: {e}",
+                    "コントロール {index}：失敗しました：{e}"
+                ))
+            }
         }
     }
     Ok(report)
@@ -1133,10 +1233,12 @@ fn main() {
             if std::env::var_os("HALOKEY_SHOW_MAIN").is_some() {
                 show_main(app.handle());
             }
+            // 后端文案（报错、状态）跟随界面语言；先设好再启动设备服务，开机就报的错也是对的语言
+            let lang = text::resolve_lang(&load_settings(&app.state::<App>().config_path).lang);
+            halokey_i18n::set(lang);
             let service = spawn_service(app.handle());
             *app.state::<App>().service.lock().expect("state lock") = Some(service);
 
-            let lang = text::resolve_lang(&load_settings(&app.state::<App>().config_path).lang);
             let menu = build_tray_menu(app.handle(), lang, None)?;
             TrayIconBuilder::with_id("tray")
                 .icon(TRAY_ICON)
@@ -1191,6 +1293,24 @@ fn main() {
         })
         .run(tauri::generate_context!())
         .expect("HaloKey 启动失败");
+}
+
+/// 设备服务没起来（或正在重启）时命令的统一报错。
+fn service_not_running() -> String {
+    tr!(
+        "服务未运行",
+        "The device service is not running",
+        "デバイスサービスが動いていません"
+    )
+}
+
+/// 设备线程已经退出、命令发不出去时的统一报错。
+fn device_thread_stopped() -> String {
+    tr!(
+        "设备线程已退出",
+        "The device thread has stopped",
+        "デバイスのスレッドが停止しています"
+    )
 }
 
 #[cfg(test)]
@@ -1250,9 +1370,10 @@ mod tests {
 
     #[test]
     fn pactl_failures_report_the_real_reason() {
+        // 测试里没设语言，后端文案是默认的英文
         assert_eq!(
             vibe_source_from_pactl(false, "", "Connection failure: Connection refused\n"),
-            Err("pactl 失败：Connection failure: Connection refused".to_string())
+            Err("pactl failed: Connection failure: Connection refused".to_string())
         );
         assert_eq!(
             vibe_source_from_pactl(
@@ -1260,7 +1381,10 @@ mod tests {
                 "1\talsa_input.usb-Other-00.analog-stereo\tPipeWire\n",
                 ""
             ),
-            Err("没有找到 Vibe Key 的麦克风（本体开着、收音打开了吗？）".to_string())
+            Err(
+                "Vibe Key microphone not found (is the key unit on and capture enabled?)"
+                    .to_string()
+            )
         );
         assert_eq!(
             vibe_source_from_pactl(

@@ -1,5 +1,6 @@
 //! 可导出 / 导入的命名配置。版本 2 内嵌 [`HostKeymap`]；版本 1 只有六个单键码，导入时迁移。
 
+use halokey_i18n::tr;
 use serde::{Deserialize, Serialize};
 
 use crate::action::{is_uuid, KeyEntry};
@@ -22,7 +23,11 @@ impl HostProfile {
     /// 校验名称与键位表。
     pub fn validate(&self) -> Result<(), Error> {
         if !is_uuid(&self.id) {
-            return Err(Error::Json("配置标识不是 UUID".into()));
+            return Err(Error::Json(tr!(
+                "配置标识不是 UUID",
+                "the config ID is not a UUID",
+                "設定の ID が UUID ではありません"
+            )));
         }
         if self.name.trim().is_empty() || self.name.chars().count() > 80 {
             return Err(Error::InvalidName);

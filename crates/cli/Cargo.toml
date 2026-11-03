@@ -12,6 +12,7 @@ name = "halokey"
 path = "src/main.rs"
 
 [dependencies]
+halokey-i18n = { path = "../i18n" }
 halokey-proto = { path = "../proto" }
 halokey-hid = { path = "../hid" }
 halokey-host = { path = "../host" }

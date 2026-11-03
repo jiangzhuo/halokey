@@ -112,10 +112,16 @@ pub enum RunError<E> {
 impl<E: std::fmt::Display> std::fmt::Display for RunError<E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RunError::ActivationFailed => f.write_str("应用程序未能切换到前台，已停止当前宏。"),
-            RunError::ForegroundChanged => {
-                f.write_str("前台应用已改变，已停止当前宏以避免发送到其他窗口。")
-            }
+            RunError::ActivationFailed => f.write_str(&halokey_i18n::tr!(
+                "应用程序未能切换到前台，已停止当前宏。",
+                "The application could not be brought to the front; the macro was stopped.",
+                "アプリを前面に切り替えられなかったため、マクロを停止しました。"
+            )),
+            RunError::ForegroundChanged => f.write_str(&halokey_i18n::tr!(
+                "前台应用已改变，已停止当前宏以避免发送到其他窗口。",
+                "The foreground app changed; the macro was stopped so it would not type into another window.",
+                "前面のアプリが変わったため、別のウィンドウに送らないようマクロを停止しました。"
+            )),
             RunError::Callback(e) => write!(f, "{e}"),
         }
     }

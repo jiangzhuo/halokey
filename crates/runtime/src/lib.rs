@@ -20,6 +20,7 @@ use halokey_host::{
     ActionRunner, GestureRouter, Halo, HostAction, HostKeymap, KeyEntry, Launcher, LayerLighting,
     MacroKeys, Transition,
 };
+use halokey_i18n::tr;
 use halokey_input::{Injector, KeyBridge, RecordingInjector};
 use halokey_proto::frame::Plaintext;
 use halokey_proto::settings::NoiseReductionSetting;
@@ -406,7 +407,11 @@ impl Worker {
                 match (backends.injector)() {
                     Ok(i) => i,
                     Err(e) => {
-                        let error = format!("输入注入不可用，改为只记录：{e}");
+                        let error = tr!(
+                            "输入注入不可用，改为只记录：{e}",
+                            "Input injection unavailable; key events are only logged: {e}",
+                            "入力を送れないため、記録のみ行います：{e}"
+                        );
                         self.fail(error.clone());
                         self.injector_retry = Some(InjectorRetry {
                             factory: backends.injector,
@@ -423,7 +428,11 @@ impl Worker {
             let api = match HidApi::new() {
                 Ok(api) => api,
                 Err(e) => {
-                    self.fail(format!("HID 初始化失败：{e}"));
+                    self.fail(tr!(
+                        "HID 初始化失败：{e}",
+                        "HID initialization failed: {e}",
+                        "HID の初期化に失敗しました：{e}"
+                    ));
                     if self.wait_or_stop(RETRY_INTERVAL) {
                         break;
                     }
@@ -445,7 +454,11 @@ impl Worker {
             let mut transport = match Transport::open(&api, &id) {
                 Ok(t) => t,
                 Err(e) => {
-                    self.fail(format!("打开接收器失败：{e}"));
+                    self.fail(tr!(
+                        "打开接收器失败：{e}",
+                        "Could not open the receiver: {e}",
+                        "レシーバーを開けませんでした：{e}"
+                    ));
                     if self.wait_or_stop(RETRY_INTERVAL) {
                         break;
                     }
@@ -487,39 +500,39 @@ impl Worker {
                 Ok(Command::Stop) => return true,
                 Ok(Command::SetKeymap(map)) => self.set_keymap(map),
                 Ok(Command::ReadKeys(reply)) => {
-                    let _ = reply.send(Err("接收器未连接".into()));
+                    let _ = reply.send(Err(not_connected()));
                 }
                 Ok(Command::WriteKey(_, _, reply)) => {
-                    let _ = reply.send(Err("接收器未连接".into()));
+                    let _ = reply.send(Err(not_connected()));
                 }
                 Ok(Command::QueryBattery(reply)) => {
-                    let _ = reply.send(Err("接收器未连接".into()));
+                    let _ = reply.send(Err(not_connected()));
                 }
                 Ok(Command::QueryInfo(reply)) => {
                     let _ = reply.send(DeviceInfo {
-                        errors: vec!["接收器未连接".into()],
+                        errors: vec![not_connected()],
                         ..DeviceInfo::default()
                     });
                 }
                 Ok(Command::SetLighting(_, reply)) => {
-                    let _ = reply.send(Err("接收器未连接".into()));
+                    let _ = reply.send(Err(not_connected()));
                 }
                 Ok(Command::SetIdleTimeout(timeout)) => self.idle_timeout = timeout,
                 Ok(Command::SetHaloTimeout(t)) => self.halo_timeout = t,
                 Ok(Command::QueryPower(reply)) => {
                     let _ = reply.send(PowerInfo {
-                        errors: vec!["接收器未连接".into()],
+                        errors: vec![not_connected()],
                         ..PowerInfo::default()
                     });
                 }
                 Ok(Command::SetSleepDelay(_, reply)) | Ok(Command::SetStandbyDelay(_, reply)) => {
-                    let _ = reply.send(Err("接收器未连接".into()));
+                    let _ = reply.send(Err(not_connected()));
                 }
                 Ok(Command::SetMicEnabled(_, reply)) => {
-                    let _ = reply.send(Err("接收器未连接".into()));
+                    let _ = reply.send(Err(not_connected()));
                 }
                 Ok(Command::SetNoiseReduction(_, reply)) => {
-                    let _ = reply.send(Err("接收器未连接".into()));
+                    let _ = reply.send(Err(not_connected()));
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => return false,
                 Err(mpsc::RecvTimeoutError::Disconnected) => return true,
@@ -536,7 +549,11 @@ impl Worker {
         self.apply(transitions);
         if let Some(injector) = self.injector.as_mut() {
             for (index, e) in self.bridge.release_all(injector.as_mut()) {
-                self.fail(format!("控件 {index} 松开失败：{e}"));
+                self.fail(tr!(
+                    "控件 {index} 松开失败：{e}",
+                    "Control {index}: release failed: {e}",
+                    "コントロール {index}：キーを離せませんでした：{e}"
+                ));
             }
         }
         self.update(|s| s.keymap = Some(map));
@@ -569,8 +586,10 @@ impl Worker {
             match read_keymap(transport) {
                 Ok(map) => self.set_keymap(map),
                 Err(e) => {
-                    self.fail(format!(
-                        "本体暂时没有回复键位（可能在待机），先用出厂映射：{e}"
+                    self.fail(tr!(
+                        "本体暂时没有回复键位（可能在待机），先用出厂映射：{e}",
+                        "The key unit did not return its keymap (it may be asleep); using the factory mapping for now: {e}",
+                        "本体からキーマップが返ってきません（スタンバイ中かもしれません）。ひとまず出荷時の割り当てを使います：{e}"
                     ));
                     self.set_keymap(HostKeymap::default_keymap());
                     keymap_pending = true;
@@ -583,7 +602,11 @@ impl Worker {
             .set_software_online(true)
             .and_then(|()| transport.heartbeat())
         {
-            self.fail(format!("主机接管失败：{e}"));
+            self.fail(tr!(
+                "主机接管失败：{e}",
+                "Could not take control of the device: {e}",
+                "デバイスの制御を取得できませんでした：{e}"
+            ));
             return Flow::Reconnect;
         }
         let mut last_heartbeat = Instant::now();
@@ -598,7 +621,11 @@ impl Worker {
         self.refresh_layers();
         match transport.query_online(REPLY_TIMEOUT) {
             Ok(online) => self.update(|s| s.online = Some(online)),
-            Err(e) => self.fail(format!("在线查询失败：{e}")),
+            Err(e) => self.fail(tr!(
+                "在线查询失败：{e}",
+                "Online status query failed: {e}",
+                "オンライン状態の確認に失敗しました：{e}"
+            )),
         }
         self.drain_stray();
         let mut last_online_check = Instant::now();
@@ -691,7 +718,11 @@ impl Worker {
             }
             if !self.paused && last_heartbeat.elapsed() >= HEARTBEAT_INTERVAL {
                 if let Err(e) = transport.heartbeat() {
-                    self.fail(format!("心跳发送失败：{e}"));
+                    self.fail(tr!(
+                        "心跳发送失败：{e}",
+                        "Could not send the heartbeat: {e}",
+                        "ハートビートを送れませんでした：{e}"
+                    ));
                     return Flow::Reconnect;
                 }
                 last_heartbeat = Instant::now();
@@ -706,7 +737,11 @@ impl Worker {
                 Ok(None) => {}
                 Err(e) => {
                     if !e.to_string().contains("Interrupted") {
-                        self.fail(format!("读取接收器失败：{e}"));
+                        self.fail(tr!(
+                            "读取接收器失败：{e}",
+                            "Could not read from the receiver: {e}",
+                            "レシーバーから読み取れませんでした：{e}"
+                        ));
                         return Flow::Reconnect;
                     }
                 }
@@ -727,7 +762,11 @@ impl Worker {
                         Ok(()) => self.lighting.written(desired),
                         Err(e) => {
                             self.lighting.failed_now(Instant::now());
-                            self.fail(format!("背光写入失败：{e}"));
+                            self.fail(tr!(
+                                "背光写入失败：{e}",
+                                "Could not write the backlight: {e}",
+                                "バックライトを書き込めませんでした：{e}"
+                            ));
                         }
                     }
                     self.drain_stray();
@@ -752,7 +791,11 @@ impl Worker {
                             self.refresh_layers();
                         }
                     }
-                    Err(e) => self.fail(format!("在线查询失败：{e}")),
+                    Err(e) => self.fail(tr!(
+                        "在线查询失败：{e}",
+                        "Online status query failed: {e}",
+                        "オンライン状態の確認に失敗しました：{e}"
+                    )),
                 }
                 self.drain_stray();
             }
@@ -775,7 +818,11 @@ impl Worker {
                             .set_software_online(true)
                             .and_then(|()| transport.heartbeat())
                         {
-                            self.fail(format!("重新接管失败：{e}"));
+                            self.fail(tr!(
+                                "重新接管失败：{e}",
+                                "Could not take control back: {e}",
+                                "制御を取り戻せませんでした：{e}"
+                            ));
                             return Flow::Reconnect;
                         }
                         last_heartbeat = Instant::now();
@@ -790,7 +837,11 @@ impl Worker {
                     }
                     Ok(false) => {}
                     Err(e) => {
-                        self.fail(format!("监听设备活动失败：{e}"));
+                        self.fail(tr!(
+                            "监听设备活动失败：{e}",
+                            "Could not watch for device activity: {e}",
+                            "デバイスの操作を監視できませんでした：{e}"
+                        ));
                         watch = None;
                     }
                 }
@@ -808,7 +859,11 @@ impl Worker {
                     let transitions = self.router.cancel(false);
                     self.apply(transitions);
                     if let Err(e) = transport.set_software_online(false) {
-                        self.fail(format!("交还控制失败：{e}"));
+                        self.fail(tr!(
+                            "交还控制失败：{e}",
+                            "Could not hand control back: {e}",
+                            "制御を返せませんでした：{e}"
+                        ));
                     }
                     self.paused = true;
                     self.update(|s| s.paused = true);
@@ -817,7 +872,11 @@ impl Worker {
                 }
             }
             if last_echo.elapsed() > ECHO_TIMEOUT {
-                self.fail("5 秒没有收到心跳回显，接收器可能已断开。".into());
+                self.fail(tr!(
+                    "5 秒没有收到心跳回显，接收器可能已断开。",
+                    "No heartbeat echo for 5 seconds; the receiver may be disconnected.",
+                    "5 秒間ハートビートの応答がありません。レシーバーが外れた可能性があります。"
+                ));
                 return Flow::Reconnect;
             }
         }
@@ -920,7 +979,11 @@ impl Worker {
             .as_ref()
             .and_then(|m| m.halo(id).cloned())
         else {
-            self.fail(format!("光环菜单「{id}」不存在"));
+            self.fail(tr!(
+                "光环菜单「{id}」不存在",
+                "Halo menu \"{id}\" does not exist",
+                "ハローメニュー「{id}」が存在しません"
+            ));
             return;
         };
         self.halo = Some(HaloState {
@@ -949,13 +1012,21 @@ impl Worker {
                     .and_then(|()| self.bridge.release(injector.as_mut(), HALO_OWNER));
                 self.injector = Some(injector);
                 if let Err(e) = result {
-                    self.fail(format!("光环选项按键失败：{e}"));
+                    self.fail(tr!(
+                        "光环选项按键失败：{e}",
+                        "Halo option: sending keys failed: {e}",
+                        "ハローの項目：キーを送れませんでした：{e}"
+                    ));
                 }
             }
             HostAction::PointerMove(delta) => {
                 if let Some(injector) = self.injector.as_mut() {
                     if let Err(e) = injector.pointer_move(delta.dx, delta.dy) {
-                        self.fail(format!("光环选项指针移动失败：{e}"));
+                        self.fail(tr!(
+                            "光环选项指针移动失败：{e}",
+                            "Halo option: moving the pointer failed: {e}",
+                            "ハローの項目：ポインターを動かせませんでした：{e}"
+                        ));
                     }
                 }
             }
@@ -963,7 +1034,11 @@ impl Worker {
                 if let Some(injector) = self.injector.as_mut() {
                     // 注入接口的垂直正值向上，配置里 dy 正值向下。
                     if let Err(e) = injector.wheel(-delta.dy, delta.dx) {
-                        self.fail(format!("光环选项滚动失败：{e}"));
+                        self.fail(tr!(
+                            "光环选项滚动失败：{e}",
+                            "Halo option: scrolling failed: {e}",
+                            "ハローの項目：スクロールできませんでした：{e}"
+                        ));
                     }
                 }
             }
@@ -971,7 +1046,11 @@ impl Worker {
             other => {
                 if let Some(runner) = self.runner.as_mut() {
                     if let Err(e) = runner.enqueue(HALO_OWNER, other) {
-                        self.fail(format!("光环选项无法排队：{e}"));
+                        self.fail(tr!(
+                            "光环选项无法排队：{e}",
+                            "Halo option could not be queued: {e}",
+                            "ハローの項目をキューに入れられませんでした：{e}"
+                        ));
                     }
                 }
             }
@@ -997,19 +1076,31 @@ impl Worker {
                 HostAction::Halo(id) => halos.push(id),
                 HostAction::PointerMove(delta) => {
                     if let Err(e) = injector.pointer_move(delta.dx, delta.dy) {
-                        errors.push(format!("控件 {index} 指针移动失败：{e}"));
+                        errors.push(tr!(
+                            "控件 {index} 指针移动失败：{e}",
+                            "Control {index}: moving the pointer failed: {e}",
+                            "コントロール {index}：ポインターを動かせませんでした：{e}"
+                        ));
                     }
                 }
                 HostAction::Scroll(delta) => {
                     // 一格旋钮一次注入 N 格，不走连按队列，转得快也不积压。
                     if let Err(e) = injector.wheel(-delta.dy, delta.dx) {
-                        errors.push(format!("控件 {index} 滚动失败：{e}"));
+                        errors.push(tr!(
+                            "控件 {index} 滚动失败：{e}",
+                            "Control {index}: scrolling failed: {e}",
+                            "コントロール {index}：スクロールできませんでした：{e}"
+                        ));
                     }
                 }
                 other => {
                     if let Some(runner) = self.runner.as_mut() {
                         if let Err(e) = runner.enqueue(index, other) {
-                            errors.push(format!("控件 {index} 的动作无法排队：{e}"));
+                            errors.push(tr!(
+                                "控件 {index} 的动作无法排队：{e}",
+                                "Control {index}: the action could not be queued: {e}",
+                                "コントロール {index}：動作をキューに入れられませんでした：{e}"
+                            ));
                         }
                     }
                 }
@@ -1017,7 +1108,11 @@ impl Worker {
         }
         self.injector = Some(injector);
         for (index, e) in applied.failures {
-            errors.push(format!("控件 {index} 注入失败：{e}"));
+            errors.push(tr!(
+                "控件 {index} 注入失败：{e}",
+                "Control {index}: sending input failed: {e}",
+                "コントロール {index}：入力を送れませんでした：{e}"
+            ));
             self.router.cancel_index(index);
         }
         for text in errors {
@@ -1037,7 +1132,11 @@ impl Worker {
             injector: injector.as_mut(),
         };
         if let Err(e) = runner.pump(now, &mut keys) {
-            let text = format!("动作执行失败：{e}");
+            let text = tr!(
+                "动作执行失败：{e}",
+                "Action failed: {e}",
+                "動作の実行に失敗しました：{e}"
+            );
             self.update(|s| s.last_error = Some(text.clone()));
             (self.on_event)(Event::Error(text));
         }
@@ -1051,7 +1150,11 @@ impl Worker {
         self.router.cancel(false);
         if let Some(injector) = self.injector.as_mut() {
             for (index, e) in self.bridge.release_all(injector.as_mut()) {
-                self.fail(format!("控件 {index} 松开失败：{e}"));
+                self.fail(tr!(
+                    "控件 {index} 松开失败：{e}",
+                    "Control {index}: release failed: {e}",
+                    "コントロール {index}：キーを離せませんでした：{e}"
+                ));
             }
         }
         let _ = transport.set_software_online(false);
@@ -1098,31 +1201,49 @@ fn query_info(transport: &mut Transport) -> DeviceInfo {
     }) {
         Ok(f) => match settings::parse_version(&f) {
             Ok(v) => info.dongle_firmware = Some(v.to_string()),
-            Err(e) => info.errors.push(format!("接收器版本：{e}")),
+            Err(e) => info.errors.push(tr!(
+                "接收器版本：{e}",
+                "Receiver version: {e}",
+                "レシーバーのバージョン：{e}"
+            )),
         },
-        Err(e) => info.errors.push(format!("接收器版本：{e}")),
+        Err(e) => info.errors.push(tr!(
+            "接收器版本：{e}",
+            "Receiver version: {e}",
+            "レシーバーのバージョン：{e}"
+        )),
     }
     match transport.transact(&settings::FIRMWARE_VERSION_REQUEST, REPLY_TIMEOUT, |f| {
         settings::is_firmware_version_reply(f)
     }) {
         Ok(f) => match settings::parse_version(&f) {
             Ok(v) => info.firmware = Some(v.to_string()),
-            Err(e) => info.errors.push(format!("本体版本：{e}")),
+            Err(e) => info.errors.push(tr!(
+                "本体版本：{e}",
+                "Key unit version: {e}",
+                "本体のバージョン：{e}"
+            )),
         },
-        Err(e) => info.errors.push(format!("本体版本：{e}")),
+        Err(e) => info.errors.push(tr!(
+            "本体版本：{e}",
+            "Key unit version: {e}",
+            "本体のバージョン：{e}"
+        )),
     }
     match transport.transact(&settings::NOISE_REDUCTION_REQUEST, REPLY_TIMEOUT, |f| {
         settings::is_noise_reduction_reply(f)
     }) {
         Ok(f) => match settings::parse_noise_reduction(&f) {
             Ok(n) => info.noise_reduction = Some(n.raw),
-            Err(e) => info.errors.push(format!("降噪：{e}")),
+            Err(e) => info.errors.push(noise_reduction_error(e)),
         },
-        Err(e) => info.errors.push(format!("降噪：{e}")),
+        Err(e) => info.errors.push(noise_reduction_error(e)),
     }
     match read_lighting(transport) {
         Ok(l) => info.lighting = Some(l),
-        Err(e) => info.errors.push(format!("指示灯：{e}")),
+        Err(e) => info
+            .errors
+            .push(tr!("指示灯：{e}", "Lights: {e}", "ライト：{e}")),
     }
     info
 }
@@ -1161,7 +1282,13 @@ fn write_layer_lighting(transport: &mut Transport, desired: &LayerLighting) -> R
             .transact(request, REPLY_TIMEOUT, |f| {
                 settings::matches_lighting_write_reply(f, request)
             })
-            .map_err(|e| format!("指示灯写入未确认：{e}"))?;
+            .map_err(|e| {
+                tr!(
+                    "指示灯写入未确认：{e}",
+                    "Light write was not acknowledged: {e}",
+                    "ライトの書き込みが確認されませんでした：{e}"
+                )
+            })?;
     }
     Ok(())
 }
@@ -1175,11 +1302,21 @@ fn set_lighting(transport: &mut Transport, desired: &Lighting) -> Result<Lightin
             .transact(request, REPLY_TIMEOUT, |f| {
                 settings::matches_lighting_write_reply(f, request)
             })
-            .map_err(|e| format!("指示灯写入未确认：{e}"))?;
+            .map_err(|e| {
+                tr!(
+                    "指示灯写入未确认：{e}",
+                    "Light write was not acknowledged: {e}",
+                    "ライトの書き込みが確認されませんでした：{e}"
+                )
+            })?;
     }
     let after = read_lighting(transport)?;
     if &after != desired {
-        return Err("指示灯写入后读回与期望不一致".into());
+        return Err(tr!(
+            "指示灯写入后读回与期望不一致",
+            "Lights read back differently from what was written",
+            "ライトの読み戻しが書き込んだ値と一致しません"
+        ));
     }
     Ok(after)
 }
@@ -1215,7 +1352,11 @@ fn query_power(transport: &mut Transport) -> PowerInfo {
         settings::is_standby_state_reply,
     ) {
         Ok(v) => info.standby = Some(v),
-        Err(e) => info.errors.push(format!("待机状态：{e}")),
+        Err(e) => info.errors.push(tr!(
+            "待机状态：{e}",
+            "Standby state: {e}",
+            "スタンバイ状態：{e}"
+        )),
     }
     match read_u32(
         transport,
@@ -1223,7 +1364,11 @@ fn query_power(transport: &mut Transport) -> PowerInfo {
         settings::is_standby_delay_reply,
     ) {
         Ok(v) => info.standby_delay = Some(v),
-        Err(e) => info.errors.push(format!("待机延时：{e}")),
+        Err(e) => info.errors.push(tr!(
+            "待机延时：{e}",
+            "Standby delay: {e}",
+            "スタンバイまで：{e}"
+        )),
     }
     match read_u32(
         transport,
@@ -1231,7 +1376,11 @@ fn query_power(transport: &mut Transport) -> PowerInfo {
         settings::is_sleep_delay_reply,
     ) {
         Ok(v) => info.sleep_delay = Some(v),
-        Err(e) => info.errors.push(format!("休眠延时：{e}")),
+        Err(e) => info.errors.push(tr!(
+            "休眠延时：{e}",
+            "Sleep delay: {e}",
+            "スリープまで：{e}"
+        )),
     }
     match read_bool(
         transport,
@@ -1239,16 +1388,20 @@ fn query_power(transport: &mut Transport) -> PowerInfo {
         settings::is_mic_enable_reply,
     ) {
         Ok(v) => info.mic_enabled = Some(v),
-        Err(e) => info.errors.push(format!("麦克风开关：{e}")),
+        Err(e) => info.errors.push(tr!(
+            "麦克风开关：{e}",
+            "Microphone switch: {e}",
+            "マイクのオン/オフ：{e}"
+        )),
     }
     match transport.transact(&settings::NOISE_REDUCTION_REQUEST, REPLY_TIMEOUT, |f| {
         settings::is_noise_reduction_reply(f)
     }) {
         Ok(f) => match settings::parse_noise_reduction_setting(&f) {
             Ok(v) => info.noise_reduction = Some(v),
-            Err(e) => info.errors.push(format!("降噪：{e}")),
+            Err(e) => info.errors.push(noise_reduction_error(e)),
         },
-        Err(e) => info.errors.push(format!("降噪：{e}")),
+        Err(e) => info.errors.push(noise_reduction_error(e)),
     }
     info
 }
@@ -1265,7 +1418,11 @@ fn write_u32_setting(
     std::thread::sleep(Duration::from_millis(150));
     let actual = read_u32(transport, read_request, matches)?;
     if actual != expected {
-        return Err(format!("写入后读回为 {actual}，期望 {expected}"));
+        return Err(tr!(
+            "写入后读回为 {actual}，期望 {expected}",
+            "Read back {actual} after writing, expected {expected}",
+            "書き込み後の読み戻しが {actual} でした（期待値 {expected}）"
+        ));
     }
     Ok(actual)
 }
@@ -1281,7 +1438,11 @@ fn write_bool_setting(
     std::thread::sleep(Duration::from_millis(150));
     let actual = read_bool(transport, read_request, matches)?;
     if actual != expected {
-        return Err(format!("写入后读回为 {actual}，期望 {expected}"));
+        return Err(tr!(
+            "写入后读回为 {actual}，期望 {expected}",
+            "Read back {actual} after writing, expected {expected}",
+            "書き込み後の読み戻しが {actual} でした（期待値 {expected}）"
+        ));
     }
     Ok(actual)
 }
@@ -1291,7 +1452,11 @@ fn set_noise_reduction(
     level: u8,
 ) -> Result<NoiseReductionSetting, String> {
     if level > 1 {
-        return Err("降噪等级只能是 0 或 1".into());
+        return Err(tr!(
+            "降噪等级只能是 0 或 1",
+            "Noise reduction level must be 0 or 1",
+            "ノイズ低減のレベルは 0 か 1 です"
+        ));
     }
     let (low, high) = settings::NOISE_REDUCTION_STUDIO_PARAMS;
     transport
@@ -1305,9 +1470,28 @@ fn set_noise_reduction(
         .map_err(|e| e.to_string())?;
     let actual = settings::parse_noise_reduction_setting(&frame).map_err(|e| e.to_string())?;
     if actual.level != level {
-        return Err(format!("写入后读回等级为 {}，期望 {level}", actual.level));
+        return Err(tr!(
+            "写入后读回等级为 {}，期望 {level}",
+            "Read back level {} after writing, expected {level}",
+            "書き込み後の読み戻しレベルが {} でした（期待値 {level}）",
+            actual.level
+        ));
     }
     Ok(actual)
+}
+
+/// 没连接收器时命令的统一回复。
+fn not_connected() -> String {
+    tr!(
+        "接收器未连接",
+        "Receiver not connected",
+        "レシーバーが接続されていません"
+    )
+}
+
+/// 读降噪设置失败时写进设备信息的报错。
+fn noise_reduction_error(e: impl std::fmt::Display) -> String {
+    tr!("降噪：{e}", "Noise reduction: {e}", "ノイズ低減：{e}")
 }
 
 #[cfg(test)]

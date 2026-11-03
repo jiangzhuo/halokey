@@ -3,6 +3,7 @@
 //! [CONFIRMED] index 0–5 与控件的对应关系及出厂键码；index 6、7 存在但未使用。
 
 use crate::Error;
+use halokey_i18n::tr;
 
 /// 物理控件。`as u8` 即按键表 index。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -64,15 +65,15 @@ impl Control {
         matches!(self, Control::KnobRight | Control::KnobLeft)
     }
 
-    /// 中文名称。
-    pub const fn name(self) -> &'static str {
+    /// 显示名称，跟随当前语言。
+    pub fn name(self) -> String {
         match self {
-            Control::Key1 => "键 1",
-            Control::Key2 => "键 2",
-            Control::Key3 => "键 3",
-            Control::KnobPress => "旋钮按下",
-            Control::KnobRight => "旋钮右拧",
-            Control::KnobLeft => "旋钮左拧",
+            Control::Key1 => tr!("键 1", "Key 1", "キー 1"),
+            Control::Key2 => tr!("键 2", "Key 2", "キー 2"),
+            Control::Key3 => tr!("键 3", "Key 3", "キー 3"),
+            Control::KnobPress => tr!("旋钮按下", "Knob press", "ノブ押下"),
+            Control::KnobRight => tr!("旋钮右拧", "Knob right", "ノブ右回し"),
+            Control::KnobLeft => tr!("旋钮左拧", "Knob left", "ノブ左回し"),
         }
     }
 }

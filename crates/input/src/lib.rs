@@ -10,6 +10,7 @@
 use std::fmt;
 
 use halokey_host::KeyEntry;
+use halokey_i18n::tr;
 
 pub use bridge::KeyBridge;
 
@@ -36,9 +37,21 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Unsupported(platform) => write!(f, "{platform} 上的输入注入后端尚未实现"),
-            Error::UnmappedKey(code) => write!(f, "键码 0x{code:02X} 没有对应的平台按键"),
-            Error::Io(e) => write!(f, "输入注入失败：{e}"),
+            Error::Unsupported(platform) => f.write_str(&tr!(
+                "{platform} 上的输入注入后端尚未实现",
+                "Input injection is not implemented on {platform} yet",
+                "{platform} では入力の送出がまだ実装されていません"
+            )),
+            Error::UnmappedKey(code) => f.write_str(&tr!(
+                "键码 0x{code:02X} 没有对应的平台按键",
+                "Keycode 0x{code:02X} has no matching key on this platform",
+                "キーコード 0x{code:02X} に対応するキーがこのプラットフォームにありません"
+            )),
+            Error::Io(e) => f.write_str(&tr!(
+                "输入注入失败：{e}",
+                "Could not send input: {e}",
+                "入力を送れませんでした：{e}"
+            )),
         }
     }
 }
@@ -84,7 +97,7 @@ pub fn open_default() -> Result<Box<dyn Injector>, Error> {
     }
     #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
     {
-        Err(Error::Unsupported("此平台"))
+        Err(Error::Unsupported(std::env::consts::OS))
     }
 }
 
