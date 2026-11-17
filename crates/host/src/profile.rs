@@ -4,6 +4,7 @@ use halokey_i18n::tr;
 use serde::{Deserialize, Serialize};
 
 use crate::action::{is_uuid, KeyEntry};
+use crate::keymap::parse_size_limited;
 use crate::{Error, HostKeymap};
 
 /// 一份命名配置。
@@ -37,10 +38,7 @@ impl HostProfile {
 
     /// 从 JSON 导入（含版本 1 迁移），大小上限同键位表。
     pub fn from_json(bytes: &[u8]) -> Result<HostProfile, Error> {
-        if bytes.len() > HostKeymap::MAX_JSON_BYTES {
-            return Err(Error::TooLarge);
-        }
-        let wire: Wire = serde_json::from_slice(bytes)?;
+        let wire: Wire = serde_json::from_value(parse_size_limited(bytes)?)?;
         let keymap = match wire.version {
             // 旧版只记录六个单键；迁移时保留标识、名称，不擅自增加手势。
             1 => {

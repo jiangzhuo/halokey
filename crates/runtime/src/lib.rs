@@ -54,6 +54,8 @@ pub struct Config {
     pub idle_timeout: Option<Duration>,
     /// 光环转盘无操作多久自动关闭。
     pub halo_timeout: Duration,
+    /// 启动前就出现的错误（如键位文件读不了），服务一起来就放进 `last_error`，界面能看到。
+    pub startup_error: Option<String>,
 }
 
 /// 外部可读的状态快照。
@@ -216,6 +218,15 @@ impl InjectorRetry {
     }
 }
 
+/// 服务启动时的快照：配置里的键位，以及启动前就出现的错误。
+fn initial_snapshot(config: &Config) -> Snapshot {
+    Snapshot {
+        keymap: config.keymap.clone(),
+        last_error: config.startup_error.clone(),
+        ..Snapshot::default()
+    }
+}
+
 /// `last_error` 仍是 `text` 时才清掉；之后又出了别的错就保留那条。
 fn clear_error_if(snapshot: &mut Snapshot, text: &str) {
     if snapshot.last_error.as_deref() == Some(text) {
@@ -238,10 +249,7 @@ impl Service {
         on_event: Box<dyn Fn(Event) + Send>,
     ) -> Service {
         let (tx, rx) = mpsc::channel();
-        let snapshot = Arc::new(Mutex::new(Snapshot {
-            keymap: config.keymap.clone(),
-            ..Snapshot::default()
-        }));
+        let snapshot = Arc::new(Mutex::new(initial_snapshot(&config)));
         let shared = snapshot.clone();
         let thread = std::thread::Builder::new()
             .name("halokey-device".into())
@@ -1498,6 +1506,22 @@ fn noise_reduction_error(e: impl std::fmt::Display) -> String {
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[test]
+    fn startup_error_is_shown_from_the_start() {
+        let config = Config {
+            keymap: None,
+            dry_run: true,
+            serial: None,
+            idle_timeout: None,
+            halo_timeout: HALO_TIMEOUT,
+            startup_error: Some("键位文件读不了".into()),
+        };
+        assert_eq!(
+            initial_snapshot(&config).last_error.as_deref(),
+            Some("键位文件读不了")
+        );
+    }
 
     #[test]
     fn injector_recovery_keeps_a_newer_error() {

@@ -64,6 +64,7 @@ pub fn run(options: Options) -> Result<(), Box<dyn std::error::Error>> {
             idle_timeout: (options.idle_minutes > 0)
                 .then(|| Duration::from_secs(options.idle_minutes * 60)),
             halo_timeout: halokey_runtime::HALO_TIMEOUT,
+            startup_error: None,
         },
         Backends::platform(),
         Box::new(move |event| match event {

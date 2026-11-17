@@ -1,0 +1,1489 @@
+{
+  "actionLibrary": [
+    {
+      "action": {
+        "macro": {
+          "_0": [
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 225,
+                    "type": 2
+                  },
+                  {
+                    "code": 31,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 225,
+                    "type": 2
+                  },
+                  {
+                    "code": 4,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 15,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 4,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 17,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 44,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 44,
+                    "type": 2
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id": "b4170ff9-14e6-43ec-a7f2-8ef716cdf9f8",
+      "name": "@Alan",
+      "slot": 0
+    },
+    {
+      "action": {
+        "macro": {
+          "_0": [
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 225,
+                    "type": 2
+                  },
+                  {
+                    "code": 31,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 225,
+                    "type": 2
+                  },
+                  {
+                    "code": 4,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 17,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 17,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 8,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 44,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 44,
+                    "type": 2
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id": "1446915c-f7dc-48a6-a8e1-83791e801fc6",
+      "name": "@Anne",
+      "slot": 1
+    },
+    {
+      "action": {
+        "macro": {
+          "_0": [
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 225,
+                    "type": 2
+                  },
+                  {
+                    "code": 31,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 225,
+                    "type": 2
+                  },
+                  {
+                    "code": 4,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 17,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 7,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 21,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 8,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 26,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 44,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 44,
+                    "type": 2
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id": "e35ca58e-c24e-4476-b560-9e4d6f599add",
+      "name": "@Andrew",
+      "slot": 2
+    },
+    {
+      "action": {
+        "macro": {
+          "_0": [
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 225,
+                    "type": 2
+                  },
+                  {
+                    "code": 31,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 225,
+                    "type": 2
+                  },
+                  {
+                    "code": 22,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 18,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 19,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 11,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 12,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 8,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 44,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 44,
+                    "type": 2
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id": "0c427da0-0fc8-480e-b11a-d6ef0f790fdf",
+      "name": "@Sophie",
+      "slot": 3
+    },
+    {
+      "action": {
+        "macro": {
+          "_0": [
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 225,
+                    "type": 2
+                  },
+                  {
+                    "code": 31,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 225,
+                    "type": 2
+                  },
+                  {
+                    "code": 21,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 24,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 7,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 18,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 15,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 9,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 44,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 44,
+                    "type": 2
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id": "173b47a0-cf9f-43a2-ac6e-5847c3f424c7",
+      "name": "@Rudolf",
+      "slot": 4
+    },
+    {
+      "action": {
+        "macro": {
+          "_0": [
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 225,
+                    "type": 2
+                  },
+                  {
+                    "code": 31,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 225,
+                    "type": 2
+                  },
+                  {
+                    "code": 26,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 4,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 15,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 23,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 8,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 21,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 44,
+                    "type": 2
+                  }
+                ]
+              }
+            },
+            {
+              "keyboard": {
+                "_0": [
+                  {
+                    "code": 44,
+                    "type": 2
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id": "d9d00970-5907-456b-9147-b2cb73ed3c2d",
+      "name": "@Walter",
+      "slot": 5
+    }
+  ],
+  "controls": [
+    {
+      "doublePressBehavior": "tap",
+      "doublePressTapCount": 2,
+      "index": 0,
+      "longPressBehavior": "hold",
+      "longPressTapCount": 2,
+      "press": [
+        {
+          "code": 224,
+          "type": 2
+        },
+        {
+          "code": 44,
+          "type": 2
+        }
+      ],
+      "pressBehavior": "hold",
+      "pressTapCount": 2
+    },
+    {
+      "doublePress": [
+        {
+          "code": 225,
+          "type": 2
+        },
+        {
+          "code": 40,
+          "type": 2
+        }
+      ],
+      "doublePressBehavior": "tap",
+      "doublePressTapCount": 2,
+      "index": 1,
+      "longPressBehavior": "hold",
+      "longPressTapCount": 2,
+      "press": [
+        {
+          "code": 40,
+          "type": 2
+        }
+      ],
+      "pressBehavior": "hold",
+      "pressTapCount": 2
+    },
+    {
+      "doublePressBehavior": "tap",
+      "doublePressTapCount": 2,
+      "index": 2,
+      "longPressBehavior": "hold",
+      "longPressTapCount": 2,
+      "press": [
+        {
+          "code": 42,
+          "type": 2
+        }
+      ],
+      "pressBehavior": "hold",
+      "pressTapCount": 2
+    },
+    {
+      "doublePressBehavior": "tap",
+      "doublePressTapCount": 2,
+      "index": 3,
+      "longPressBehavior": "hold",
+      "longPressTapCount": 2,
+      "press": [
+        {
+          "code": 0,
+          "type": 2
+        }
+      ],
+      "pressAction": {
+        "halo": {
+          "_0": "halo-1"
+        }
+      },
+      "pressBehavior": "hold",
+      "pressTapCount": 2
+    },
+    {
+      "doublePressBehavior": "tap",
+      "doublePressTapCount": 2,
+      "index": 4,
+      "longPressBehavior": "hold",
+      "longPressTapCount": 2,
+      "press": [
+        {
+          "code": 79,
+          "type": 2
+        }
+      ],
+      "pressBehavior": "hold",
+      "pressTapCount": 2
+    },
+    {
+      "doublePressBehavior": "tap",
+      "doublePressTapCount": 2,
+      "index": 5,
+      "longPressBehavior": "hold",
+      "longPressTapCount": 2,
+      "press": [
+        {
+          "code": 80,
+          "type": 2
+        }
+      ],
+      "pressBehavior": "hold",
+      "pressTapCount": 2
+    }
+  ],
+  "doublePressWindow": 0.25,
+  "halos": [
+    {
+      "id": "halo-1",
+      "name": "@Raft Agents",
+      "options": [
+        {
+          "action": {
+            "macro": {
+              "_0": [
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 225,
+                        "type": 2
+                      },
+                      {
+                        "code": 31,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 225,
+                        "type": 2
+                      },
+                      {
+                        "code": 4,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 17,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 7,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 21,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 8,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 26,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 44,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 44,
+                        "type": 2
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "label": "@Andrew"
+        },
+        {
+          "action": {
+            "macro": {
+              "_0": [
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 225,
+                        "type": 2
+                      },
+                      {
+                        "code": 31,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 225,
+                        "type": 2
+                      },
+                      {
+                        "code": 4,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 15,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 4,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 17,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 44,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 44,
+                        "type": 2
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "label": "@Alan"
+        },
+        {
+          "action": {
+            "macro": {
+              "_0": [
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 225,
+                        "type": 2
+                      },
+                      {
+                        "code": 31,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 225,
+                        "type": 2
+                      },
+                      {
+                        "code": 4,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 17,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 17,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 8,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 44,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 44,
+                        "type": 2
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "label": "@Anne"
+        },
+        {
+          "action": {
+            "macro": {
+              "_0": [
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 225,
+                        "type": 2
+                      },
+                      {
+                        "code": 31,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 225,
+                        "type": 2
+                      },
+                      {
+                        "code": 26,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 4,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 15,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 23,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 8,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 21,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 44,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 44,
+                        "type": 2
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "label": "@Walter"
+        },
+        {
+          "action": {
+            "macro": {
+              "_0": [
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 225,
+                        "type": 2
+                      },
+                      {
+                        "code": 31,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 225,
+                        "type": 2
+                      },
+                      {
+                        "code": 22,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 18,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 19,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 11,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 12,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 8,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 44,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 44,
+                        "type": 2
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "label": "@Sophie"
+        },
+        {
+          "action": {
+            "macro": {
+              "_0": [
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 225,
+                        "type": 2
+                      },
+                      {
+                        "code": 31,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 225,
+                        "type": 2
+                      },
+                      {
+                        "code": 21,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 24,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 7,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 18,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 15,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 9,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 44,
+                        "type": 2
+                      }
+                    ]
+                  }
+                },
+                {
+                  "keyboard": {
+                    "_0": [
+                      {
+                        "code": 44,
+                        "type": 2
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "label": "@Rudolf"
+        }
+      ]
+    }
+  ],
+  "layers": [
+    {
+      "controls": [
+        {
+          "doublePressBehavior": "tap",
+          "doublePressTapCount": 2,
+          "index": 5,
+          "inheritedGestures": [
+            "doublePress",
+            "longPress"
+          ],
+          "longPressBehavior": "hold",
+          "longPressTapCount": 2,
+          "press": [
+            {
+              "code": 80,
+              "type": 2
+            }
+          ],
+          "pressBehavior": "hold",
+          "pressTapCount": 2
+        },
+        {
+          "doublePressBehavior": "tap",
+          "doublePressTapCount": 2,
+          "index": 4,
+          "inheritedGestures": [
+            "doublePress",
+            "longPress"
+          ],
+          "longPressBehavior": "hold",
+          "longPressTapCount": 2,
+          "press": [
+            {
+              "code": 79,
+              "type": 2
+            }
+          ],
+          "pressBehavior": "hold",
+          "pressTapCount": 2
+        },
+        {
+          "doublePressAction": {
+            "toLayer": {
+              "_0": 0
+            }
+          },
+          "doublePressBehavior": "tap",
+          "doublePressTapCount": 2,
+          "index": 3,
+          "inheritedGestures": [
+            "press",
+            "longPress"
+          ],
+          "longPressBehavior": "hold",
+          "longPressTapCount": 2,
+          "press": [
+            {
+              "code": 0,
+              "type": 2
+            }
+          ],
+          "pressBehavior": "hold",
+          "pressTapCount": 2
+        },
+        {
+          "doublePressBehavior": "tap",
+          "doublePressTapCount": 2,
+          "index": 0,
+          "inheritedGestures": [
+            "doublePress",
+            "longPress"
+          ],
+          "longPressBehavior": "hold",
+          "longPressTapCount": 2,
+          "press": [
+            {
+              "code": 82,
+              "type": 2
+            }
+          ],
+          "pressBehavior": "hold",
+          "pressTapCount": 2
+        },
+        {
+          "doublePressBehavior": "tap",
+          "doublePressTapCount": 2,
+          "index": 2,
+          "inheritedGestures": [
+            "doublePress",
+            "longPress"
+          ],
+          "longPressBehavior": "hold",
+          "longPressTapCount": 2,
+          "press": [
+            {
+              "code": 81,
+              "type": 2
+            }
+          ],
+          "pressBehavior": "hold",
+          "pressTapCount": 2
+        }
+      ],
+      "id": 1,
+      "lighting": {
+        "lights": [
+          {
+            "brightness": 0,
+            "mode": "off"
+          },
+          {
+            "brightness": 0,
+            "mode": "off"
+          },
+          {
+            "brightness": 0,
+            "mode": "off"
+          },
+          {
+            "brightness": 20,
+            "mode": "breathe"
+          }
+        ]
+      }
+    }
+  ],
+  "lighting": {
+    "lights": [
+      {
+        "brightness": 0,
+        "mode": "off"
+      },
+      {
+        "brightness": 20,
+        "mode": "off"
+      },
+      {
+        "brightness": 0,
+        "mode": "off"
+      },
+      {
+        "brightness": 0,
+        "mode": "off"
+      }
+    ]
+  },
+  "longPressThreshold": 0.5,
+  "version": 6
+}

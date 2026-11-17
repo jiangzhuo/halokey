@@ -108,9 +108,9 @@ impl fmt::Display for Error {
                 "設定名は空にできず、80 文字以内にしてください。"
             ),
             Error::TooLarge => tr!(
-                "配置文件不能超过 32 KiB。",
-                "The config file must not exceed 32 KiB.",
-                "設定ファイルは 32 KiB 以内にしてください。"
+                "配置内容不能超过 32 KiB（不计空白），文件不能超过 1 MiB。",
+                "The config content must not exceed 32 KiB (whitespace not counted), and the file must not exceed 1 MiB.",
+                "設定の内容は 32 KiB（空白は数えません）、ファイルは 1 MiB 以内にしてください。"
             ),
             Error::InvalidApplication => tr!(
                 "请选择有效的应用程序。",

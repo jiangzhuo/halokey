@@ -292,10 +292,62 @@ fn tap_counts_are_validated_and_extensions_round_trip() {
         HostKeymap::from_json(future_action.as_bytes()),
         Err(Error::Json(_))
     ));
+}
+
+/// 2026-11 一台 Linux 上的真实键位文件（带光环、动作库、一层）。HaloKey 保存时写成带缩进的格式，
+/// 文件 34 KB，去掉缩进后的内容只有 8.6 KB；以前按文件大小卡 32 KiB，重启后读不回来，
+/// 软件就悄悄改用了设备里的出厂键位。
+const PRETTY_34K: &[u8] = include_bytes!("fixtures/keymap-pretty-34k.json");
+
+#[test]
+fn size_limit_counts_content_not_indentation() {
+    assert!(PRETTY_34K.len() > 32 * 1024, "夹具应当比 32 KiB 大");
+    let map = HostKeymap::from_json(PRETTY_34K).unwrap();
+    assert_eq!(map.halos.len(), 1);
+    assert_eq!(map.halos[0].options.len(), 6);
+    assert_eq!(map.action_library.len(), 6);
+    assert_eq!(map.layers.len(), 1);
+    // 读回来的内容与紧凑写出的一致。
+    assert_eq!(HostKeymap::from_json(&map.to_json().unwrap()).unwrap(), map);
+}
+
+#[test]
+fn profile_size_limit_counts_content_not_indentation() {
+    let keymap: serde_json::Value = serde_json::from_slice(PRETTY_34K).unwrap();
+    let profile = serde_json::json!({
+        "id": "123e4567-e89b-12d3-a456-426614174000",
+        "version": 2,
+        "name": "日常",
+        "keymap": keymap,
+    });
+    let pretty = serde_json::to_vec_pretty(&profile).unwrap();
+    assert!(pretty.len() > 32 * 1024);
+    let profile = HostProfile::from_json(&pretty).unwrap();
+    assert_eq!(profile.keymap.halos.len(), 1);
+}
+
+#[test]
+fn content_over_32_kib_is_still_too_large() {
+    // 去掉空白后仍超过 32 KiB：照旧拒绝（先于版本与结构检查）。
+    let padding = "a".repeat(32 * 1024);
+    let compact = format!(r#"{{"version":6,"controls":[],"x":"{padding}"}}"#);
     assert_eq!(
-        HostKeymap::from_json(&vec![b' '; 32 * 1024 + 1]),
+        HostKeymap::from_json(compact.as_bytes()),
         Err(Error::TooLarge)
     );
+    let profile = format!(r#"{{"id":"x","version":2,"name":"x","x":"{padding}"}}"#);
+    assert_eq!(
+        HostProfile::from_json(profile.as_bytes()),
+        Err(Error::TooLarge)
+    );
+}
+
+#[test]
+fn huge_file_is_rejected_before_parsing() {
+    // 文件本身超过 1 MiB：不解析，直接拒绝。
+    let huge = vec![b' '; 1024 * 1024 + 1];
+    assert_eq!(HostKeymap::from_json(&huge), Err(Error::TooLarge));
+    assert_eq!(HostProfile::from_json(&huge), Err(Error::TooLarge));
 }
 
 #[test]

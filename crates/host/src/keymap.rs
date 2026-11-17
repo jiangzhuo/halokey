@@ -153,8 +153,10 @@ pub struct HostKeymap {
 }
 
 impl HostKeymap {
-    /// JSON 大小上限。
+    /// 内容大小上限：按紧凑写出的 JSON 算，缩进、换行等空白不计。
     pub const MAX_JSON_BYTES: usize = 32 * 1024;
+    /// 文件大小上限：超过就不解析。保存时写的是带缩进的格式，层级多时文件比内容大好几倍。
+    pub const MAX_FILE_BYTES: usize = 1024 * 1024;
 
     /// 六个控件各一个单键动作，默认时序。
     pub fn new(controls: Vec<ControlActionMap>) -> HostKeymap {
@@ -441,11 +443,7 @@ impl HostKeymap {
 
     /// 从 JSON 导入：先限制大小，再检查版本，再解码并校验。
     pub fn from_json(bytes: &[u8]) -> Result<HostKeymap, Error> {
-        if bytes.len() > Self::MAX_JSON_BYTES {
-            return Err(Error::TooLarge);
-        }
-        let value: serde_json::Value = serde_json::from_slice(bytes)?;
-        HostKeymap::from_value(value)
+        HostKeymap::from_value(parse_size_limited(bytes)?)
     }
 
     fn from_value(value: serde_json::Value) -> Result<HostKeymap, Error> {
@@ -498,6 +496,20 @@ impl HostKeymap {
         self.validate()?;
         Ok(serde_json::to_vec(&Wire::from(self.clone()))?)
     }
+}
+
+/// 解析键位或配置 JSON 并限制大小：文件超过 [`HostKeymap::MAX_FILE_BYTES`] 不解析；
+/// 内容超过 [`HostKeymap::MAX_JSON_BYTES`] 拒绝。内容按紧凑写出算，这样同一份内容
+/// 不论存成紧凑还是带缩进的格式，结果都一样。
+pub(crate) fn parse_size_limited(bytes: &[u8]) -> Result<serde_json::Value, Error> {
+    if bytes.len() > HostKeymap::MAX_FILE_BYTES {
+        return Err(Error::TooLarge);
+    }
+    let value: serde_json::Value = serde_json::from_slice(bytes)?;
+    if serde_json::to_vec(&value)?.len() > HostKeymap::MAX_JSON_BYTES {
+        return Err(Error::TooLarge);
+    }
+    Ok(value)
 }
 
 #[derive(Serialize, Deserialize)]
