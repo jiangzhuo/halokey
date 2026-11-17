@@ -416,11 +416,12 @@ fn backup_unreadable_keymap(path: &Path) -> Result<PathBuf, String> {
             0 => format!("{name}.unreadable-{secs}"),
             n => format!("{name}.unreadable-{secs}-{n}"),
         });
-        match std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&backup)
-        {
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        // 备份只给自己读：原文件可能设过只有自己能读，别让备份比它更开放。
+        #[cfg(unix)]
+        std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+        match options.open(&backup) {
             Ok(mut file) => {
                 use std::io::Write;
                 file.write_all(&bytes).map_err(fail)?;
@@ -1815,6 +1816,23 @@ mod tests {
         let error = broken.1.expect("读不了时要给界面报错");
         assert!(error.contains(&path.display().to_string()), "{error}");
         assert!(good == (Some(map), None));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unreadable_keymap_backup_is_private() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = scratch_dir("keymap-backup-mode");
+        let path = dir.join("keymap.json");
+        std::fs::write(&path, b"{ not json").unwrap();
+        super::write_keymap_file(&path, &super::HostKeymap::default_keymap()).unwrap();
+        let others = other_files(&dir);
+        let mode = std::fs::metadata(dir.join(&others[0]))
+            .unwrap()
+            .permissions()
+            .mode();
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(mode & 0o077, 0, "备份文件权限是 {mode:o}，别人也能读");
     }
 
     #[test]

@@ -5,7 +5,7 @@
 
 HaloKey 只保存一个 JSON 文件，Linux 上在 `~/.config/halokey/keymap.json`。设置窗口编辑它；`halokey run --config` 和 `halokey export-keymap` 用同一种结构。结构源自 olanzi 的 `HostKeymap`，但文件是 HaloKey 自己的：版本固定为 6，不接受 olanzi 的文件。
 
-大小：内容最多 32 KiB，按紧凑 JSON 计算（缩进等空白不计）；文件超过 1 MiB 就不读。设置窗口写出的是带缩进的格式，替换文件前会先确认要写的字节能读回来。启动时读不了这个文件，HaloKey 改用设备里存的键位，并在设置窗口里显示错误；文件保持原样，下次保存时先把它复制成 `keymap.json.unreadable-<Unix 秒数>`。
+大小：内容最多 32 KiB，按紧凑 JSON 计算（缩进等空白不计）；文件超过 1 MiB 直接拒绝，不做解析。设置窗口写出的是带缩进的格式，替换文件前会先确认要写的字节能读回来。启动时读不了这个文件，HaloKey 改用设备里存的键位，并在设置窗口里显示错误；文件保持原样，下次保存时先把它复制成 `keymap.json.unreadable-<Unix 秒数>`（Linux 和 macOS 上只有你自己能读）。
 
 ---
 

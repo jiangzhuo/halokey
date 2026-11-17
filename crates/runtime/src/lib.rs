@@ -227,6 +227,14 @@ fn initial_snapshot(config: &Config) -> Snapshot {
     }
 }
 
+/// 新键位已装上：写进快照；启动时的键位文件错误已不成立，还在显示就清掉。
+fn keymap_installed(snapshot: &mut Snapshot, map: HostKeymap, startup_error: Option<&str>) {
+    snapshot.keymap = Some(map);
+    if let Some(text) = startup_error {
+        clear_error_if(snapshot, text);
+    }
+}
+
 /// `last_error` 仍是 `text` 时才清掉；之后又出了别的错就保留那条。
 fn clear_error_if(snapshot: &mut Snapshot, text: &str) {
     if snapshot.last_error.as_deref() == Some(text) {
@@ -564,7 +572,8 @@ impl Worker {
                 ));
             }
         }
-        self.update(|s| s.keymap = Some(map));
+        let startup_error = self.config.startup_error.clone();
+        self.update(|s| keymap_installed(s, map, startup_error.as_deref()));
         self.refresh_layers();
     }
 
@@ -1521,6 +1530,24 @@ mod tests {
             initial_snapshot(&config).last_error.as_deref(),
             Some("键位文件读不了")
         );
+    }
+
+    #[test]
+    fn installing_a_keymap_clears_only_the_startup_error() {
+        // 保存成功后，"启动时读不了键位文件"已经不成立，要清掉；之后出的别的错保留。
+        let mut s = Snapshot {
+            last_error: Some("键位文件读不了".into()),
+            ..Snapshot::default()
+        };
+        keymap_installed(&mut s, HostKeymap::default_keymap(), Some("键位文件读不了"));
+        assert_eq!(s.last_error, None);
+        assert_eq!(s.keymap, Some(HostKeymap::default_keymap()));
+        let mut s = Snapshot {
+            last_error: Some("接收器断开".into()),
+            ..Snapshot::default()
+        };
+        keymap_installed(&mut s, HostKeymap::default_keymap(), Some("键位文件读不了"));
+        assert_eq!(s.last_error.as_deref(), Some("接收器断开"));
     }
 
     #[test]
