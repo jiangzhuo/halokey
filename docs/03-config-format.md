@@ -5,6 +5,8 @@
 
 HaloKey keeps one JSON file, `~/.config/halokey/keymap.json` on Linux. The settings window edits it; `halokey run --config` and `halokey export-keymap` use the same shape. The shape is derived from olanzi's `HostKeymap` but the file is HaloKey's own: version is always 6 and olanzi files are not accepted.
 
+Size: the content may be up to 32 KiB, counted as compact JSON (indentation and other whitespace do not count); a file larger than 1 MiB is rejected without being parsed. The settings window writes the file indented and checks that the exact bytes read back before it replaces the file. If the file cannot be read at startup, HaloKey uses the keys stored on the device and shows the error in the settings window; the file is left as it is, and the next save first copies it to `keymap.json.unreadable-<unix seconds>` (on Linux and macOS, readable only by you).
+
 ---
 
 ## 1. Top level

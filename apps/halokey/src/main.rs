@@ -294,13 +294,7 @@ fn save_keymap(state: State<'_, App>, keymap: serde_json::Value) -> Result<(), S
 fn spawn_service(app: &AppHandle) -> Service {
     let config_path = &app.state::<App>().config_path;
     let settings = load_settings(config_path);
-    let keymap = match load_keymap(config_path) {
-        Ok(map) => map,
-        Err(e) => {
-            eprintln!("配置读取失败，将使用设备表：{e}");
-            None
-        }
-    };
+    let (keymap, startup_error) = startup_keymap(config_path);
     let handle = app.clone();
     Service::spawn(
         Config {
@@ -310,10 +304,30 @@ fn spawn_service(app: &AppHandle) -> Service {
             idle_timeout: (settings.idle_minutes > 0)
                 .then(|| std::time::Duration::from_secs(settings.idle_minutes * 60)),
             halo_timeout: std::time::Duration::from_secs(settings.halo.timeout_seconds),
+            startup_error,
         },
         Backends::platform(),
         Box::new(move |event| forward(&handle, event)),
     )
+}
+
+/// 启动时读键位文件。读不了就用设备表，并返回给界面看的错误。
+fn startup_keymap(path: &Path) -> (Option<HostKeymap>, Option<String>) {
+    match load_keymap(path) {
+        Ok(map) => (map, None),
+        Err(e) => {
+            eprintln!("配置读取失败，将使用设备表：{e}");
+            let path = path.display();
+            (
+                None,
+                Some(tr!(
+                    "启动时读不了键位文件 {path}：{e}。现在用的是设备里的键位；原文件没动，在键位页保存时会先把它备份。",
+                    "Could not read the keymap file {path} at startup: {e}. HaloKey is using the keys stored on the device; the file is untouched and will be backed up before you save on the Keymap page.",
+                    "起動時にキーマップファイル {path} を読み込めませんでした：{e}。いまはデバイスに保存されたキーを使っています。元のファイルはそのままで、キーマップ画面で保存するときに先にバックアップします。"
+                )),
+            )
+        }
+    }
 }
 
 /// 取出并停掉设备线程（松开按住的键、把控制交还设备）。会等线程结束。
@@ -338,10 +352,6 @@ fn quit_app(app: &AppHandle) {
 /// 把一份已校验的键位写到配置文件（归一化 JSON，版本号由内容决定）并下发运行时；
 /// 保存、导入、载入默认、从设备生成都走这里。
 fn install_keymap(state: &App, map: HostKeymap) -> Result<serde_json::Value, String> {
-    let normalized: serde_json::Value =
-        serde_json::from_slice(&map.to_json().map_err(|e| e.to_string())?)
-            .map_err(|e| e.to_string())?;
-    let pretty = serde_json::to_vec_pretty(&normalized).map_err(|e| e.to_string())?;
     // 先确认服务还在，再落盘，尽量不出现"文件换了、运行时没换"的半失败。
     let guard = state.service.lock().map_err(|e| e.to_string())?;
     let service = guard.as_ref().ok_or_else(|| {
@@ -351,21 +361,78 @@ fn install_keymap(state: &App, map: HostKeymap) -> Result<serde_json::Value, Str
             "デバイスサービスが動いていないため、ファイルは変更していません"
         )
     })?;
-    if let Some(dir) = state.config_path.parent() {
+    let normalized = write_keymap_file(&state.config_path, &map)?;
+    if !service.send(Command::SetKeymap(map)) {
+        return Err(tr!("文件已替换，但设备线程已退出；重启 HaloKey 后生效", "The file was replaced, but the device thread has stopped; restart HaloKey to apply it", "ファイルは置き換えましたが、デバイスのスレッドが停止しています。HaloKey を再起動すると反映されます"));
+    }
+    Ok(normalized)
+}
+
+/// 把键位写成配置文件（归一化后带缩进的 JSON），返回归一化的内容。
+/// 写之前先把要写的字节按读文件的规则解析一遍，读不回来就不写；原文件读不了时先备份再覆盖。
+fn write_keymap_file(path: &Path, map: &HostKeymap) -> Result<serde_json::Value, String> {
+    let normalized: serde_json::Value =
+        serde_json::from_slice(&map.to_json().map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+    let pretty = serde_json::to_vec_pretty(&normalized).map_err(|e| e.to_string())?;
+    HostKeymap::from_json(&pretty).map_err(|e| e.to_string())?;
+    if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
-    std::fs::write(&state.config_path, pretty).map_err(|e| {
-        let path = state.config_path.display();
+    if load_keymap(path).is_err() {
+        backup_unreadable_keymap(path)?;
+    }
+    std::fs::write(path, pretty).map_err(|e| {
+        let path = path.display();
         tr!(
             "写入 {path} 失败：{e}",
             "Could not write {path}: {e}",
             "{path} に書き込めませんでした：{e}"
         )
     })?;
-    if !service.send(Command::SetKeymap(map)) {
-        return Err(tr!("文件已替换，但设备线程已退出；重启 HaloKey 后生效", "The file was replaced, but the device thread has stopped; restart HaloKey to apply it", "ファイルは置き換えましたが、デバイスのスレッドが停止しています。HaloKey を再起動すると反映されます"));
-    }
     Ok(normalized)
+}
+
+/// 把读不了的键位文件复制成 `keymap.json.unreadable-<秒>`（重名时加序号），返回备份路径。
+/// 复制失败就报错，调用方不再覆盖原文件。
+fn backup_unreadable_keymap(path: &Path) -> Result<PathBuf, String> {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    let name = path
+        .file_name()
+        .map_or_else(|| "keymap.json".into(), |n| n.to_string_lossy());
+    let fail = |e: std::io::Error| {
+        let path = path.display();
+        tr!(
+            "{path} 读不了，备份它失败，没有覆盖：{e}",
+            "{path} could not be read and backing it up failed, so it was not overwritten: {e}",
+            "{path} を読み込めず、バックアップにも失敗したため上書きしていません：{e}"
+        )
+    };
+    let bytes = std::fs::read(path).map_err(fail)?;
+    for n in 0u32.. {
+        let backup = path.with_file_name(match n {
+            0 => format!("{name}.unreadable-{secs}"),
+            n => format!("{name}.unreadable-{secs}-{n}"),
+        });
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        // 备份只给自己读：原文件可能设过只有自己能读，别让备份比它更开放。
+        #[cfg(unix)]
+        std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+        match options.open(&backup) {
+            Ok(mut file) => {
+                use std::io::Write;
+                file.write_all(&bytes).map_err(fail)?;
+                eprintln!("[halokey] 读不了的键位文件已备份到 {}", backup.display());
+                return Ok(backup);
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(fail(e)),
+        }
+    }
+    unreachable!("备份文件名用尽")
 }
 
 /// 导入键位文件：对话框选 JSON → Rust 校验 → 替换配置文件并下发。取消返回 `None`。
@@ -1620,5 +1687,162 @@ mod tests {
         );
         assert_eq!(up["windows"]["installMode"], "passive");
         assert!(up["pubkey"].as_str().is_some_and(|k| k.len() > 40));
+    }
+
+    /// 每个测试一个空的临时目录。
+    fn scratch_dir(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "halokey-{tag}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// 2026-11 一台 Linux 上的真实键位文件：带缩进 34 KB，内容 8.6 KB。
+    const PRETTY_34K: &[u8] =
+        include_bytes!("../../../crates/host/tests/fixtures/keymap-pretty-34k.json");
+
+    fn fixture_keymap() -> super::HostKeymap {
+        // 先压成紧凑格式再解析，这样夹具本身不受文件大小检查影响。
+        let value: serde_json::Value = serde_json::from_slice(PRETTY_34K).unwrap();
+        super::HostKeymap::from_json(&serde_json::to_vec(&value).unwrap()).unwrap()
+    }
+
+    fn other_files(dir: &std::path::Path) -> Vec<String> {
+        let mut names: Vec<String> = std::fs::read_dir(dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|n| n != "keymap.json")
+            .collect();
+        names.sort();
+        names
+    }
+
+    #[test]
+    fn saved_keymap_loads_after_restart() {
+        // 保存写出的文件，下次启动必须能原样读回来；带缩进后超过 32 KiB 也一样。
+        let dir = scratch_dir("keymap-reload");
+        let path = dir.join("keymap.json");
+        let map = fixture_keymap();
+        super::write_keymap_file(&path, &map).unwrap();
+        let size = std::fs::metadata(&path).unwrap().len();
+        let loaded = super::load_keymap(&path);
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert!(
+            size > 32 * 1024,
+            "写出的文件只有 {size} 字节，测不到缩进的问题"
+        );
+        let loaded = loaded.expect("下次启动应当能读回刚保存的键位");
+        assert!(loaded == Some(map), "读回的键位与保存的不一致");
+    }
+
+    /// 两个各 32 步、每步 24 个键的宏：通过校验，但紧凑写出也超过 32 KiB。
+    fn oversized_keymap() -> super::HostKeymap {
+        use halokey_host::{KeyEntry, MacroStep, NamedHostAction};
+        let step = MacroStep::Keyboard((4..28).map(KeyEntry::new).collect());
+        let mut map = super::HostKeymap::default_keymap();
+        for slot in 0..2u8 {
+            map.action_library.push(NamedHostAction {
+                id: format!("00000000-0000-4000-8000-{slot:012}"),
+                name: format!("宏 {slot}"),
+                slot,
+                action: super::HostAction::Macro(vec![step.clone(); 32]),
+            });
+        }
+        assert!(map.to_json().unwrap().len() > 32 * 1024);
+        map
+    }
+
+    #[test]
+    fn keymap_that_could_not_be_read_back_is_not_written() {
+        // 写出去下次启动读不回来的内容：报错，原文件不动。
+        let dir = scratch_dir("keymap-oversized");
+        let path = dir.join("keymap.json");
+        super::write_keymap_file(&path, &fixture_keymap()).unwrap();
+        let before = std::fs::read(&path).unwrap();
+        let result = super::write_keymap_file(&path, &oversized_keymap());
+        let after = std::fs::read(&path).unwrap();
+        let others = other_files(&dir);
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert!(result.is_err(), "超过上限的键位不应写出");
+        assert!(after == before, "原文件被改动了");
+        assert!(others.is_empty(), "留下了多余的文件：{others:?}");
+    }
+
+    #[test]
+    fn overwriting_an_unreadable_keymap_keeps_a_backup() {
+        // 原文件读不了（软件启动时改用了设备键位）：保存前先把它备份，不能直接覆盖掉。
+        let dir = scratch_dir("keymap-backup");
+        let path = dir.join("keymap.json");
+        std::fs::write(&path, b"{ not json").unwrap();
+        let map = super::HostKeymap::default_keymap();
+        super::write_keymap_file(&path, &map).unwrap();
+        let others = other_files(&dir);
+        let backups: Vec<Vec<u8>> = others
+            .iter()
+            .map(|n| std::fs::read(dir.join(n)).unwrap())
+            .collect();
+        let loaded = super::load_keymap(&path);
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(others.len(), 1, "{others:?}");
+        assert!(
+            others[0].starts_with("keymap.json.unreadable-"),
+            "{others:?}"
+        );
+        assert_eq!(backups[0], b"{ not json");
+        assert!(loaded == Ok(Some(map)), "新文件读不回来");
+    }
+
+    #[test]
+    fn unreadable_keymap_at_startup_is_reported() {
+        // 启动时读不了键位文件：改用设备表，同时给界面一条带路径的错误，而不是只写日志。
+        let dir = scratch_dir("keymap-startup");
+        let path = dir.join("keymap.json");
+        let missing = super::startup_keymap(&path);
+        std::fs::write(&path, b"{ not json").unwrap();
+        let broken = super::startup_keymap(&path);
+        let map = super::HostKeymap::default_keymap();
+        super::write_keymap_file(&path, &map).unwrap();
+        let good = super::startup_keymap(&path);
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert!(missing == (None, None), "没有文件不算错误");
+        assert!(broken.0.is_none());
+        let error = broken.1.expect("读不了时要给界面报错");
+        assert!(error.contains(&path.display().to_string()), "{error}");
+        assert!(good == (Some(map), None));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unreadable_keymap_backup_is_private() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = scratch_dir("keymap-backup-mode");
+        let path = dir.join("keymap.json");
+        std::fs::write(&path, b"{ not json").unwrap();
+        super::write_keymap_file(&path, &super::HostKeymap::default_keymap()).unwrap();
+        let others = other_files(&dir);
+        let mode = std::fs::metadata(dir.join(&others[0]))
+            .unwrap()
+            .permissions()
+            .mode();
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(mode & 0o077, 0, "备份文件权限是 {mode:o}，别人也能读");
+    }
+
+    #[test]
+    fn overwriting_a_readable_keymap_leaves_no_backup() {
+        let dir = scratch_dir("keymap-overwrite");
+        let path = dir.join("keymap.json");
+        super::write_keymap_file(&path, &fixture_keymap()).unwrap();
+        super::write_keymap_file(&path, &super::HostKeymap::default_keymap()).unwrap();
+        let others = other_files(&dir);
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert!(others.is_empty(), "{others:?}");
     }
 }
